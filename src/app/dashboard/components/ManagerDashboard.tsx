@@ -17,7 +17,6 @@ interface ComplianceAlert {
   target: string
   date: string
 }
-
 export default function ManagerDashboard({ user, setNotification }: { 
   user: any, setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
 }) {

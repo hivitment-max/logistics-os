@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
-
 export default function DriverDashboard({ user, setNotification }: { 
   user: any, setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
 }) {

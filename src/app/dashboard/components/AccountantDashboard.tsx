@@ -14,28 +14,6 @@ type TabType = 'overview' | 'invoices' | 'expenses' | 'payroll' | 'reports' | 's
 type ModalType = 'invoice' | 'expense' | 'payroll' | null
 type Currency = 'GEL' | 'USD' | 'EUR'
 
-interface StatCardProps {
-  title: string
-  value: string
-  sub?: string
-  color: string
-  icon?: string
-}
-
-function StatCard({ title, value, sub, color, icon }: StatCardProps) {
-  return (
-    <div className={`${color} p-6 rounded-xl shadow-lg relative overflow-hidden`}>
-      <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8"></div>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-white/80 text-sm font-medium">{title}</p>
-        {icon && <span className="text-2xl">{icon}</span>}
-      </div>
-      <p className="text-3xl font-bold text-white">{value}</p>
-      {sub && <p className="text-white/60 text-xs mt-2">{sub}</p>}
-    </div>
-  )
-}
-
 // ============================================================================
 // 💰 ACCOUNTANT DASHBOARD
 // ============================================================================
@@ -179,6 +157,20 @@ export default function AccountantDashboard({ user, setNotification }: {
     if (from === 'GEL') return amount / (exchangeRates as any)[currency]
     return amount * (exchangeRates as any)[from] / (exchangeRates as any)[currency]
   }
+
+  // 🧩 Helper Component: StatCard
+  const StatCard = ({ title, value, sub, color, icon }: any) => (
+    <div className={`${color} p-4 rounded-xl shadow-lg`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-white/80">{title}</p>
+          <p className="text-xl font-bold text-white mt-1">{value}</p>
+          <p className="text-xs text-white/60 mt-1">{sub}</p>
+        </div>
+        <span className="text-3xl">{icon}</span>
+      </div>
+    </div>
+  )
 
   if (loading) return <div className="text-center py-20 text-gray-400">🔄 ფინანსური მონაცემები იტვირთება...</div>
 

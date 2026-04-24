@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 
-// კომპონენტების იმპორტი
 import AdminDashboard from './components/AdminDashboard'
 import ManagerDashboard from './components/ManagerDashboard'
 import AccountantDashboard from './components/AccountantDashboard'
@@ -29,24 +28,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isCancelled = false
-
     const init = async () => {
       try {
         const { data: { session }, error: authError } = await supabase.auth.getSession()
-        
         if (isCancelled) return
         if (authError || !session) { router.push('/login'); return }
-        
         setUser(session.user)
         const userRole = (session.user.user_metadata?.role || 'client') as Role
         setRole(userRole)
-        
       } catch (err: any) {
         console.error('Init error:', err.message)
         if (!isCancelled) setRole('client')
       }
     }
-
     init()
     return () => { isCancelled = true }
   }, [router])
@@ -61,7 +55,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* 🔔 Notifications */}
       {notification && (
         <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium transition-all ${
           notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
@@ -70,10 +63,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ✅ აქ წაშლილია ძველი <header> ბლოკი. 
-          ახლა თითოეული დეშბორდი (მაგ. AdminDashboard) მთლიან ეკრანს დაიკავებს. */}
       <main className="w-full h-full">
-        {role === 'admin' && <AdminDashboard user={user} setNotification={setNotification} />}
+        {role === 'admin' && <AdminDashboard />}
         {role === 'manager' && <ManagerDashboard user={user} setNotification={setNotification} />}
         {role === 'accountant' && <AccountantDashboard user={user} setNotification={setNotification} />}
         {role === 'dispatcher' && <DispatcherDashboard user={user} setNotification={setNotification} />}

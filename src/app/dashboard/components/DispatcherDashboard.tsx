@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import FleetManagement from './FleetManagement'
-
 export default function DispatcherDashboard({ user, setNotification }: { 
   user: any, setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
 }) {
