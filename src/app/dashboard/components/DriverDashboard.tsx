@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
-export default function DriverDashboard({ user, setNotification }: { 
-  user: any, setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
-}) {
+
+// ✅ განახლებული: წაშლილია პროპსები
+export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<'tasks' | 'chat' | 'expenses'>('tasks')
   const [driver, setDriver] = useState<any>(null)
   const [currentVehicle, setCurrentVehicle] = useState<any>(null)
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // 🔔 ლოკალური ნოტიფიკაციის სტეიტი
+  const [localNotification, setLocalNotification] = useState<string | null>(null)
   
   // მოდალები & ფორმები
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
@@ -22,9 +25,15 @@ export default function DriverDashboard({ user, setNotification }: {
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatInput, setChatInput] = useState('')
 
+  // 🔔 ნოტიფიკაციის ფუნქცია
+  const showNotification = useCallback((msg: string) => {
+    setLocalNotification(msg)
+    setTimeout(() => setLocalNotification(null), 3000)
+  }, [])
+
   // 📡 მონაცემების ჩატვირთვა
   useEffect(() => {
-    if (!user?.id) return
+    if (!driver?.id) return
     const loadData = async () => {
       setLoading(true)
       try {
@@ -32,7 +41,7 @@ export default function DriverDashboard({ user, setNotification }: {
         const { data: drv, error: drvErr } = await supabase
           .from('drivers')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', driver.id)
           .single()
         if (drvErr || !drv) throw new Error('მძღოლის პროფილი ვერ მოიძებნა')
         setDriver(drv)
@@ -51,17 +60,18 @@ export default function DriverDashboard({ user, setNotification }: {
         setOrders(ordersData || [])
 
         // 3. მიმდინარე მანქანა (აქტიური რეისიდან ან ბოლო მინიჭებიდან)
-        const activeOrder = ordersData?.find(o => o.status === 'in_transit') || ordersData?.[0]
+        const activeOrder = ordersData?.find((o: any) => o.status === 'in_transit') || ordersData?.[0]
         if (activeOrder?.vehicles) setCurrentVehicle(activeOrder.vehicles)
         
       } catch (err: any) {
-        setNotification({ type: 'error', message: `❌ ${err.message}` })
+        // ✅ განახლებული: გამოყენებულია ლოკალური ნოტიფიკაცია
+        showNotification(`❌ ${err.message}`)
       } finally {
         setLoading(false)
       }
     }
     loadData()
-  }, [user?.id])
+  }, [driver?.id])
 
   // 🚦 სტატუსის განახლება
   const updateStatus = async (orderId: string, newStatus: string, notes = '') => {
@@ -71,7 +81,8 @@ export default function DriverDashboard({ user, setNotification }: {
         order_id: orderId, event_type: newStatus, location_name: 'მძღოლი',
         notes: notes || `სტატუსი: ${newStatus}`
       })
-      setNotification({ type: 'success', message: `✅ სტატუსი განახლდა: ${newStatus}` })
+      // ✅ განახლებული
+      showNotification(`✅ სტატუსი განახლდა: ${newStatus}`)
       // რეფრეში
       const ordersResponse = await supabase.from('orders').select(`*, vehicles(plate_number, model, type, capacity_kg, next_maintenance, insurance_expiry, status)`).eq('driver_id', driver.id).in('status', ['pending', 'in_transit']).order('created_at', { ascending: false })
       setOrders(ordersResponse.data || [])
@@ -81,7 +92,8 @@ export default function DriverDashboard({ user, setNotification }: {
       setShowPhotoModal(false)
       setSelectedOrder(null)
     } catch (err: any) {
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული
+      showNotification(`❌ ${err.message}`)
     }
   }
 
@@ -93,9 +105,11 @@ export default function DriverDashboard({ user, setNotification }: {
         order_id: selectedOrder.id, event_type: 'sos', location_name: 'მძღოლი',
         notes: '🚨 SOS გამოძახება! გადაუდებელი დახმარება საჭიროა.'
       })
-      setNotification({ type: 'error', message: '🚨 SOS გაგზავნილია! დისპეტჩერი მალე დაგიკავშირდებათ.' })
+      // ✅ განახლებული
+      showNotification('🚨 SOS გაგზავნილია! დისპეტჩერი მალე დაგიკავშირდებათ.')
     } catch (err: any) {
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული
+      showNotification(`❌ ${err.message}`)
     }
   }
 
@@ -119,7 +133,8 @@ export default function DriverDashboard({ user, setNotification }: {
       status: expenseForm.isAdvance ? 'ავანსის მოთხოვნა' : 'ლოდინში'
     }
     // სიმულაცია: რეალურად აქ უნდა იყოს supabase.from('driver_expenses').insert(...)
-    setNotification({ type: 'success', message: '✅ ხარჯი/ავანსი ჩაიწერა!' })
+    // ✅ განახლებული
+    showNotification('✅ ხარჯი/ავანსი ჩაიწერა!')
     setShowExpenseModal(false)
     setExpenseForm({ amount: '', category: 'საწვავი', description: '', isAdvance: false })
   }
@@ -135,6 +150,13 @@ export default function DriverDashboard({ user, setNotification }: {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-6">
+      {/* 🔔 ნოტიფიკაცია */}
+      {localNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg shadow-xl text-xs animate-pulse">
+          {localNotification}
+        </div>
+      )}
+
       {/* 🏠 Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-700">
         <div>

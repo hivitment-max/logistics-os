@@ -3,20 +3,19 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import LoadingTruck from '@/app/dashboard/components/ui/LoadingTruck' // 🚛 ანიმაციის იმპორტი
+import LoadingTruck from '@/app/dashboard/components/ui/LoadingTruck'
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [role, setRole] = useState('client')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
 
-  // 🔐 LOGIN ფუნქცია
+  // 🔐 LOGIN ფუნქცია - ✅ განახლებული ლოადერის ლოგიკით
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -39,20 +38,22 @@ export default function LoginPage() {
       localStorage.setItem('userRole', userRole)
       console.log('🎭 [Login] Role saved:', userRole)
 
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      router.push('/dashboard')
-      router.refresh()
+      // ✅ რედირექტი პანელზე
+      await router.push('/dashboard')
+      await router.refresh()
+      
+      // ❗ აქ აღარ ვაპირებთ setLoading(false)-ს, რადგან რედირექტი ხდება
+      // თუ რაიმე მიზეზით რედირექტი ვერ მოხდა, კომპონენტი მაინც გადაიტვირთება
       
     } catch (err: any) {
       console.error('❌ [Login] Error:', err.message)
       setError(err.message || 'Login failed')
-    } finally {
-      setLoading(false)
+      setLoading(false) // ❗ მხოლოდ შეცდომის შემთხვევაში ვრთავთ ლოადერს
     }
+    // ❗ finally ბლოკი წაშლილია - აღარ ვრთავთ loading-ს ავტომატურად
   }
 
-  // 📝 REGISTER ფუნქცია
+  // 📝 REGISTER ფუნქცია - ✅ განახლებული: ავტომატური 'client' როლი
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -66,10 +67,11 @@ export default function LoginPage() {
     }
 
     try {
+      // ✅ ავტომატურად ვუნიშნავთ როლს 'client' - რათა მოხვდეს სწორ პანელში
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { role: role } }
+        options: { data: { role: 'client' } } // ❗ შეიცვალა: 'user' → 'client'
       })
 
       if (error) throw error
@@ -89,7 +91,7 @@ export default function LoginPage() {
     }
   }
 
-  // 🚛 თუ იტვირთება, ვაჩვენებთ ანიმაციას (მთლიან ეკრანზე)
+  // 🚛 თუ იტვირთება, ვაჩვენებთ ანიმაციას
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
@@ -103,7 +105,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* მარცხენა მხარე - ბრენდინგი */}
+      {/* მარცხენა მხარე - ბრენდინგი (უცვლელი) */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 opacity-10 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
@@ -235,7 +237,7 @@ export default function LoginPage() {
               </form>
             )}
 
-            {/* REGISTER FORM */}
+            {/* REGISTER FORM - ✅ განახლებული: ავტომატური 'client' როლი */}
             {activeTab === 'register' && (
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
@@ -271,19 +273,13 @@ export default function LoginPage() {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Select Role</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none bg-white hover:border-gray-400"
-                  >
-                    <option value="client">👤 Client</option>
-                    <option value="driver">🚛 Driver</option>
-                    <option value="dispatcher">📋 Dispatcher</option>
-                    <option value="admin">👑 Admin</option>
-                  </select>
+                
+                {/* ✅ ინფო ბლოგი: განახლებული ტექსტი */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-xs flex items-start gap-2">
+                  <span>ℹ️</span>
+                  <span>ახალი ანგარიში ავტომატურად მიიღებს <strong>"client"</strong> როლს და მოხვდება კლიენტის პანელში.</span>
                 </div>
+
                 {error && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">⚠️ {error}</div>
                 )}

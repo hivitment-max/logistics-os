@@ -1,0 +1,1050 @@
+{
+  "duration": "0.09",
+  "totalChecks": 148,
+  "passed": [
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: package.json",
+      "file": "package.json",
+      "timestamp": "2026-04-26T16:44:57.154Z"
+    },
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: src/app/dashboard/components/AdminDashboard/hooks/useAdminData.ts",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useAdminData.ts",
+      "timestamp": "2026-04-26T16:44:57.161Z"
+    },
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: src/app/dashboard/components/AdminDashboard/hooks/useDrivers.ts",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useDrivers.ts",
+      "timestamp": "2026-04-26T16:44:57.162Z"
+    },
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: src/app/dashboard/components/AdminDashboard/hooks/useOrders.ts",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useOrders.ts",
+      "timestamp": "2026-04-26T16:44:57.163Z"
+    },
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: src/app/dashboard/components/AdminDashboard/hooks/useVehicles.ts",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useVehicles.ts",
+      "timestamp": "2026-04-26T16:44:57.163Z"
+    },
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: src/app/dashboard/components/AdminDashboard/index.tsx",
+      "file": "src/app/dashboard/components/AdminDashboard/index.tsx",
+      "timestamp": "2026-04-26T16:44:57.165Z"
+    },
+    {
+      "type": "pass",
+      "category": "filesystem",
+      "message": "კრიტიკული ფაილი: src/lib/supabase/client.ts",
+      "file": "src/lib/supabase/client.ts",
+      "timestamp": "2026-04-26T16:44:57.167Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: plate_number",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vin_number",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: tech_passport",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: pti_expiry",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: insurance_policy",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: insurance_cmre_policy",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: owner_name",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: owner_type",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: model",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: type",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: body_type",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: capacity_kg",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: volume_m3",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: length_m",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: width_m",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: height_m",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: adr_class",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: euro_standard",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: has_tail_lift",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: straps_count",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: gps_device_id",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: has_fuel_sensor",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: photo_urls",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: tire_season",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: tire_condition",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: status",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: year_manufactured",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: mileage",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: fuel_type",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: color",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: last_service_date",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: next_service_date",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: insurance_expiry",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: notes",
+      "file": "vehicles",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "vehicleForm სრულად სინქრონიზებულია vehicles-თან",
+      "file": "vehicleForm",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: employment_type",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: full_name",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: dob",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: personal_id",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: phone",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: email",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: address",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: license_number",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: license_category",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: license_expiry",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: license_photo",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: criminal_record",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: driving_record",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: medical_cert",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: total_experience_years",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: special_experience",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: has_adr",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: adr_cert",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: has_own_vehicle",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vehicle_reg",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vehicle_insp_expiry",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vehicle_insurance",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: bank_iban",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: tax_status",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: languages",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: references",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: uniform_size",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: photo_url",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: extra_skills",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: is_available",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: hire_date",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: daily_rate",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: emergency_contact",
+      "file": "drivers",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "driverForm სრულად სინქრონიზებულია drivers-თან",
+      "file": "driverForm",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: pickup_address",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: delivery_address",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: cargo_description",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: cargo_weight_kg",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: price",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: currency",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: client_name",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: client_email",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: client_address",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: notes",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: driver_type",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vehicle_type",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: driver_id",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: external_driver_id",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vehicle_id",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: external_vehicle_id",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: client_id",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: full_name",
+      "file": "private_clients",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: personal_id",
+      "file": "private_clients",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: phone",
+      "file": "private_clients",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: email",
+      "file": "private_clients",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: address",
+      "file": "private_clients",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: notes",
+      "file": "private_clients",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "privateClientForm სრულად სინქრონიზებულია private_clients-თან",
+      "file": "privateClientForm",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: name",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: registration_number",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: vat_number",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: contact_person",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: phone",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: email",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: legal_address",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "ველი შესაბამისობაშია: notes",
+      "file": "companies",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "pass",
+      "category": "schema",
+      "message": "companyForm სრულად სინქრონიზებულია companies-თან",
+      "file": "companyForm",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (6x)",
+      "file": "src/app/dashboard/client/page.tsx",
+      "timestamp": "2026-04-26T16:44:57.175Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/app/dashboard/client/tabs/ClientInvoicesTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.177Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (6x)",
+      "file": "src/app/dashboard/client/tabs/ClientOverviewTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.178Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/app/dashboard/client/tabs/MyOrdersTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.179Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/client/tabs/NewOrderTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.179Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/app/dashboard/client/tabs/NotificationsTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.180Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/client/tabs/ProfileTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.181Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/client/tabs/SettingsTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.182Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/app/dashboard/client/tabs/TrackingTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.183Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (7x)",
+      "file": "src/app/dashboard/components/AccountantDashboard.tsx",
+      "timestamp": "2026-04-26T16:44:57.186Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (4x)",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useDrivers.ts",
+      "timestamp": "2026-04-26T16:44:57.186Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (10x)",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useOrders.ts",
+      "timestamp": "2026-04-26T16:44:57.186Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/app/dashboard/components/AdminDashboard/hooks/useVehicles.ts",
+      "timestamp": "2026-04-26T16:44:57.187Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (166x)",
+      "file": "src/app/dashboard/components/AdminDashboard/index.tsx",
+      "timestamp": "2026-04-26T16:44:57.187Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (6x)",
+      "file": "src/app/dashboard/components/ClientDashboard.tsx",
+      "timestamp": "2026-04-26T16:44:57.190Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (10x)",
+      "file": "src/app/dashboard/components/DispatcherDashboard.tsx",
+      "timestamp": "2026-04-26T16:44:57.191Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (5x)",
+      "file": "src/app/dashboard/components/DriverDashboard.tsx",
+      "timestamp": "2026-04-26T16:44:57.192Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/components/FleetManagement.tsx",
+      "timestamp": "2026-04-26T16:44:57.194Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (7x)",
+      "file": "src/app/dashboard/components/ManagerDashboard.tsx",
+      "timestamp": "2026-04-26T16:44:57.195Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/components/OrderDetailsModal.tsx",
+      "timestamp": "2026-04-26T16:44:57.197Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (3x)",
+      "file": "src/app/dashboard/components/tabs/CompaniesTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.200Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (4x)",
+      "file": "src/app/dashboard/components/tabs/DriversTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.202Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (3x)",
+      "file": "src/app/dashboard/components/tabs/InvoicesTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.203Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (5x)",
+      "file": "src/app/dashboard/components/tabs/KpiTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.204Z"
+    },
+    {
+      "type": "warning",
+      "category": "style",
+      "message": "დროებითი კომენტარი/ფიქსი (1x)",
+      "file": "src/app/dashboard/components/tabs/KpiTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.205Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (4x)",
+      "file": "src/app/dashboard/components/tabs/OrdersTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.206Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (5x)",
+      "file": "src/app/dashboard/components/tabs/OverviewTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.208Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (3x)",
+      "file": "src/app/dashboard/components/tabs/PrivateClientsTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.209Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (8x)",
+      "file": "src/app/dashboard/components/tabs/UsersTab.diagnostic.tsx",
+      "timestamp": "2026-04-26T16:44:57.211Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (5x)",
+      "file": "src/app/dashboard/components/tabs/UsersTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.213Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (4x)",
+      "file": "src/app/dashboard/components/tabs/VehiclesTab.tsx",
+      "timestamp": "2026-04-26T16:44:57.218Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/components/templates/InvoiceRenderer.tsx",
+      "timestamp": "2026-04-26T16:44:57.219Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/components/templates/TemplateBuilder.tsx",
+      "timestamp": "2026-04-26T16:44:57.220Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (1x)",
+      "file": "src/app/dashboard/page.tsx",
+      "timestamp": "2026-04-26T16:44:57.223Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/app/login/page.tsx",
+      "timestamp": "2026-04-26T16:44:57.225Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (2x)",
+      "file": "src/lib/supabase/client.ts",
+      "timestamp": "2026-04-26T16:44:57.230Z"
+    },
+    {
+      "type": "warning",
+      "category": "typescript",
+      "message": "გამოყენებულია \"any\" ტიპი (სასურველია ინტერფეისი) (3x)",
+      "file": "src/scripts/diagnose-users.ts",
+      "timestamp": "2026-04-26T16:44:57.232Z"
+    },
+    {
+      "type": "warning",
+      "category": "schema",
+      "message": "ბაზის ველი აკლია UI ფორმას: tracking_code",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    },
+    {
+      "type": "warning",
+      "category": "schema",
+      "message": "ბაზის ველი აკლია UI ფორმას: status",
+      "file": "orders",
+      "timestamp": "2026-04-26T16:44:57.236Z"
+    }
+  ],
+  "errors": [],
+  "schemaIssues": [],
+  "score": 95,
+  "filesScanned": 58,
+  "linesAnalyzed": 1076,
+  "health": "🟢 Excellent"
+}

@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import FleetManagement from './FleetManagement'
-export default function DispatcherDashboard({ user, setNotification }: { 
-  user: any, setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
-}) {
+
+// ✅ განახლებული: წაშლილია პროპსები
+export default function DispatcherDashboard() {
   const [activeTab, setActiveTab] = useState<'orders' | 'route' | 'live' | 'chat' | 'docs' | 'fleet'>('orders')
   const [orders, setOrders] = useState<any[]>([])
   const [drivers, setDrivers] = useState<any[]>([])
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // 🔔 ლოკალური ნოტიფიკაციის სტეიტი
+  const [localNotification, setLocalNotification] = useState<string | null>(null)
   
   // ფილტრები
   const [filters, setFilters] = useState({ status: '', search: '' })
@@ -24,6 +27,12 @@ export default function DispatcherDashboard({ user, setNotification }: {
   const [orderForm, setOrderForm] = useState<any>({ stops: [{ address: '' }] })
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatInput, setChatInput] = useState('')
+
+  // 🔔 ნოტიფიკაციის ფუნქცია
+  const showNotification = useCallback((msg: string) => {
+    setLocalNotification(msg)
+    setTimeout(() => setLocalNotification(null), 3000)
+  }, [])
 
   // 📊 მონაცემების ჩატვირთვა
   useEffect(() => { fetchData() }, [])
@@ -40,7 +49,8 @@ export default function DispatcherDashboard({ user, setNotification }: {
       if (driversRes.data) setDrivers(driversRes.data)
       if (vehiclesRes.data) setVehicles(vehiclesRes.data)
     } catch (err: any) {
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული: გამოყენებულია ლოკალური ნოტიფიკაცია
+      showNotification(`❌ ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -71,12 +81,14 @@ export default function DispatcherDashboard({ user, setNotification }: {
         delivery_address: orderForm.stops[orderForm.stops.length - 1]?.address || ''
       }])
       if (error) throw error
-      setNotification({ type: 'success', message: '✅ შეკვეთა შეიქმნა!' })
+      // ✅ განახლებული
+      showNotification('✅ შეკვეთა შეიქმნა!')
       setShowOrderModal(false)
       setOrderForm({ stops: [{ address: '' }] })
       fetchData()
     } catch (err: any) {
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული
+      showNotification(`❌ ${err.message}`)
     }
   }
 
@@ -88,7 +100,8 @@ export default function DispatcherDashboard({ user, setNotification }: {
     if (auto) {
       const available = drivers.find(d => d.is_available)
       if (!available) {
-        setNotification({ type: 'error', message: '❌ თავისუფალი მძღოლი არ არის!' })
+        // ✅ განახლებული
+        showNotification('❌ თავისუფალი მძღოლი არ არის!')
         return
       }
       driverId = available.id
@@ -109,12 +122,14 @@ export default function DispatcherDashboard({ user, setNotification }: {
         notes: driverId ? `მინიჭებული: ${drivers.find(d => d.id === driverId)?.full_name}` : 'მინიჭება მოხსნილი'
       })
 
-      setNotification({ type: 'success', message: '✅ მინიჭება წარმატებულია!' })
+      // ✅ განახლებული
+      showNotification('✅ მინიჭება წარმატებულია!')
       setShowAssignModal(false)
       setSelectedOrder(null)
       fetchData()
     } catch (err: any) {
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული
+      showNotification(`❌ ${err.message}`)
     }
   }
 
@@ -123,10 +138,12 @@ export default function DispatcherDashboard({ user, setNotification }: {
     try {
       await supabase.from('orders').update({ status }).eq('id', id)
       await supabase.from('tracking_events').insert({ order_id: id, event_type: status, location_name: 'დისპეტჩერი', notes: `სტატუსი: ${status}` })
-      setNotification({ type: 'success', message: `✅ სტატუსი: ${status}` })
+      // ✅ განახლებული
+      showNotification(`✅ სტატუსი: ${status}`)
       fetchData()
     } catch (err: any) {
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული
+      showNotification(`❌ ${err.message}`)
     }
   }
 
@@ -170,6 +187,13 @@ export default function DispatcherDashboard({ user, setNotification }: {
 
   return (
     <div className="space-y-6">
+      {/* 🔔 ნოტიფიკაცია */}
+      {localNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg shadow-xl text-xs animate-pulse">
+          {localNotification}
+        </div>
+      )}
+
       {/* 🏠 Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -271,7 +295,7 @@ export default function DispatcherDashboard({ user, setNotification }: {
             </div>
             <div className="bg-gray-700/50 p-4 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-600">
               <div className="text-center">
-                <p className="text-3xl mb-2"></p>
+                <p className="text-3xl mb-2">🗺️</p>
                 <p className="text-gray-300">მარშრუტის ვიზუალიზაცია</p>
                 <p className="text-xs text-gray-500">Leaflet/Google Maps ინტეგრაცია</p>
               </div>
@@ -380,7 +404,7 @@ export default function DispatcherDashboard({ user, setNotification }: {
       )}
 
       {/* 🚛 FLEET TAB */}
-      {activeTab === 'fleet' && <FleetManagement setNotification={setNotification} />}
+      {activeTab === 'fleet' && <FleetManagement setNotification={showNotification} />}
 
       {/* ➕ MODALS */}
       {showOrderModal && (

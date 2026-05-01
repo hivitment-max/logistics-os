@@ -9,12 +9,10 @@ import ManagerDashboard from './components/ManagerDashboard'
 import AccountantDashboard from './components/AccountantDashboard'
 import DispatcherDashboard from './components/DispatcherDashboard'
 import DriverDashboard from './components/DriverDashboard'
-import ClientDashboard from './components/ClientDashboard'
 
 type Role = 'admin' | 'manager' | 'accountant' | 'dispatcher' | 'driver' | 'client' | 'loading'
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null)
   const [role, setRole] = useState<Role>('loading')
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const router = useRouter()
@@ -27,13 +25,23 @@ export default function DashboardPage() {
   }, [notification])
 
   useEffect(() => {
+    if (role === 'client') {
+      router.push('/dashboard/client')
+    }
+  }, [role, router])
+
+  useEffect(() => {
     let isCancelled = false
     const init = async () => {
       try {
-        const { data: { session }, error: authError } = await supabase.auth.getSession()
+        // ✅ TS-უსაფრთხო გზა: ჯერ ვიღებთ მთლიან response-ს
+        const response = await supabase.auth.getSession()
+        const session = response.data?.session
+        const error = response.error
+        
         if (isCancelled) return
-        if (authError || !session) { router.push('/login'); return }
-        setUser(session.user)
+        if (error || !session) { router.push('/login'); return }
+        
         const userRole = (session.user.user_metadata?.role || 'client') as Role
         setRole(userRole)
       } catch (err: any) {
@@ -65,11 +73,10 @@ export default function DashboardPage() {
 
       <main className="w-full h-full">
         {role === 'admin' && <AdminDashboard />}
-        {role === 'manager' && <ManagerDashboard user={user} setNotification={setNotification} />}
-        {role === 'accountant' && <AccountantDashboard user={user} setNotification={setNotification} />}
-        {role === 'dispatcher' && <DispatcherDashboard user={user} setNotification={setNotification} />}
-        {role === 'driver' && <DriverDashboard user={user} setNotification={setNotification} />}
-        {role === 'client' && <ClientDashboard user={user} setNotification={setNotification} />}
+        {role === 'manager' && <ManagerDashboard />}
+        {role === 'accountant' && <AccountantDashboard />}
+        {role === 'dispatcher' && <DispatcherDashboard />}
+        {role === 'driver' && <DriverDashboard />}
       </main>
     </div>
   )

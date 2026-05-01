@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts'
 import FleetManagement from './FleetManagement'
@@ -17,11 +17,14 @@ interface ComplianceAlert {
   target: string
   date: string
 }
-export default function ManagerDashboard({ user, setNotification }: { 
-  user: any, setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
-}) {
+
+// ✅ განახლებული: წაშლილია პროპსები
+export default function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState<ManagerTab>('kpi')
   const [loading, setLoading] = useState(true)
+  
+  // 🔔 ლოკალური ნოტიფიკაციის სტეიტი
+  const [localNotification, setLocalNotification] = useState<string | null>(null)
   
   // მონაცემები
   const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([])
@@ -37,6 +40,12 @@ export default function ManagerDashboard({ user, setNotification }: {
   })
   const [revenueByClient, setRevenueByClient] = useState<any[]>([])
   const [profitTrend, setProfitTrend] = useState<any[]>([])
+
+  // 🔔 ნოტიფიკაციის ფუნქცია
+  const showNotification = useCallback((msg: string) => {
+    setLocalNotification(msg)
+    setTimeout(() => setLocalNotification(null), 3000)
+  }, [])
 
   // 📊 მონაცემების ჩატვირთვა
   useEffect(() => {
@@ -137,7 +146,8 @@ export default function ManagerDashboard({ user, setNotification }: {
 
     } catch (err: any) {
       console.error('Manager load error:', err)
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული: გამოყენებულია ლოკალური ნოტიფიკაცია
+      showNotification(`❌ ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -146,13 +156,21 @@ export default function ManagerDashboard({ user, setNotification }: {
   // 💰 ინვოისის დამტკიცება
   const approveInvoice = (id: string, action: 'approve' | 'reject') => {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: action === 'approve' ? 'დამტკიცებული' : 'უარყოფილი' } : inv))
-    setNotification({ type: 'success', message: action === 'approve' ? '✅ ინვოისი დამტკიცდა' : '❌ ინვოისი უარყოფილია' })
+    // ✅ განახლებული: გამოყენებულია ლოკალური ნოტიფიკაცია
+    showNotification(action === 'approve' ? '✅ ინვოისი დამტკიცდა' : '❌ ინვოისი უარყოფილია')
   }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white text-xl animate-pulse">🔄 იტვირთება...</div>
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-6 space-y-6">
+      {/* 🔔 ნოტიფიკაცია */}
+      {localNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg shadow-xl text-xs animate-pulse">
+          {localNotification}
+        </div>
+      )}
+
       {/* 🏠 Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -243,7 +261,7 @@ export default function ManagerDashboard({ user, setNotification }: {
       {activeTab === 'fleet' && (
         <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
           <h3 className="text-xl font-bold mb-4">🚛 ფლოტის სრული მართვა</h3>
-          <FleetManagement setNotification={setNotification} />
+          <FleetManagement setNotification={showNotification} />
         </div>
       )}
 

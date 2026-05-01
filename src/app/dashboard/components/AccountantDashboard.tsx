@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, FormEvent, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -15,15 +15,15 @@ type ModalType = 'invoice' | 'expense' | 'payroll' | null
 type Currency = 'GEL' | 'USD' | 'EUR'
 
 // ============================================================================
-// 💰 ACCOUNTANT DASHBOARD
+// 💰 ACCOUNTANT DASHBOARD - ✅ განახლებული: წაშლილია პროპსები
 // ============================================================================
-export default function AccountantDashboard({ user, setNotification }: { 
-  user: any, 
-  setNotification: (n: { type: 'success' | 'error'; message: string }) => void 
-}) {
+export default function AccountantDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [loading, setLoading] = useState(true)
   const [currency, setCurrency] = useState<Currency>('GEL')
+  
+  // 🔔 ლოკალური ნოტიფიკაციის სტეიტი
+  const [localNotification, setLocalNotification] = useState<string | null>(null)
   
   // Data State
   const [financialData, setFinancialData] = useState<Record<string, number>>({})
@@ -36,6 +36,12 @@ export default function AccountantDashboard({ user, setNotification }: {
   const [modalType, setModalType] = useState<ModalType>(null)
   const [form, setForm] = useState<Record<string, any>>({})
 
+  // 🔔 ნოტიფიკაციის ფუნქცია
+  const showNotification = useCallback((msg: string) => {
+    setLocalNotification(msg)
+    setTimeout(() => setLocalNotification(null), 3000)
+  }, [])
+
   // 📊 Fetch Data
   useEffect(() => {
     fetchFinancialData()
@@ -44,10 +50,11 @@ export default function AccountantDashboard({ user, setNotification }: {
   const fetchFinancialData = async () => {
     setLoading(true)
     try {
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('price, currency, status, created_at, tracking_code, cargo_weight_kg')
-        .order('created_at', { ascending: true })
+const response = await supabase
+  .from('orders')
+  .select('price, currency, status, created_at, tracking_code, cargo_weight_kg')
+  .order('created_at', { ascending: true })
+const orders = response.data
 
       const mockExpenses = [
         { id: 'EXP-001', category: 'საწვავი', description: 'დიზელის შევსება - Isuzu NQR', amount: 450, currency: 'GEL', date: '2024-05-18', reconciled: true },
@@ -94,7 +101,8 @@ export default function AccountantDashboard({ user, setNotification }: {
       
     } catch (err: any) {
       console.error('Financial fetch error:', err.message)
-      setNotification({ type: 'error', message: `❌ ${err.message}` })
+      // ✅ განახლებული: გამოყენებულია ლოკალური ნოტიფიკაცია
+      showNotification(`❌ ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -123,10 +131,12 @@ export default function AccountantDashboard({ user, setNotification }: {
     
     if (form.id) {
       setInvoices(prev => prev.map(inv => inv.id === form.id ? newInvoice : inv))
-      setNotification({ type: 'success', message: '✅ ინვოისი განახლდა!' })
+      // ✅ განახლებული
+      showNotification('✅ ინვოისი განახლდა!')
     } else {
       setInvoices(prev => [newInvoice, ...prev])
-      setNotification({ type: 'success', message: '✅ ინვოისი შეიქმნა!' })
+      // ✅ განახლებული
+      showNotification('✅ ინვოისი შეიქმნა!')
     }
     setModalType(null)
     setForm({})
@@ -134,13 +144,15 @@ export default function AccountantDashboard({ user, setNotification }: {
 
   const toggleReconciled = (id: string) => {
     setExpenses(prev => prev.map(exp => exp.id === id ? { ...exp, reconciled: !exp.reconciled } : exp))
-    setNotification({ type: 'success', message: '✅ რეკონცილიაცია განახლდა!' })
+    // ✅ განახლებული
+    showNotification('✅ რეკონცილიაცია განახლდა!')
   }
 
   const handlePayrollAction = (id: string, action: 'pay' | 'payslip') => {
     if (action === 'pay') {
       setPayroll(prev => prev.map(p => p.id === id ? { ...p, status: 'გადახდილი' } : p))
-      setNotification({ type: 'success', message: '✅ ხელფასი გადახდილია!' })
+      // ✅ განახლებული
+      showNotification('✅ ხელფასი გადახდილია!')
     } else {
       const payslip = payroll.find(p => p.id === id)
       alert(`🧾 PAYSLIP\n\nმძღოლი: ${payslip?.driver}\nბაზა: ${payslip?.baseSalary} GEL\nკომისია: +${payslip?.commission}\nKPI: +${payslip?.kpiBonus}\nჯარიმა: -${payslip?.penalty}\n\nსულ: ${payslip?.total} GEL`)
@@ -148,8 +160,9 @@ export default function AccountantDashboard({ user, setNotification }: {
   }
 
   const exportData = (type: 'excel' | 'pdf', dataType: string) => {
-    setNotification({ type: 'success', message: `📥 ${type.toUpperCase()} ექსპორტი იწყება...` })
-    setTimeout(() => setNotification({ type: 'success', message: '✅ ფაილი ჩამოიტვირთა!' }), 1500)
+    // ✅ განახლებული
+    showNotification(`📥 ${type.toUpperCase()} ექსპორტი იწყება...`)
+    setTimeout(() => showNotification('✅ ფაილი ჩამოიტვირთა!'), 1500)
   }
 
   const convertAmount = (amount: number, from: string) => {
@@ -176,6 +189,13 @@ export default function AccountantDashboard({ user, setNotification }: {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* 🔔 ნოტიფიკაცია */}
+      {localNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg shadow-xl text-xs animate-pulse">
+          {localNotification}
+        </div>
+      )}
+
       {/* 🏠 Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -304,7 +324,8 @@ export default function AccountantDashboard({ user, setNotification }: {
                     <td className="px-4 py-3">
                       <select value={inv.status} onChange={(e) => {
                         setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: e.target.value } : i))
-                        setNotification({ type: 'success', message: '✅ სტატუსი განახლდა!' })
+                        // ✅ განახლებული
+                        showNotification('✅ სტატუსი განახლდა!')
                       }} className={`px-2 py-1 rounded text-xs font-medium border-none outline-none cursor-pointer ${inv.status === 'გადახდილი' ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400'}`}>
                         <option value="ლოდინში">ლოდინში</option>
                         <option value="გადახდილი">გადახდილი</option>
@@ -473,7 +494,7 @@ export default function AccountantDashboard({ user, setNotification }: {
                 <label className="block text-sm text-gray-400 mb-1">1 USD = ? GEL</label>
                 <input type="number" step="0.01" value={exchangeRates.USD} onChange={(e) => setExchangeRates(prev => ({ ...prev, USD: parseFloat(e.target.value) }))} className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
-              <button onClick={() => setNotification({ type: 'success', message: '✅ კურსები განახლდა!' })} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">💾 შენახვა</button>
+              <button onClick={() => showNotification('✅ კურსები განახლდა!')} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">💾 შენახვა</button>
             </div>
           </div>
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
