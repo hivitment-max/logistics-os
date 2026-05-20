@@ -71,7 +71,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <main className="w-full h-full">
+      {/* 🧪 TEST MARKER - ახალი დეპლოის ვერიფიკაცია */}
+      <div style={{position:'fixed',top:0,left:0,right:0,zIndex:9999,background:'linear-gradient(90deg,#dc2626,#ef4444)',color:'white',padding:'8px 16px',textAlign:'center',fontWeight:'bold',fontSize:'14px',boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}}>
+        ✅ TEST 123 - NEW DEPLOY - {new Date().toLocaleDateString('ka-GE')} - v2.0
+      </div>
+
+      <main className="w-full h-full pt-10">
         {role === 'admin' && <AdminDashboard />}
         {role === 'manager' && <ManagerDashboard />}
         {role === 'accountant' && <AccountantDashboard />}
