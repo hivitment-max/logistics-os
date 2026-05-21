@@ -95,7 +95,9 @@ export default function AdminDashboard() {
   const invoicesHook = useInvoices({ showNotification, loadData, logAudit, invoices })
   const privateClientsHook = usePrivateClients({ showNotification, loadData })
   const companiesHook = useCompanies({ showNotification, loadData })
-  const dispatchHook = useDispatch({ orders, drivers, vehicles: vehiclesData, showNotification, loadData })
+  
+  // ✅ FIX: Removed invalid props (orders, drivers, vehicles) from useDispatch
+  const dispatchHook = useDispatch({ showNotification, loadData })
 
   const isAdmin = currentUser?.user_metadata?.role === 'admin'
 
