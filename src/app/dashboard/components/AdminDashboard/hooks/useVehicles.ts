@@ -15,7 +15,7 @@ export function useVehicles({ showNotification, loadData }: UseVehiclesProps) {
   const [deletingVehicle, setDeletingVehicle] = useState<any | null>(null)
   const [showDeleteVehicleModal, setShowDeleteVehicleModal] = useState(false)
 
-  // 📝 Add Form State
+  // 📝 Add Form State - ✅ დამატებულია has_refrigeration და extra_equipment
   const [vehicleForm, setVehicleForm] = useState({
     plate_number: '', vin_number: '', tech_passport: '', pti_expiry: '',
     insurance_policy: '', insurance_cmre_policy: '', owner_name: '', owner_type: 'company', power_of_attorney: '',
@@ -23,7 +23,7 @@ export function useVehicles({ showNotification, loadData }: UseVehiclesProps) {
     adr_class: '', euro_standard: '6', has_tail_lift: false, has_refrigeration: false, straps_count: '',
     gps_device_id: '', has_fuel_sensor: false, photo_urls: '', tire_season: 'all_season', tire_condition: 'good',
     status: 'active', year_manufactured: '', mileage: '', fuel_type: 'diesel', color: '',
-    last_service_date: '', next_service_date: '', insurance_expiry: '', notes: ''
+    last_service_date: '', next_service_date: '', insurance_expiry: '', notes: '', extra_equipment: ''
   })
 
   // 🔧 Handlers
@@ -43,7 +43,8 @@ export function useVehicles({ showNotification, loadData }: UseVehiclesProps) {
       straps_count: vehicleForm.straps_count ? parseInt(vehicleForm.straps_count as string) : 0,
       has_tail_lift: Boolean(vehicleForm.has_tail_lift), 
       has_refrigeration: Boolean(vehicleForm.has_refrigeration),
-      has_fuel_sensor: Boolean(vehicleForm.has_fuel_sensor)
+      has_fuel_sensor: Boolean(vehicleForm.has_fuel_sensor),
+      extra_equipment: vehicleForm.extra_equipment || null
     }
     const { error } = await supabase.from('vehicles').insert([payload])
     if (error) { showNotification(`❌ ${error.message}`); return }
@@ -51,7 +52,7 @@ export function useVehicles({ showNotification, loadData }: UseVehiclesProps) {
     showNotification('✅ მანქანა წარმატებით დაემატა!')
     setShowAddVehicleModal(false)
     setVehicleForm({
-      plate_number: '', model: '', type: 'truck', status: 'active', vin_number: '', year_manufactured: '', capacity_kg: '', mileage: '', fuel_type: 'diesel', color: '', last_service_date: '', next_service_date: '', insurance_expiry: '', insurance_policy: '', tech_passport: '', notes: '', pti_expiry: '', volume_m3: '', length_m: '', width_m: '', height_m: '', straps_count: '', has_tail_lift: false, has_refrigeration: false, has_fuel_sensor: false, insurance_cmre_policy: '', owner_name: '', owner_type: 'company', power_of_attorney: '', body_type: 'tent', adr_class: '', euro_standard: '6', gps_device_id: '', photo_urls: '', tire_season: 'all_season', tire_condition: 'good'
+      plate_number: '', model: '', type: 'truck', status: 'active', vin_number: '', year_manufactured: '', capacity_kg: '', mileage: '', fuel_type: 'diesel', color: '', last_service_date: '', next_service_date: '', insurance_expiry: '', insurance_policy: '', tech_passport: '', notes: '', extra_equipment: '', pti_expiry: '', volume_m3: '', length_m: '', width_m: '', height_m: '', straps_count: '', has_tail_lift: false, has_refrigeration: false, has_fuel_sensor: false, insurance_cmre_policy: '', owner_name: '', owner_type: 'company', power_of_attorney: '', body_type: 'tent', adr_class: '', euro_standard: '6', gps_device_id: '', photo_urls: '', tire_season: 'all_season', tire_condition: 'good'
     })
     loadData()
   }, [vehicleForm, showNotification, loadData])
@@ -73,7 +74,8 @@ export function useVehicles({ showNotification, loadData }: UseVehiclesProps) {
       year_manufactured: editVehicleForm.year_manufactured ? parseInt(editVehicleForm.year_manufactured as string) : null,
       capacity_kg: editVehicleForm.capacity_kg ? parseInt(editVehicleForm.capacity_kg as string) : null,
       mileage: editVehicleForm.mileage ? parseInt(editVehicleForm.mileage as string) : null,
-      has_refrigeration: Boolean(editVehicleForm.has_refrigeration)
+      has_refrigeration: Boolean(editVehicleForm.has_refrigeration),
+      extra_equipment: editVehicleForm.extra_equipment || null
     }
     const { error } = await supabase.from('vehicles').update(payload).eq('id', editingVehicle.id)
     if (error) { showNotification(`❌ ${error.message}`); return }
