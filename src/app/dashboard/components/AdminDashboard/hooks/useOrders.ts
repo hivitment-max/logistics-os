@@ -114,7 +114,6 @@ export function useOrders({
 
   // 🎯 Helper: ფორმის მონაცემების გადაქცევა ბაზის ფორმატში (მიმაპინგი)
   const mapFormToDatabase = useCallback((form: any) => {
-    // 📅 date + time → TIMESTAMP (ISO 8601)
     const combineDateTime = (date: string, time: string) => {
       if (!date) return null
       if (time) return `${date}T${time}:00Z`
@@ -122,9 +121,9 @@ export function useOrders({
     }
 
     return {
-      // 🔴 მარშრუტი - მიმაპინგი სახელების
+      // 🔴 მარშრუტი
       pickup_address: form.pickup_address || null,
-      pickup_contact_person: form.pickup_contact || null, // ფორმა: pickup_contact → ბაზა: pickup_contact_person
+      pickup_contact_person: form.pickup_contact || null,
       pickup_phone: form.pickup_phone || null,
       scheduled_pickup_date: combineDateTime(form.pickup_date, form.pickup_time),
       delivery_address: form.delivery_address || null,
@@ -134,12 +133,12 @@ export function useOrders({
       pickup_city: form.pickup_city || null,
       delivery_city: form.delivery_city || null,
       
-      // 🟡 ტვირთი - მიმაპინგი
+      // 🟡 ტვირთი
       cargo_description: form.cargo_description || null,
       cargo_type: form.cargo_type || 'standard',
       cargo_weight_kg: parseFloat(form.cargo_weight_kg) || 0,
       cargo_volume_m3: parseFloat(form.cargo_volume_m3) || null,
-      places_count: parseInt(form.cargo_units) || null, // ფორმა: cargo_units → ბაზა: places_count
+      places_count: parseInt(form.cargo_units) || null,
       cargo_length_m: parseFloat(form.cargo_length_m) || null,
       cargo_width_m: parseFloat(form.cargo_width_m) || null,
       cargo_height_m: parseFloat(form.cargo_height_m) || null,
@@ -181,13 +180,13 @@ export function useOrders({
       notify_party_phone: form.notify_party_phone || null,
       
       // 🟢 დამატებითი
-      notes: form.internal_notes || null, // ფორმა: internal_notes → ბაზა: notes
+      notes: form.internal_notes || null,
       special_requirements: form.special_requirements || null,
       needs_tail_lift: !!form.needs_tail_lift,
       needs_straps: !!form.needs_straps,
       needs_bricklaying: !!form.needs_bricklaying,
       needs_two_cargo_handlers: !!form.needs_two_cargo_handlers,
-      requires_taillift: !!form.needs_tail_lift, // დუბლიკატი, თუ ბაზაში ასეა
+      requires_taillift: !!form.needs_tail_lift,
       is_hard_deadline: !!form.is_hard_deadline,
       
       // 🟤 პრიორიტეტი & სტატუსი
@@ -216,7 +215,6 @@ export function useOrders({
 
   // 🎯 Helper: ბაზის მონაცემების გადაქცევა ფორმის ფორმატში (რევერს-მიმაპინგი)
   const mapDatabaseToForm = useCallback((db: any) => {
-    // 📅 TIMESTAMP → date + time
     const splitDateTime = (timestamp: string | null) => {
       if (!timestamp) return { date: '', time: '' }
       const date = timestamp.split('T')[0]
@@ -247,7 +245,7 @@ export function useOrders({
       cargo_type: db.cargo_type || 'standard',
       cargo_weight_kg: db.cargo_weight_kg?.toString() || '',
       cargo_volume_m3: db.cargo_volume_m3?.toString() || '',
-      cargo_units: db.places_count?.toString() || '', // ბაზა: places_count → ფორმა: cargo_units
+      cargo_units: db.places_count?.toString() || '',
       cargo_length_m: db.cargo_length_m?.toString() || '',
       cargo_width_m: db.cargo_width_m?.toString() || '',
       cargo_height_m: db.cargo_height_m?.toString() || '',
@@ -289,7 +287,7 @@ export function useOrders({
       notify_party_phone: db.notify_party_phone || '',
       
       // 🟢 დამატებითი
-      internal_notes: db.notes || '', // ბაზა: notes → ფორმა: internal_notes
+      internal_notes: db.notes || '',
       special_requirements: db.special_requirements || '',
       needs_tail_lift: !!db.needs_tail_lift,
       needs_straps: !!db.needs_straps,
@@ -326,7 +324,6 @@ export function useOrders({
   const handleAddOrder = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     
-    // 🎯 ვალიდაცია: სავალდებულო ველები
     const requiredFields = ['pickup_address', 'delivery_address', 'cargo_description', 'price', 'client_name', 'client_phone']
     for (const field of requiredFields) {
       if (!orderForm[field as keyof typeof orderForm]?.toString().trim()) {
@@ -337,7 +334,6 @@ export function useOrders({
     
     const tracking_code = `LOG-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`
     
-    // 💰 გარე მძღოლი/მანქანის ტარიფების გამოთვლა
     let extDriverRate = 0, extVehicleRate = 0
     if (orderForm.driver_type === 'external' && orderForm.external_driver_id) { 
       const d = externalDrivers.find((d: any) => d.id === orderForm.external_driver_id); 
@@ -348,7 +344,6 @@ export function useOrders({
       extVehicleRate = v?.rate_per_km || 0 
     }
     
-    // 👤 დამკვეთის ინფოს ავტო-შევსება (თუ ID არჩეულია)
     let finalClientName = orderForm.client_name
     let finalClientEmail = orderForm.client_email
     let finalClientAddress = orderForm.client_address
@@ -372,7 +367,6 @@ export function useOrders({
       }
     }
     
-    // 🔄 მიმაპინგი ფორმა → ბაზა
     const payload = mapFormToDatabase({ 
       ...orderForm, 
       tracking_code,
@@ -384,7 +378,6 @@ export function useOrders({
       external_vehicle_rate: extVehicleRate,
     })
     
-    // 💾 ჩაწერა ბაზაში
     const { error, data } = await supabase.from('orders').insert([payload]).select()
     if (error) { 
       console.error('Order insert error:', error)
@@ -392,7 +385,6 @@ export function useOrders({
       return 
     }
     
-    // 📊 Tracking Event - შეკვეთის შექმნა
     await supabase.from('tracking_events').insert({ 
       order_id: data?.[0]?.id, 
       event_type: 'created', 
@@ -401,10 +393,8 @@ export function useOrders({
       created_at: new Date().toISOString()
     })
     
-    // 📝 Audit Log
     await logAudit('ORDER_CREATED', tracking_code, `შეიქმნა ადმინისტრატორის მიერ | მარშრუტი: ${orderForm.pickup_address} → ${orderForm.delivery_address}`)
     
-    // ✅ წარმატება
     showNotification(`✅ შეკვეთა შეიქმნა: ${tracking_code}`)
     setShowOrderModal(false)
     resetOrderForm()
@@ -412,12 +402,12 @@ export function useOrders({
   }, [orderForm, externalDrivers, externalVehicles, privateClients, companies, showNotification, loadData, logAudit, resetOrderForm, mapFormToDatabase])
 
   const handleEditOrderClick = useCallback((order: any) => {
-    // 🔄 ფორმის შევსება არსებული მონაცემებით (რევერს-მიმაპინგი)
     setEditingOrder(order)
     setEditOrderForm(mapDatabaseToForm(order))
     setShowEditOrderModal(true)
   }, [mapDatabaseToForm])
 
+  // ✅ FIX: TypeScript error - removed destructuring of id from payload
   const handleSaveEditOrder = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingOrder) return
@@ -425,17 +415,17 @@ export function useOrders({
     // 🔄 მიმაპინგი ფორმა → ბაზა
     const payload = mapFormToDatabase(editOrderForm)
     
-    // 🧹 გაწმენდა: ამოღება სისტემური ველების რომლებიც არ უნდა განახლდეს
-    const { id, tracking_code, created_at, created_by, ...cleanPayload } = payload
+    // ✅ FIX: payload already has correct format for update, no need to destructure id
+    // mapFormToDatabase doesn't return id/tracking_code/created_at, so we use editingOrder?.id directly
+    const { error } = await supabase.from('orders').update(payload).eq('id', editingOrder?.id)
     
-    const { error } = await supabase.from('orders').update(cleanPayload).eq('id', editingOrder.id)
     if (error) { 
       console.error('Order update error:', error)
       showNotification(`❌ ${error.message}`); 
       return 
     }
     
-    await logAudit('ORDER_UPDATED', editingOrder.tracking_code, `განახლდა ადმინისტრატორის მიერ`)
+    await logAudit('ORDER_UPDATED', editingOrder?.tracking_code || 'unknown', `განახლდა ადმინისტრატორის მიერ`)
     showNotification('✅ შეკვეთა განახლდა!')
     setShowEditOrderModal(false)
     setEditingOrder(null)
@@ -450,14 +440,12 @@ export function useOrders({
   const confirmDeleteOrder = useCallback(async () => {
     if (!deletingOrder) return
     
-    // 🗑️ წაშლა
     const { error } = await supabase.from('orders').delete().eq('id', deletingOrder.id)
     if (error) { 
       showNotification(`❌ ${error.message}`); 
       return 
     }
     
-    // 📝 Audit
     await logAudit('ORDER_DELETED', deletingOrder.tracking_code, `წაიშალა ადმინისტრატორის მიერ`)
     showNotification('🗑️ შეკვეთა წაიშალა!')
     setShowDeleteOrderModal(false)
@@ -476,7 +464,6 @@ export function useOrders({
       return 
     }
     
-    // 📊 Tracking Event
     await supabase.from('tracking_events').insert({
       order_id: orderId,
       event_type: 'status_change',
@@ -512,7 +499,7 @@ export function useOrders({
     confirmDeleteOrder,
     handleStatusChange,
     
-    // Helpers (თუ გარე კომპონენტებს დასჭირდებათ)
+    // Helpers
     mapFormToDatabase,
     mapDatabaseToForm,
   }
