@@ -96,8 +96,8 @@ export default function AdminDashboard() {
   const privateClientsHook = usePrivateClients({ showNotification, loadData })
   const companiesHook = useCompanies({ showNotification, loadData })
   
-  // ✅ FIX: Removed invalid props (orders, drivers, vehicles) from useDispatch
-  const dispatchHook = useDispatch({ showNotification, loadData })
+// ✅ FIX: Added required logAudit prop to useDispatch
+const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
 
   const isAdmin = currentUser?.user_metadata?.role === 'admin'
 
