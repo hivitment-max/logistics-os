@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
-// ✅ შედეგის ტიპი
 export type SendNotificationResult = {
   success: boolean
   logs?: any[]
@@ -32,21 +31,28 @@ export default function SendNotificationModal({
   logs = []
 }: SendNotificationModalProps) {
   
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(['telegram'])
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null)
   const [driverData, setDriverData] = useState<any>(null)
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null)
 
-  // 🔄 მთავარი გამოსწორება: ყოველ გახსნაზე სტეიტების სრული რესეტი
+  // 🔁 1. მოდლის გახსნა: რესეტი და მონაცემების ჩატვირთვა
   useEffect(() => {
     if (isOpen) {
-      setSending(false)              // ღილაკის განბლოკვა
-      setSendResult(null)            // შეტყობინების წაშლა
-      setSelectedChannels(['telegram']) // არხის ხელახლა არჩევა
-      fetchDriverData()              // მონაცემების განახლება
+      setSending(false)
+      setSendResult(null)
+      setSelectedChannels([]) // დროებით ცარიელი
+      fetchDriverData()
     }
   }, [isOpen, order])
+
+  // 🔁 2. როცა telegramChatId ჩაიტვირთება: ავირჩევთ Telegram-ს
+  useEffect(() => {
+    if (isOpen && telegramChatId) {
+      setSelectedChannels(['telegram']) // ✅ ახლა მონიშვნა იმუშავებს!
+    }
+  }, [isOpen, telegramChatId])
 
   const fetchDriverData = async () => {
     if (!order) return
@@ -121,7 +127,6 @@ export default function SendNotificationModal({
     } catch (err: any) {
       setSendResult({ success: false, message: `❌ ${err.message || 'გაგზავნა ვერ მოხერხდა'}` })
     } finally {
-      // ✅ ეს გარანტირებულად აბრუნებს ღილაკს აქტიურ მდგომარეობაში
       setSending(false)
     }
   }
@@ -213,6 +218,9 @@ export default function SendNotificationModal({
                         {!channel.available && !channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">მიუწვდომელი</span>}
                       </div>
                       <p className="ml-6 text-xs text-gray-500">{channel.desc}</p>
+                      {channel.id === 'telegram' && !telegramChatId && (
+                        <p className="ml-6 text-[10px] text-orange-500 mt-0.5 animate-pulse">⏳ მძღოლის მონაცემები იტვირთება...</p>
+                      )}
                     </div>
                   </label>
                 )
