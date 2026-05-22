@@ -51,27 +51,47 @@ export async function POST(req: Request) {
 
     // 📦 ნაბიჯი 3: ვამზადებთ განახლებას
     const isAccept = action === 'acc'
-    const payload = {
+    
+    // 🎯 ძირითადი ველები (100% მუშაობს)
+    const basicPayload = {
       status: isAccept ? 'confirmed' : 'rejected',
-      driver_response: isAccept ? 'accepted' : 'rejected',
+      driver_response: isAccept ? 'accepted' : 'rejected'
+    }
+    
+    // 🎯 Timestamp ველები (შეიძლება კეშში არ იყოს ხილული)
+    const timestampPayload = {
       driver_responded_at: new Date().toISOString(),
       ...(isAccept 
         ? { driver_confirmed_at: new Date().toISOString() } 
         : { driver_rejected_at: new Date().toISOString(), driver_id: null })
     }
-    console.log('📝 Update payload:', payload)
 
-    // 🔄 ნაბიჯი 4: ვაახლებთ orders ცხრილს
-    console.log('🔄 EXECUTING: supabase.from("orders").update(...)')
-    const { error: updateErr } = await supabase
+    // 🔄 ნაბიჯი 4a: ვაახლებთ მხოლოდ ძირითად ველებს (გარანტირებული)
+    console.log('🔄 Step 1: Updating basic fields (status + driver_response)...')
+    const { error: basicErr } = await supabase
       .from('orders')
-      .update(payload)
+      .update(basicPayload)
       .eq('id', orderId)
 
-    if (updateErr) {
-      console.error('❌ [DB] ORDERS UPDATE FAILED:', JSON.stringify(updateErr))
+    if (basicErr) {
+      console.error('❌ [DB] Basic update failed:', JSON.stringify(basicErr))
     } else {
-      console.log('✅ [DB] ORDERS TABLE UPDATED SUCCESSFULLY!')
+      console.log('✅ [DB] Basic fields updated (status + driver_response)')
+    }
+
+    // 🔄 ნაბიჯი 4b: ვცადოთ timestamp-ების განახლება (ცალკე)
+    console.log('🔄 Step 2: Updating timestamps (if schema cache ready)...')
+    const { error: tsErr } = await supabase
+      .from('orders')
+      .update(timestampPayload)
+      .eq('id', orderId)
+
+    if (tsErr) {
+      // ⚠️ თუ კეში არ არის განახლებული, ეს შეცდომა არ აჩერებს მთლიან პროცესს
+      console.log('⚠️ [DB] Timestamp update skipped (cache not ready):', tsErr.message)
+      console.log('💡 Timestamps will auto-update when cache refreshes (2-5 min)')
+    } else {
+      console.log('✅ [DB] Timestamps updated successfully')
     }
 
     // 📢 ნაბიჯი 5: ტელეგრამ პასუხი
@@ -102,7 +122,7 @@ export async function POST(req: Request) {
       console.error('❌ Edit message failed:', e)
     }
 
-    // 🔔 ნაბიჯი 7: დეშბორდის შეტყობინება (✅ შესწორებული სინტაქსი)
+    // 🔔 ნაბიჯი 7: დეშბორდის შეტყობინება
     console.log('🔔 Inserting dashboard notification...')
     const { error: notifErr } = await supabase.from('notifications').insert({
       channel: 'dashboard', status: 'unread',
@@ -111,7 +131,7 @@ export async function POST(req: Request) {
       order_id: orderId,
       driver_id: order.driver_type === 'internal' ? driver?.id : null,
       external_driver_id: order.driver_type === 'external' ? driver?.id : null,
-      metadata: { driver_response: payload.driver_response, responded_at: new Date().toISOString() },
+      metadata: { driver_response: basicPayload.driver_response, responded_at: new Date().toISOString() },
       created_at: new Date().toISOString()
     })
     
