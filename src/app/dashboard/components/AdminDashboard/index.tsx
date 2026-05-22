@@ -31,7 +31,7 @@ import AuditTab from '../tabs/AuditTab'
 import PayrollTab from '../tabs/PayrollTab'
 import SettingsTab from '../tabs/SettingsTab'
 import DispatchTab from '../tabs/DispatchTab'
-import NotificationsTab from '../tabs/NotificationsTab' // ✅ ახალი: შეტყობინებების ტაბი
+import NotificationsTab from '../tabs/NotificationsTab'
 
 // ✅ ახალი: AddOrderModal იმპორტი
 import AddOrderModal from '../modals/AddOrderModal'
@@ -194,7 +194,6 @@ export default function AdminDashboard() {
     { category: 'დამკვეთები', items: [{ id: 'private_clients', icon: '👤', label: 'კერძო პირი' }, { id: 'companies', icon: '🏢', label: 'კომპანია' }]},
     { category: 'ფინანსები', items: [{ id: 'invoices', icon: '🧾', label: 'ინვოისები' }, { id: 'invoice_templates', icon: '🎨', label: 'ინვოისის შაბლონები' }, { id: 'payroll', icon: '💸', label: 'Payroll' }]},
     { category: 'სისტემა', items: [{ id: 'audit', icon: '📜', label: 'აუდიტი' }, { id: 'api', icon: '🔌', label: 'API' }, { id: 'settings', icon: '⚙️', label: 'პარამეტრები' }]},
-    // ✅ ახალი: შეტყობინებების კატეგორია
     { category: 'შეტყობინებები', items: [{ id: 'notifications', icon: '📢', label: 'შეტყობინებები' }]},
   ]
 
@@ -235,7 +234,6 @@ export default function AdminDashboard() {
     if (activeTab === 'payroll') return <PayrollTab />
     if (activeTab === 'settings') return <SettingsTab />
     
-    // ✅ ახალი: შეტყობინებების ტაბი
     if (activeTab === 'notifications') {
       return <NotificationsTab showNotification={showNotification} />
     }
@@ -248,8 +246,22 @@ export default function AdminDashboard() {
       <DriversTab drivers={drivers} loading={loading} onEdit={driversHook.handleEditDriverClick} onDelete={driversHook.handleDeleteDriverClick} onAdd={() => driversHook.setShowAddDriverModal(true)} onAssignVehicle={driversHook.handleAssignVehicle} getStatusColor={getStatusColor} ActionButtons={ActionButtons} onPrint={invoicesHook.handlePrintDriver} />
     )
     
+    // ✅ აქ დავამატეთ loadData გადაცემა OrdersTab-ისთვის (რეალური დროის განახლებისთვის)
     if (activeTab === 'orders') return (
-      <OrdersTab orders={orders} loading={loading} orderFilter={ordersHook.orderFilter} setOrderFilter={ordersHook.setOrderFilter} onStatusChange={ordersHook.handleStatusChange} onEdit={ordersHook.handleEditOrderClick} onDelete={ordersHook.handleDeleteOrderClick} onAdd={() => ordersHook.setShowOrderModal(true)} onCreateInvoice={invoicesHook.handleCreateInvoice} getStatusColor={getStatusColor} ActionButtons={ActionButtons} />
+      <OrdersTab 
+        orders={orders} 
+        loading={loading} 
+        orderFilter={ordersHook.orderFilter} 
+        setOrderFilter={ordersHook.setOrderFilter} 
+        onStatusChange={ordersHook.handleStatusChange} 
+        onEdit={ordersHook.handleEditOrderClick} 
+        onDelete={ordersHook.handleDeleteOrderClick} 
+        onAdd={() => ordersHook.setShowOrderModal(true)} 
+        onCreateInvoice={invoicesHook.handleCreateInvoice} 
+        getStatusColor={getStatusColor} 
+        ActionButtons={ActionButtons}
+        loadData={loadData} // ✅ ეს არის აუცილებელი Realtime-ისთვის!
+      />
     )
     
     if (activeTab === 'invoices') return (

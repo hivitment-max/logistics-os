@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase/client' // ✅ აუცილებელი იმპორტი
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 import LoadingTruck from '@/app/dashboard/components/ui/LoadingTruck'
 import AddOrderModal from '../modals/AddOrderModal'
 import OrderPreviewModal from '../modals/OrderPreviewModal'
@@ -19,6 +19,7 @@ interface OrdersTabProps {
   onCreateInvoice: (order: any) => void
   getStatusColor: (status: string) => string
   ActionButtons: React.ComponentType<{ onEdit: () => void; onDelete: () => void }>
+  loadData?: () => void // ✅ ახალი: რეფრეშის ფუნქცია
 }
 
 export default function OrdersTab({ 
@@ -32,7 +33,8 @@ export default function OrdersTab({
   onAdd, 
   onCreateInvoice, 
   getStatusColor, 
-  ActionButtons 
+  ActionButtons,
+  loadData
 }: OrdersTabProps) {
   
   // 🎯 Modal States
@@ -44,6 +46,24 @@ export default function OrdersTab({
   // 🆕 ახალი: შეტყობინების მოდალის სტეიტები
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [notificationOrder, setNotificationOrder] = useState<any | null>(null)
+
+  // 🔄 Realtime subscription შეკვეთების ცვლილებებისთვის
+  useEffect(() => {
+    if (!loadData) return
+    
+    const channel = supabase
+      .channel('orders_realtime')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        () => {
+          console.log('🔄 [ORDERS] Status changed, refreshing...')
+          loadData()
+        }
+      )
+      .subscribe()
+    
+    return () => { supabase.removeChannel(channel) }
+  }, [loadData])
 
   if (loading) return <LoadingTruck message="შეკვეთები იტვირთება..." size="md" />
   
@@ -240,7 +260,7 @@ export default function OrdersTab({
     setShowNotificationModal(true)
   }
 
-  // 📡 შეტყობინების გაგზავნა - შესწორებული callback_data ფორმატით (64 ბაიტის ლიმიტი)
+  // 📡 შეტყობინების გაგზავნა
   const handleSendNotification = async (channels: string[]) => {
     console.log('🚀 [NOTIFICATION] Starting send process...')
     console.log('📦 Selected order:', notificationOrder?.id, notificationOrder?.tracking_code)
@@ -252,7 +272,6 @@ export default function OrdersTab({
 
     const order = notificationOrder
     
-    // 🔍 ნაბიჯი 0: ვამოწმებთ რა გვაქვს შეკვეთაში
     let driver = order.drivers || order.external_drivers
     const isExternalDriver = order.driver_type === 'external'
     
@@ -264,7 +283,6 @@ export default function OrdersTab({
       existingDriverChatId: driver?.telegram_chat_id
     })
 
-    // 🔴 მთავარი გამოსწორება: თუ არ არის telegram_chat_id, მივიღოთ ბაზიდან!
     if (!driver || !driver.telegram_chat_id) {
       console.log('🔄 [NOTIFICATION] Telegram ID missing. Fetching from Supabase...')
       
@@ -304,7 +322,6 @@ export default function OrdersTab({
           console.warn('⚠️ [NOTIFICATION] No driver ID found in order to fetch from DB')
         }
         
-        // თუ მივიღეთ ახალი მონაცემები, გავაერთიანოთ
         if (fetchedDriver) {
           driver = { ...driver, ...fetchedDriver }
         }
@@ -324,9 +341,6 @@ export default function OrdersTab({
       return { success: false, error: 'Driver not found' }
     }
 
-    // 🔴 ნაბიჯი 1: ლოგის ჩაწერა Supabase-ში
-    console.log('📝 [NOTIFICATION] Creating log entry for channels:', channels)
-    
     const notificationLogs = []
     for (const channel of channels) {
       console.log(`🔄 [NOTIFICATION] Inserting ${channel} log...`)
@@ -365,7 +379,6 @@ export default function OrdersTab({
       notificationLogs.push(log)
     }
 
-    // 🔴 ნაბიჯი 2: Telegram გაგზავნა (ღილაკებით) - ✅ შესწორებული callback_data
     if (channels.includes('telegram')) {
       console.log('📱 [TELEGRAM] Preparing to send Telegram message with buttons...')
       
@@ -398,7 +411,6 @@ export default function OrdersTab({
       }
 
       try {
-        // 📝 შეტყობინების ტექსტი
         const text = `🚛 <b>ახალი შეკვეთა!</b>\n\n` +
           `📦 კოდი: <code>${order.tracking_code}</code>\n` +
           `👨‍✈️ მძღოლი: ${driver?.full_name}\n` +
@@ -407,17 +419,16 @@ export default function OrdersTab({
           `💰 თანხა: ${order.price} ${order.currency}\n\n` +
           `🔗 <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard?tab=orders">გადასვლა დაშბორდზე</a>`
 
-        // ✅ Inline keyboard ღილაკები - ✅ შესწორებული: მოკლე callback_data (64 ბაიტზე ნაკლები)
         const reply_markup = {
           inline_keyboard: [
             [
               { 
                 text: '✅ მივიღე', 
-                callback_data: `acc:${order.id}`  // ✅ 3 + 1 + 36 = 40 ბაიტი < 64 ✅
+                callback_data: `acc:${order.id}`
               },
               { 
                 text: '❌ უარვყავი', 
-                callback_data: `rej:${order.id}`   // ✅ 3 + 1 + 36 = 40 ბაიტი < 64 ✅
+                callback_data: `rej:${order.id}`
               }
             ]
           ]
@@ -432,7 +443,7 @@ export default function OrdersTab({
             text, 
             parse_mode: 'HTML',
             disable_web_page_preview: true,
-            reply_markup: reply_markup  // ✅ ღილაკების დამატება
+            reply_markup: reply_markup
           })
         })
         
@@ -441,7 +452,6 @@ export default function OrdersTab({
         
         if (result.ok) {
           console.log('✅ [TELEGRAM] Message sent successfully! Message ID:', result.result.message_id)
-          // ✅ განვაახლოთ ლოგი "sent" სტატუსზე
           await supabase
             .from('notifications')
             .update({ 
@@ -461,7 +471,6 @@ export default function OrdersTab({
         }
       } catch (err: any) {
         console.error('❌ [TELEGRAM] Exception during send:', err)
-        // ❌ განვაახლოთ ლოგი "failed" სტატუსზე
         await supabase
           .from('notifications')
           .update({ 
@@ -500,6 +509,8 @@ export default function OrdersTab({
           >
             <option value="all">ყველა</option>
             <option value="pending">ლოდინში</option>
+            <option value="confirmed">✅ დადასტურებული</option>
+            <option value="rejected">❌ უარყოფილი</option>
             <option value="in_transit">გზაში</option>
             <option value="delivered">მიწოდებული</option>
             <option value="cancelled">გაუქმებული</option>
@@ -556,6 +567,8 @@ export default function OrdersTab({
                     className={`px-2 py-0.5 rounded text-[10px] border bg-transparent outline-none cursor-pointer ${getStatusColor(o.status)}`}
                   >
                     <option value="pending">ლოდინში</option>
+                    <option value="confirmed">✅ დადასტურებულია</option>
+                    <option value="rejected">❌ უარყოფილია</option>
                     <option value="in_transit">გზაში</option>
                     <option value="delivered">მიწოდებული</option>
                     <option value="cancelled">გაუქმებული</option>
@@ -563,7 +576,6 @@ export default function OrdersTab({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end items-center gap-1">
-                    {/* ✏️ რედაქტირება */}
                     <button
                       onClick={() => handleEditClick(o)}
                       className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition"
@@ -571,8 +583,6 @@ export default function OrdersTab({
                     >
                       ✏️
                     </button>
-
-                    {/* 👁️ Preview */}
                     <button
                       onClick={() => handlePreviewClick(o)}
                       className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition"
@@ -580,8 +590,6 @@ export default function OrdersTab({
                     >
                       👁️
                     </button>
-
-                    {/* 🆕 ახალი: შეტყობინების გაგზავნა */}
                     <button
                       onClick={() => handleOpenNotification(o)}
                       className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition"
@@ -589,8 +597,6 @@ export default function OrdersTab({
                     >
                       📢
                     </button>
-
-                    {/* 🧾 ინვოისი (არააქტიური) */}
                     <button
                       onClick={handleInvoiceClick}
                       className="p-1.5 text-gray-400 bg-gray-700/30 rounded-md cursor-not-allowed opacity-50"
@@ -599,8 +605,6 @@ export default function OrdersTab({
                     >
                       🧾
                     </button>
-
-                    {/* 🗑️ წაშლა */}
                     <button
                       onClick={() => handleDeleteClick(o)}
                       className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md transition"
@@ -650,7 +654,7 @@ export default function OrdersTab({
           onClose={() => { setShowNotificationModal(false); setNotificationOrder(null) }}
           order={notificationOrder}
           onSend={handleSendNotification}
-          logs={[]} // 🔄 მოგვიანებით აქ ჩაჯდება Supabase-დან წამოსული ლოგები
+          logs={[]}
         />
       )}
 
