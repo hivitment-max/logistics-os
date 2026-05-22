@@ -36,53 +36,93 @@ export default function SendNotificationModal({
   const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null)
   const [driverData, setDriverData] = useState<any>(null)
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null)
+  const [loadingDriver, setLoadingDriver] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // 🔁 1. მოდლის გახსნა: რესეტი და მონაცემების ჩატვირთვა
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && order) {
+      // რესეტი
       setSending(false)
       setSendResult(null)
-      setSelectedChannels([]) // დროებით ცარიელი
+      setSelectedChannels([])
+      setLoadError(null)
+      setLoadingDriver(true)
+      
+      // მონაცემების ჩატვირთვა
       fetchDriverData()
     }
-  }, [isOpen, order])
+  }, [isOpen, order?.id]) // ✅ order?.id-ზე დამოკიდებულობა აცილებს ზედმეტ რენდერებს
 
-  // 🔁 2. როცა telegramChatId ჩაიტვირთება: ავირჩევთ Telegram-ს
+  // 🔁 2. როცა მონაცემები ჩაიტვირთება: ავტო-მონიშვნა
   useEffect(() => {
-    if (isOpen && telegramChatId) {
-      setSelectedChannels(['telegram']) // ✅ ახლა მონიშვნა იმუშავებს!
+    if (!loadingDriver && isOpen) {
+      if (telegramChatId) {
+        setSelectedChannels(['telegram'])
+      } else if (order?.client_email) {
+        setSelectedChannels(['email'])
+      } else {
+        setSelectedChannels([])
+        if (!loadError) {
+          setLoadError('⚠️ Telegram და Email მიუწვდომელია')
+        }
+      }
     }
-  }, [isOpen, telegramChatId])
+  }, [loadingDriver, telegramChatId, order?.client_email, isOpen, loadError])
 
   const fetchDriverData = async () => {
     if (!order) return
+    
     try {
+      console.log('🔍 Fetching driver data for order:', order.id, 'type:', order.driver_type)
+      
       let driver = null
       let chatId = null
 
       if (order.driver_type === 'external' && order.external_driver_id) {
-        const { data } = await supabase
+        console.log('🔎 Fetching external_driver:', order.external_driver_id)
+        const { data, error } = await supabase
           .from('external_drivers')
           .select('id, full_name, phone, telegram_chat_id, telegram_username')
           .eq('id', order.external_driver_id)
           .single()
+        
+        if (error) {
+          console.error('❌ External driver error:', error)
+          throw new Error(`External driver: ${error.message}`)
+        }
         driver = data
         chatId = data?.telegram_chat_id
-      } 
-      else if (order.driver_id) {
-        const { data } = await supabase
+        console.log('✅ External driver found:', data?.full_name, 'chatId:', chatId)
+        
+      } else if (order.driver_id) {
+        console.log('🔎 Fetching internal driver:', order.driver_id)
+        const { data, error } = await supabase
           .from('drivers')
           .select('id, full_name, phone, telegram_chat_id, telegram_username')
           .eq('id', order.driver_id)
           .single()
+        
+        if (error) {
+          console.error('❌ Internal driver error:', error)
+          throw new Error(`Internal driver: ${error.message}`)
+        }
         driver = data
         chatId = data?.telegram_chat_id
+        console.log('✅ Internal driver found:', data?.full_name, 'chatId:', chatId)
+      } else {
+        console.warn('⚠️ No driver_id found in order')
       }
 
       setDriverData(driver)
-      setTelegramChatId(chatId)
-    } catch (error) {
-      console.error('❌ Failed to fetch driver data:', error)
+      setTelegramChatId(chatId || null)
+      
+    } catch (error: any) {
+      console.error('❌ fetchDriverData failed:', error)
+      setLoadError(`მონაცემების ჩატვირთვა ვერ მოხერხდა: ${error.message}`)
+      setTelegramChatId(null)
+    } finally {
+      setLoadingDriver(false)
     }
   }
 
@@ -125,6 +165,7 @@ export default function SendNotificationModal({
       setSendResult({ success: true, message: '✅ წარმატებით გაიგზავნა!' })
       setTimeout(() => onClose(), 1500)
     } catch (err: any) {
+      console.error('❌ Send error:', err)
       setSendResult({ success: false, message: `❌ ${err.message || 'გაგზავნა ვერ მოხერხდა'}` })
     } finally {
       setSending(false)
@@ -163,97 +204,78 @@ export default function SendNotificationModal({
           <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">📦 შეკვეთის დეტალები</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-gray-500 text-xs block mb-1">📍 მარშრუტი:</span>
-                <p className="font-medium">{order?.pickup_city || order?.pickup_address?.slice(0,20)} → {order?.delivery_city || order?.delivery_address?.slice(0,20)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500 text-xs block mb-1">👨‍✈️ მძღოლი:</span>
-                <p className="font-medium">
-                  {driverData?.full_name || order?.drivers?.full_name || order?.external_drivers?.full_name || '–'}
-                  {order?.driver_type === 'external' && <span className="text-[10px] px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded ml-1">გარე</span>}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-500 text-xs block mb-1">🚛 მანქანა:</span>
-                <p className="font-medium">{order?.vehicles?.plate_number || order?.external_vehicles?.plate_number || '–'}</p>
-              </div>
-              <div>
-                <span className="text-gray-500 text-xs block mb-1">💰 თანხა:</span>
-                <p className="font-bold text-green-600">{order?.price} {order?.currency}</p>
-              </div>
+              <div><span className="text-gray-500 text-xs block mb-1">📍 მარშრუტი:</span><p className="font-medium">{order?.pickup_address?.slice(0,20) || '–'} → {order?.delivery_address?.slice(0,20) || '–'}</p></div>
+              <div><span className="text-gray-500 text-xs block mb-1">👨‍✈️ მძღოლი:</span><p className="font-medium">{driverData?.full_name || order?.drivers?.full_name || order?.external_drivers?.full_name || '–'}</p></div>
+              <div><span className="text-gray-500 text-xs block mb-1">💰 თანხა:</span><p className="font-bold text-green-600">{order?.price} {order?.currency}</p></div>
             </div>
           </section>
+
+          {/* ⚠️ შეცდომის შეტყობინება */}
+          {loadError && (
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700 flex items-start gap-2">
+              <span>⚠️</span>
+              <div>
+                <p className="font-medium">ყურადღება</p>
+                <p className="text-xs mt-0.5">{loadError}</p>
+                <button 
+                  onClick={() => { setLoadingDriver(true); setLoadError(null); fetchDriverData(); }}
+                  className="text-xs text-orange-600 underline mt-1 hover:text-orange-800"
+                >
+                  🔄 ხელახლა ცდა
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 📡 გაგზავნის არხები */}
           <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
             <h3 className="text-sm font-bold text-gray-900 mb-3">📡 გაგზავნის არხები</h3>
-            <div className="space-y-2">
-              {channels.map(channel => {
-                const isSelected = selectedChannels.includes(channel.id)
-                const isDisabled = !channel.available
-                return (
-                  <label 
-                    key={channel.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                      isSelected && !isDisabled
-                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' 
-                        : isDisabled
-                          ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                          : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input 
-                      type="checkbox" 
-                      checked={isSelected}
-                      onChange={() => toggleChannel(channel.id)}
-                      disabled={isDisabled}
-                      className="w-4 h-4 accent-blue-600"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{channel.icon}</span>
-                        <span className="font-medium text-gray-900">{channel.name}</span>
-                        {channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">მალე</span>}
-                        {!channel.available && !channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">მიუწვდომელი</span>}
-                      </div>
-                      <p className="ml-6 text-xs text-gray-500">{channel.desc}</p>
-                      {channel.id === 'telegram' && !telegramChatId && (
-                        <p className="ml-6 text-[10px] text-orange-500 mt-0.5 animate-pulse">⏳ მძღოლის მონაცემები იტვირთება...</p>
-                      )}
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
-          </section>
-
-          {/* 📊 გაგზავნის ისტორია */}
-          {logs.length > 0 && (
-            <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">📊 გაგზავნის ისტორია</h3>
-              <div className="space-y-2">
-                {logs.map((log, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-gray-100 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${
-                        log.status === 'sent' ? 'bg-green-500' : log.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
-                      }`}></span>
-                      <span className="font-medium">{log.channel}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        log.status === 'sent' ? 'bg-green-100 text-green-700' : log.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {log.status === 'sent' ? 'გაიგზავნა' : log.status === 'failed' ? 'ვერ გაიგზავნა' : 'ლოდინში'}
-                      </span>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(log.timestamp).toLocaleString('ka-GE')}</p>
-                    </div>
-                  </div>
-                ))}
+            
+            {loadingDriver ? (
+              <div className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600">მძღოლის მონაცემები იტვირთება...</span>
               </div>
-            </section>
-          )}
+            ) : (
+              <div className="space-y-2">
+                {channels.map(channel => {
+                  const isSelected = selectedChannels.includes(channel.id)
+                  const isDisabled = !channel.available
+                  return (
+                    <label 
+                      key={channel.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                        isSelected && !isDisabled
+                          ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' 
+                          : isDisabled
+                            ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                            : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => toggleChannel(channel.id)}
+                        disabled={isDisabled}
+                        className="w-4 h-4 accent-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{channel.icon}</span>
+                          <span className="font-medium text-gray-900">{channel.name}</span>
+                          {channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">მალე</span>}
+                        </div>
+                        <p className="ml-6 text-xs text-gray-500">{channel.desc}</p>
+                        {!channel.available && !channel.soon && (
+                          <p className="ml-6 text-[10px] text-gray-400 mt-0.5">მიუწვდომელი</p>
+                        )}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </section>
 
           {/* ✅ შედეგი */}
           {sendResult && (
@@ -272,7 +294,7 @@ export default function SendNotificationModal({
           <button onClick={onClose} className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition">გაუქმება</button>
           <button 
             onClick={handleSend} 
-            disabled={sending || selectedChannels.length === 0}
+            disabled={sending || selectedChannels.length === 0 || loadingDriver}
             className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-blue-500/20"
           >
             {sending ? <><span className="animate-spin">⏳</span> იგზავნება...</> : <>📢 გაგზავნა ({selectedChannels.length})</>}
