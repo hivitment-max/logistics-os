@@ -15,6 +15,44 @@ export default function NotificationsTab({ showNotification }: NotificationsTabP
   const [filter, setFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
+  // 🆕 ახალი: მძღოლის პასუხის ბეჯი (ცალკე ფუნქცია)
+  const getDriverResponseBadge = (metadata: any) => {
+    const response = metadata?.driver_response
+    const respondedAt = metadata?.responded_at
+    
+    if (!response) return <span className="text-[10px] text-gray-500">–</span>
+    
+    if (response === 'accepted') {
+      return (
+        <div className="flex flex-col items-start">
+          <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30">
+            ✅ მიიღო
+          </span>
+          {respondedAt && (
+            <span className="text-[9px] text-gray-500 mt-0.5">
+              {new Date(respondedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )
+    }
+    if (response === 'rejected') {
+      return (
+        <div className="flex flex-col items-start">
+          <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 border border-red-500/30">
+            ❌ უარყო
+          </span>
+          {respondedAt && (
+            <span className="text-[9px] text-gray-500 mt-0.5">
+              {new Date(respondedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )
+    }
+    return <span className="text-[10px] text-gray-500">{response}</span>
+  }
+
   const fetchNotifications = async () => {
     setLoading(true)
     try {
@@ -81,7 +119,7 @@ export default function NotificationsTab({ showNotification }: NotificationsTabP
     }
   }
 
-  // 🗑️ ყველას წაშლა - ✅ შესწორებული ვერსია
+  // 🗑️ ყველას წაშლა
   const handleDeleteAll = async () => {
     const count = notifications.length
     if (count === 0) {
@@ -98,7 +136,7 @@ export default function NotificationsTab({ showNotification }: NotificationsTabP
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .in('id', idsToDelete) // ✅ ეს ქმნის WHERE კლაუზას
+        .in('id', idsToDelete)
       
       if (error) throw error
       
@@ -218,6 +256,8 @@ export default function NotificationsTab({ showNotification }: NotificationsTabP
                 <th className="px-4 py-3 text-left">შეტყობინება</th>
                 <th className="px-4 py-3 text-left">სტატუსი</th>
                 <th className="px-4 py-3 text-left">შეკვეთა</th>
+                {/* ✅ ახალი სვეტი: მძღოლის პასუხი */}
+                <th className="px-4 py-3 text-left">მძღოლის პასუხი</th>
                 <th className="px-4 py-3 text-left">დრო</th>
                 <th className="px-4 py-3 text-right">მოქმედება</th>
               </tr>
@@ -242,6 +282,10 @@ export default function NotificationsTab({ showNotification }: NotificationsTabP
                     </select>
                   </td>
                   <td className="px-4 py-3 text-gray-400 font-mono text-[9px]">{n.orders?.tracking_code || n.order_id?.slice(0,8) + '...'}</td>
+                  {/* ✅ ახალი სვეტი: მძღოლის პასუხი */}
+                  <td className="px-4 py-3">
+                    {getDriverResponseBadge(n.metadata)}
+                  </td>
                   <td className="px-4 py-3 text-gray-500 text-[9px]">{new Date(n.created_at).toLocaleString('ka-GE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
@@ -253,7 +297,7 @@ export default function NotificationsTab({ showNotification }: NotificationsTabP
                 </tr>
               ))}
               {notifications.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">შეტყობინებები არ არის</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">შეტყობინებები არ არის</td></tr>
               )}
             </tbody>
           </table>

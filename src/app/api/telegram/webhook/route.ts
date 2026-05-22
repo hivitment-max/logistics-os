@@ -39,45 +39,73 @@ export async function POST(req: Request) {
 
       let dashboardTitle = '', dashboardMessage = '', replyMsg = ''
 
+      // ✅ ლოგიკა: მიღება თუ უარყოფა + ბაზის განახლება
       if (action === 'acc') {
         dashboardTitle = '✅ მძღოლმა მიიღო შეკვეთა'
         dashboardMessage = `👨‍✈️ <b>${driverName}</b>-მა მიიღო <code>${order.tracking_code}</code>`
         replyMsg = '✅ <b>მიღებულია!</b> მადლობა.'
-        await supabase.from('orders').update({ status: 'accepted', driver_confirmed_at: new Date().toISOString() }).eq('id', orderId)
+        
+        // 🔄 განვაახლოთ შეკვეთა + driver_response ველები
+        await supabase.from('orders').update({ 
+          status: 'confirmed',                    // ✅ სტატუსი: დადასტურებული
+          driver_response: 'accepted',            // ✅ მძღოლის პასუხი: მიღებული
+          driver_responded_at: new Date().toISOString(),  // ✅ დროის დაფიქსირება
+          driver_confirmed_at: new Date().toISOString()
+        }).eq('id', orderId)
+        
       } else if (action === 'rej') {
         dashboardTitle = '❌ მძღოლმა უარყო შეკვეთა'
         dashboardMessage = `👨‍✈️ <b>${driverName}</b>-მა უარყო <code>${order.tracking_code}</code>`
         replyMsg = '❌ <b>უარყოფილია!</b> ადმინისტრატორი შეგეკონტაქტებათ.'
-        await supabase.from('orders').update({ status: 'pending', driver_rejected_at: new Date().toISOString(), driver_id: null }).eq('id', orderId)
+        
+        // 🔄 განვაახლოთ შეკვეთა + driver_response ველები
+        await supabase.from('orders').update({ 
+          status: 'rejected',                     // ❌ სტატუსი: უარყოფილი
+          driver_response: 'rejected',            // ❌ მძღოლის პასუხი: უარყოფილი
+          driver_responded_at: new Date().toISOString(),  // ✅ დროის დაფიქსირება
+          driver_rejected_at: new Date().toISOString(),
+          driver_id: null                          // 🔓 თუ გინდა რომ მძღოლი გათავისუფლდეს
+        }).eq('id', orderId)
       }
 
-      // 📢 1. პასუხი მძღოლს
+      // 📢 1. პასუხი მძღოლს (დადასტურების მესიჯი)
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: replyMsg, parse_mode: 'HTML' })
-      })
-
-      // ✏️ 2. ღილაკების წაშლა
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId, message_id: messageId,
-          text: callback.message.text + `\n\n🔄 <b>პასუხი:</b> ${action === 'acc' ? '✅ მიღებული' : '❌ უარყოფილი'}`,
-          parse_mode: 'HTML', reply_markup: { inline_keyboard: [] }
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: chatId, 
+          text: replyMsg, 
+          parse_mode: 'HTML' 
         })
       })
 
-      // 🚨 3. დეშბორდის შეტყობინების ჩაწერა (ახლა 100%-ით იმუშავებს)
+      // ✏️ 2. ღილაკების წაშლა/გამოუქმება ძველ მესიჯში
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId, 
+          message_id: messageId,
+          text: callback.message.text + `\n\n🔄 <b>პასუხი:</b> ${action === 'acc' ? '✅ მიღებული' : '❌ უარყოფილი'}`,
+          parse_mode: 'HTML', 
+          reply_markup: { inline_keyboard: [] }  // 🔘 ღილაკების წაშლა
+        })
+      })
+
+      // 🚨 3. დეშბორდის შეტყობინების ჩაწერა (რომ ადმინმა ნახოს)
       console.log('🔔 [WEBHOOK] Inserting dashboard notification...')
       const { error: notifError } = await supabase.from('notifications').insert({
         channel: 'dashboard',
-        status: 'unread',          // ✅ 'unread' რომ ლურჯი ინდიკატორით გამოჩნდეს
+        status: 'unread',                          // ✅ 'unread' რომ ლურჯი ინდიკატორით გამოჩნდეს
         title: dashboardTitle,
         message: dashboardMessage,
         order_id: orderId,
         driver_id: order.driver_type === 'internal' ? driver?.id : null,
         external_driver_id: order.driver_type === 'external' ? driver?.id : null,
-        metadata: { driver_response: action, responded_at: new Date().toISOString() },
+        metadata: { 
+          driver_response: action,                 // ✅ 'acc' ან 'rej'
+          responded_at: new Date().toISOString()   // ✅ პასუხის დრო
+        },
         created_at: new Date().toISOString()
       })
 
@@ -91,6 +119,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true })
+    
   } catch (err: any) {
     console.error('❌ Webhook Critical Error:', err)
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })

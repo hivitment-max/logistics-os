@@ -19,7 +19,7 @@ interface OrdersTabProps {
   onCreateInvoice: (order: any) => void
   getStatusColor: (status: string) => string
   ActionButtons: React.ComponentType<{ onEdit: () => void; onDelete: () => void }>
-  loadData?: () => void // ✅ ახალი: რეფრეშის ფუნქცია
+  loadData?: () => void
 }
 
 export default function OrdersTab({ 
@@ -37,13 +37,10 @@ export default function OrdersTab({
   loadData
 }: OrdersTabProps) {
   
-  // 🎯 Modal States
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingOrder, setEditingOrder] = useState<any | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [previewOrder, setPreviewOrder] = useState<any | null>(null)
-  
-  // 🆕 ახალი: შეტყობინების მოდალის სტეიტები
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [notificationOrder, setNotificationOrder] = useState<any | null>(null)
 
@@ -70,12 +67,48 @@ export default function OrdersTab({
   const filteredOrders = orders.filter(o => orderFilter === 'all' || o.status === orderFilter)
 
   // ============================================================================
-  // 🔄 HELPER: ბაზის მონაცემები → ფორმის ფორმატი (რედაქტირებისთვის)
+  // 🆕 ახალი: მძღოლის პასუხის ბეჯი (ცალკე ფუნქცია)
+  // ============================================================================
+  const getDriverResponseBadge = (response: string | null, respondedAt?: string) => {
+    if (!response) return <span className="text-[10px] text-gray-500">–</span>
+    
+    if (response === 'accepted') {
+      return (
+        <div className="flex flex-col items-start">
+          <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30">
+            ✅ დადასტურებულია
+          </span>
+          {respondedAt && (
+            <span className="text-[9px] text-gray-500 mt-0.5">
+              {new Date(respondedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )
+    }
+    if (response === 'rejected') {
+      return (
+        <div className="flex flex-col items-start">
+          <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 border border-red-500/30">
+            ❌ უარყოფილია
+          </span>
+          {respondedAt && (
+            <span className="text-[9px] text-gray-500 mt-0.5">
+              {new Date(respondedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )
+    }
+    return <span className="text-[10px] text-gray-500">{response}</span>
+  }
+
+  // ============================================================================
+  // 🔄 HELPER: ბაზის მონაცემები → ფორმის ფორმატი
   // ============================================================================
   const mapDatabaseToForm = (order: any) => {
     const splitDateTime = (timestamp: string | null) => {
       if (!timestamp) return { date: '', time: '' }
-      
       try {
         if (timestamp.includes('T')) {
           const [date, timePart] = timestamp.split('T')
@@ -94,10 +127,8 @@ export default function OrdersTab({
         return { date: '', time: '' }
       }
     }
-
     const pickup = splitDateTime(order.scheduled_pickup_date)
     const delivery = splitDateTime(order.scheduled_delivery_date)
-
     return {
       pickup_address: order.pickup_address || '',
       pickup_date: pickup.date,
@@ -160,7 +191,7 @@ export default function OrdersTab({
   }
 
   // ============================================================================
-  // 🔄 HELPER: ფორმის მონაცემები → ბაზის ფორმატი (შენახვისთვის)
+  // 🔄 HELPER: ფორმის მონაცემები → ბაზის ფორმატი
   // ============================================================================
   const mapFormToDatabase = (form: any) => {
     const combineDateTime = (date: string, time: string) => {
@@ -168,7 +199,6 @@ export default function OrdersTab({
       if (time) return `${date}T${time}:00Z`
       return `${date}T00:00:00Z`
     }
-
     return {
       pickup_address: form.pickup_address || null,
       delivery_address: form.delivery_address || null,
@@ -226,14 +256,12 @@ export default function OrdersTab({
     }
   }
 
-  // ✏️ რედაქტირების დაწყება
   const handleEditClick = (order: any) => {
     const formData = mapDatabaseToForm(order)
     setEditingOrder(formData)
     setShowEditModal(true)
   }
 
-  // 💾 რედაქტირების შენახვა
   const handleEditSave = (updatedData: any) => {
     const payload = mapFormToDatabase(updatedData)
     onEdit({ id: editingOrder?.id, tracking_code: editingOrder?.tracking_code, ...payload })
@@ -241,26 +269,22 @@ export default function OrdersTab({
     setEditingOrder(null)
   }
 
-  // 🗑️ წაშლა დადასტურებით
   const handleDeleteClick = (order: any) => {
     if (confirm(`დარწმუნებული ხართ რომ გინდათ შეკვეთის ${order.tracking_code} წაშლა?`)) {
       onDelete(order)
     }
   }
 
-  // 👁️ Preview გახსნა
   const handlePreviewClick = (order: any) => {
     setPreviewOrder(order)
     setShowPreviewModal(true)
   }
 
-  // 🆕 ახალი: შეტყობინების მოდარის გახსნა
   const handleOpenNotification = (order: any) => {
     setNotificationOrder(order)
     setShowNotificationModal(true)
   }
 
-  // 📡 შეტყობინების გაგზავნა
   const handleSendNotification = async (channels: string[]) => {
     console.log('🚀 [NOTIFICATION] Starting send process...')
     console.log('📦 Selected order:', notificationOrder?.id, notificationOrder?.tracking_code)
@@ -271,70 +295,35 @@ export default function OrdersTab({
     }
 
     const order = notificationOrder
-    
     let driver = order.drivers || order.external_drivers
     const isExternalDriver = order.driver_type === 'external'
     
-    console.log('🔍 [NOTIFICATION] Order Driver Check:', {
-      driver_type: order.driver_type,
-      driver_id: order.driver_id,
-      external_driver_id: order.external_driver_id,
-      hasExistingDriverObject: !!driver,
-      existingDriverChatId: driver?.telegram_chat_id
-    })
-
     if (!driver || !driver.telegram_chat_id) {
       console.log('🔄 [NOTIFICATION] Telegram ID missing. Fetching from Supabase...')
-      
       let fetchedDriver = null
-      
       try {
         if (isExternalDriver && order.external_driver_id) {
-          console.log(`🔎 Fetching external driver ID: ${order.external_driver_id}`)
           const { data, error } = await supabase
             .from('external_drivers')
             .select('id, full_name, phone, telegram_chat_id, telegram_username')
             .eq('id', order.external_driver_id)
             .single()
-          
-          if (error) {
-            console.error('❌ Supabase Error (External):', error)
-          } else {
-            fetchedDriver = data
-            console.log('✅ [NOTIFICATION] Fetched external driver from DB:', data)
-          }
-        } 
-        else if (!isExternalDriver && order.driver_id) {
-          console.log(`🔎 Fetching internal driver ID: ${order.driver_id}`)
+          if (error) console.error('❌ Supabase Error (External):', error)
+          else fetchedDriver = data
+        } else if (!isExternalDriver && order.driver_id) {
           const { data, error } = await supabase
             .from('drivers')
             .select('id, full_name, phone, telegram_chat_id, telegram_username')
             .eq('id', order.driver_id)
             .single()
-          
-          if (error) {
-            console.error('❌ Supabase Error (Internal):', error)
-          } else {
-            fetchedDriver = data
-            console.log('✅ [NOTIFICATION] Fetched internal driver from DB:', data)
-          }
-        } else {
-          console.warn('⚠️ [NOTIFICATION] No driver ID found in order to fetch from DB')
+          if (error) console.error('❌ Supabase Error (Internal):', error)
+          else fetchedDriver = data
         }
-        
-        if (fetchedDriver) {
-          driver = { ...driver, ...fetchedDriver }
-        }
+        if (fetchedDriver) driver = { ...driver, ...fetchedDriver }
       } catch (err) {
         console.error('❌ Exception during driver fetch:', err)
       }
     }
-    
-    console.log('👤 [NOTIFICATION] Final driver data for notification:', {
-      full_name: driver?.full_name,
-      telegram_chat_id: driver?.telegram_chat_id,
-      telegram_username: driver?.telegram_username
-    })
 
     if (!driver) {
       console.error('❌ [NOTIFICATION] No driver found for this order')
@@ -343,8 +332,6 @@ export default function OrdersTab({
 
     const notificationLogs = []
     for (const channel of channels) {
-      console.log(`🔄 [NOTIFICATION] Inserting ${channel} log...`)
-      
       const logEntry = {
         driver_id: isExternalDriver ? null : driver?.id,
         external_driver_id: isExternalDriver ? driver?.id : null,
@@ -364,133 +351,48 @@ export default function OrdersTab({
         },
         created_at: new Date().toISOString()
       }
-      
-      const { data: log, error } = await supabase
-        .from('notifications')
-        .insert([logEntry])
-        .select()
-        .single()
-      
+      const { data: log, error } = await supabase.from('notifications').insert([logEntry]).select().single()
       if (error) {
         console.error(`❌ [NOTIFICATION] Failed to create ${channel} log:`, error)
         continue
       }
-      console.log(`✅ [NOTIFICATION] Created ${channel} log with ID:`, log?.id)
       notificationLogs.push(log)
     }
 
     if (channels.includes('telegram')) {
-      console.log('📱 [TELEGRAM] Preparing to send Telegram message with buttons...')
-      
       const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
       const chatId = driver?.telegram_chat_id
-      
-      console.log('🔑 [TELEGRAM] Config check:', {
-        token_exists: !!token,
-        token_preview: token ? token.slice(0, 15) + '...' : 'MISSING',
-        chatId: chatId,
-        chatId_type: typeof chatId,
-        driver_full_name: driver?.full_name
-      })
 
-      if (!token) {
-        console.error('❌ [TELEGRAM] NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is missing!')
-        return { success: false, error: 'Bot token missing in env' }
-      }
-      
+      if (!token) return { success: false, error: 'Bot token missing in env' }
       if (!chatId) {
-        console.error('❌ [TELEGRAM] driver.telegram_chat_id is missing or empty! Available keys:', Object.keys(driver || {}))
-        await supabase
-          .from('notifications')
-          .update({ 
-            status: 'failed', 
-            metadata: { error: 'Driver telegram_chat_id is missing', debug_driver: driver }
-          })
-          .eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
+        await supabase.from('notifications').update({ status: 'failed', metadata: { error: 'Driver telegram_chat_id is missing' }}).eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
         return { success: false, error: 'Driver chat ID missing' }
       }
 
       try {
-        const text = `🚛 <b>ახალი შეკვეთა!</b>\n\n` +
-          `📦 კოდი: <code>${order.tracking_code}</code>\n` +
-          `👨‍✈️ მძღოლი: ${driver?.full_name}\n` +
-          `📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n` +
-          `📅 თარიღი: ${order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date).toLocaleDateString('ka-GE') : '–'}\n` +
-          `💰 თანხა: ${order.price} ${order.currency}\n\n` +
-          `🔗 <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard?tab=orders">გადასვლა დაშბორდზე</a>`
+        const text = `🚛 <b>ახალი შეკვეთა!</b>\n\n📦 კოდი: <code>${order.tracking_code}</code>\n👨‍✈️ მძღოლი: ${driver?.full_name}\n📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n📅 თარიღი: ${order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date).toLocaleDateString('ka-GE') : '–'}\n💰 თანხა: ${order.price} ${order.currency}\n\n🔗 <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard?tab=orders">გადასვლა დაშბორდზე</a>`
+        const reply_markup = { inline_keyboard: [[{ text: '✅ მივიღე', callback_data: `acc:${order.id}` }, { text: '❌ უარვყავი', callback_data: `rej:${order.id}` }]] }
 
-        const reply_markup = {
-          inline_keyboard: [
-            [
-              { 
-                text: '✅ მივიღე', 
-                callback_data: `acc:${order.id}`
-              },
-              { 
-                text: '❌ უარვყავი', 
-                callback_data: `rej:${order.id}`
-              }
-            ]
-          ]
-        }
-
-        console.log('📡 [TELEGRAM] Sending request with buttons...')
         const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            chat_id: chatId, 
-            text, 
-            parse_mode: 'HTML',
-            disable_web_page_preview: true,
-            reply_markup: reply_markup
-          })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup })
         })
-        
         const result = await response.json()
-        console.log('📡 [TELEGRAM] API Response:', result)
         
         if (result.ok) {
-          console.log('✅ [TELEGRAM] Message sent successfully! Message ID:', result.result.message_id)
-          await supabase
-            .from('notifications')
-            .update({ 
-              status: 'sent', 
-              sent_at: new Date().toISOString(),
-              metadata: { 
-                ...notificationLogs.find((l: any) => l.channel === 'telegram')?.metadata,
-                telegram_message_id: result.result.message_id 
-              }
-            })
-            .eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
-          
+          await supabase.from('notifications').update({ status: 'sent', sent_at: new Date().toISOString(), metadata: { ...notificationLogs.find((l: any) => l.channel === 'telegram')?.metadata, telegram_message_id: result.result.message_id }}).eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
           return { success: true, logs: notificationLogs, telegram_message_id: result.result.message_id }
         } else {
-          console.error('❌ [TELEGRAM] API returned error:', result)
           throw new Error(result.description || 'Telegram API error')
         }
       } catch (err: any) {
-        console.error('❌ [TELEGRAM] Exception during send:', err)
-        await supabase
-          .from('notifications')
-          .update({ 
-            status: 'failed', 
-            metadata: { 
-              ...notificationLogs.find((l: any) => l.channel === 'telegram')?.metadata,
-              error: err.message,
-              error_stack: err.stack
-            }
-          })
-          .eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
+        await supabase.from('notifications').update({ status: 'failed', metadata: { ...notificationLogs.find((l: any) => l.channel === 'telegram')?.metadata, error: err.message }}).eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
         return { success: false, error: err.message }
       }
     }
-
-    console.log('✅ [NOTIFICATION] Process completed')
     return { success: true, logs: notificationLogs }
   }
 
-  // 🧾 ინვოისი (ჯერ არააქტიური)
   const handleInvoiceClick = () => {
     alert('🧾 ინვოისის ფუნქცია მალე დაემატება!')
   }
@@ -502,11 +404,7 @@ export default function OrdersTab({
       <div className="px-4 py-3 border-b border-gray-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-800/80">
         <div className="flex items-center gap-3">
           <h2 className="text-xs font-bold uppercase text-gray-300">📦 შეკვეთები</h2>
-          <select 
-            value={orderFilter} 
-            onChange={(e) => setOrderFilter(e.target.value)} 
-            className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-[10px] outline-none focus:border-blue-500 transition"
-          >
+          <select value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-[10px] outline-none focus:border-blue-500 transition">
             <option value="all">ყველა</option>
             <option value="pending">ლოდინში</option>
             <option value="confirmed">✅ დადასტურებული</option>
@@ -516,12 +414,7 @@ export default function OrdersTab({
             <option value="cancelled">გაუქმებული</option>
           </select>
         </div>
-        <button 
-          onClick={onAdd} 
-          className="bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded text-[10px] font-semibold transition shadow-lg shadow-purple-500/20"
-        >
-          + ახალი
-        </button>
+        <button onClick={onAdd} className="bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded text-[10px] font-semibold transition shadow-lg shadow-purple-500/20">+ ახალი</button>
       </div>
 
       {/* Table */}
@@ -535,6 +428,8 @@ export default function OrdersTab({
               <th className="px-4 py-3 text-left">მძღოლი / მანქანა</th>
               <th className="px-4 py-3 text-left">ფასი</th>
               <th className="px-4 py-3 text-left">სტატუსი</th>
+              {/* ✅ ახალი სვეტი: მძღოლის პასუხი */}
+              <th className="px-4 py-3 text-left">მძღოლის პასუხი</th>
               <th className="px-4 py-3 text-right">მოქმედება</th>
             </tr>
           </thead>
@@ -561,11 +456,7 @@ export default function OrdersTab({
                 </td>
                 <td className="px-4 py-3 font-medium">{o.price} {o.currency}</td>
                 <td className="px-4 py-3">
-                  <select 
-                    value={o.status} 
-                    onChange={(e) => onStatusChange(o.id, e.target.value)} 
-                    className={`px-2 py-0.5 rounded text-[10px] border bg-transparent outline-none cursor-pointer ${getStatusColor(o.status)}`}
-                  >
+                  <select value={o.status} onChange={(e) => onStatusChange(o.id, e.target.value)} className={`px-2 py-0.5 rounded text-[10px] border bg-transparent outline-none cursor-pointer ${getStatusColor(o.status)}`}>
                     <option value="pending">ლოდინში</option>
                     <option value="confirmed">✅ დადასტურებულია</option>
                     <option value="rejected">❌ უარყოფილია</option>
@@ -574,54 +465,23 @@ export default function OrdersTab({
                     <option value="cancelled">გაუქმებული</option>
                   </select>
                 </td>
+                {/* ✅ ახალი სვეტი: მძღოლის პასუხი */}
+                <td className="px-4 py-3">
+                  {getDriverResponseBadge(o.driver_response, o.driver_responded_at)}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end items-center gap-1">
-                    <button
-                      onClick={() => handleEditClick(o)}
-                      className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition"
-                      title="რედაქტირება"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => handlePreviewClick(o)}
-                      className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition"
-                      title="Preview"
-                    >
-                      👁️
-                    </button>
-                    <button
-                      onClick={() => handleOpenNotification(o)}
-                      className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition"
-                      title="შეტყობინების გაგზავნა"
-                    >
-                      📢
-                    </button>
-                    <button
-                      onClick={handleInvoiceClick}
-                      className="p-1.5 text-gray-400 bg-gray-700/30 rounded-md cursor-not-allowed opacity-50"
-                      title="ინვოისი (მალე)"
-                      disabled
-                    >
-                      🧾
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(o)}
-                      className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md transition"
-                      title="წაშლა"
-                    >
-                      🗑️
-                    </button>
+                    <button onClick={() => handleEditClick(o)} className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition" title="რედაქტირება">✏️</button>
+                    <button onClick={() => handlePreviewClick(o)} className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition" title="Preview">👁️</button>
+                    <button onClick={() => handleOpenNotification(o)} className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition" title="შეტყობინების გაგზავნა">📢</button>
+                    <button onClick={handleInvoiceClick} className="p-1.5 text-gray-400 bg-gray-700/30 rounded-md cursor-not-allowed opacity-50" title="ინვოისი (მალე)" disabled>🧾</button>
+                    <button onClick={() => handleDeleteClick(o)} className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md transition" title="წაშლა">🗑️</button>
                   </div>
                 </td>
               </tr>
             ))}
             {filteredOrders.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  შეკვეთები არ არის
-                </td>
-              </tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">შეკვეთები არ არის</td></tr>
             )}
           </tbody>
         </table>
@@ -629,33 +489,17 @@ export default function OrdersTab({
 
       {/* ✏️ Edit Order Modal */}
       {showEditModal && editingOrder && (
-        <AddOrderModal
-          isOpen={showEditModal}
-          onClose={() => { setShowEditModal(false); setEditingOrder(null) }}
-          orderForm={editingOrder}
-          setOrderForm={setEditingOrder}
-          onSubmit={handleEditSave}
-        />
+        <AddOrderModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingOrder(null) }} orderForm={editingOrder} setOrderForm={setEditingOrder} onSubmit={handleEditSave} />
       )}
 
       {/* 👁️ Preview Modal */}
       {showPreviewModal && previewOrder && (
-        <OrderPreviewModal
-          isOpen={showPreviewModal}
-          onClose={() => { setShowPreviewModal(false); setPreviewOrder(null) }}
-          order={previewOrder}
-        />
+        <OrderPreviewModal isOpen={showPreviewModal} onClose={() => { setShowPreviewModal(false); setPreviewOrder(null) }} order={previewOrder} />
       )}
 
-      {/* 🆕 ახალი: შეტყობინების მოდალი */}
+      {/* 🆕 შეტყობინების მოდალი */}
       {showNotificationModal && notificationOrder && (
-        <SendNotificationModal
-          isOpen={showNotificationModal}
-          onClose={() => { setShowNotificationModal(false); setNotificationOrder(null) }}
-          order={notificationOrder}
-          onSend={handleSendNotification}
-          logs={[]}
-        />
+        <SendNotificationModal isOpen={showNotificationModal} onClose={() => { setShowNotificationModal(false); setNotificationOrder(null) }} order={notificationOrder} onSend={handleSendNotification} logs={[]} />
       )}
 
     </div>
