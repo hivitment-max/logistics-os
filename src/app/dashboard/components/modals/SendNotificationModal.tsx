@@ -3,11 +3,19 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
+// ✅ ახალი: შედეგის ტიპი
+export type SendNotificationResult = {
+  success: boolean
+  logs?: any[]
+  telegram_message_id?: any
+  error?: any
+}
+
 interface SendNotificationModalProps {
   isOpen: boolean
   onClose: () => void
   order: any
-  onSend: (channels: string[]) => Promise<void>
+  onSend: (channels: string[]) => Promise<SendNotificationResult | void> // ✅ განახლებული ტიპი
   logs?: Array<{
     channel: string
     status: 'sent' | 'failed' | 'pending'
@@ -30,7 +38,6 @@ export default function SendNotificationModal({
   const [driverData, setDriverData] = useState<any>(null)
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null)
 
-  // 🔍 მივიღოთ მძღოლის მონაცემები როცა მოდალი იხსნება
   useEffect(() => {
     if (isOpen && order) {
       fetchDriverData()
@@ -39,7 +46,6 @@ export default function SendNotificationModal({
 
   const fetchDriverData = async () => {
     if (!order) return
-
     try {
       let driver = null
       let chatId = null
@@ -50,7 +56,6 @@ export default function SendNotificationModal({
           .select('id, full_name, phone, telegram_chat_id, telegram_username')
           .eq('id', order.external_driver_id)
           .single()
-        
         driver = data
         chatId = data?.telegram_chat_id
       } 
@@ -60,18 +65,12 @@ export default function SendNotificationModal({
           .select('id, full_name, phone, telegram_chat_id, telegram_username')
           .eq('id', order.driver_id)
           .single()
-        
         driver = data
         chatId = data?.telegram_chat_id
       }
 
       setDriverData(driver)
       setTelegramChatId(chatId)
-      
-      console.log('📱 [MODAL] Driver data loaded:', { 
-        name: driver?.full_name, 
-        telegram_chat_id: chatId 
-      })
     } catch (error) {
       console.error('❌ Failed to fetch driver data:', error)
     }
@@ -111,11 +110,9 @@ export default function SendNotificationModal({
     setSendResult(null)
     
     try {
-      await onSend(selectedChannels)
+      await onSend(selectedChannels) // ✅ ახლა მუშაობს ნებისმიერი დაბრუნების ტიპით
       setSendResult({ success: true, message: '✅ შეტყობინება წარმატებით გაიგზავნა!' })
-      setTimeout(() => {
-        onClose()
-      }, 2000)
+      setTimeout(() => { onClose() }, 2000)
     } catch (err: any) {
       setSendResult({ success: false, message: `❌ ${err.message || 'შეცდომა გაგზავნისას'}` })
     } finally {
@@ -126,7 +123,6 @@ export default function SendNotificationModal({
   const toggleChannel = (channelId: string) => {
     const channel = channels.find(c => c.id === channelId)
     if (!channel?.available) return
-    
     setSelectedChannels(prev => 
       prev.includes(channelId) 
         ? prev.filter(c => c !== channelId) 
@@ -185,7 +181,6 @@ export default function SendNotificationModal({
               {channels.map(channel => {
                 const isSelected = selectedChannels.includes(channel.id)
                 const isDisabled = !channel.available
-                
                 return (
                   <label 
                     key={channel.id}
@@ -213,7 +208,6 @@ export default function SendNotificationModal({
                       </div>
                       <div className="ml-6 mt-0.5">
                         <p className="text-xs text-gray-500">{channel.desc}</p>
-                        {/* ✅ აქ ვაჩვენებთ Telegram Chat ID-ს */}
                         {channel.id === 'telegram' && channel.chatId && (
                           <p className="text-[10px] text-blue-600 font-mono mt-0.5">📱 Chat ID: <code className="bg-blue-100 px-1 rounded">{channel.chatId}</code></p>
                         )}
@@ -228,7 +222,7 @@ export default function SendNotificationModal({
             </div>
           </section>
 
-          {/* 📊 გაგზავნის ისტორია/ლოგები */}
+          {/* 📊 გაგზავნის ისტორია */}
           {logs.length > 0 && (
             <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
               <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">📊 გაგზავნის ისტორია</h3>
