@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase/client'
 
 // ✅ ჰუკების იმპორტები
 import { useAdminData } from './hooks/useAdminData'
@@ -30,6 +31,7 @@ import AuditTab from '../tabs/AuditTab'
 import PayrollTab from '../tabs/PayrollTab'
 import SettingsTab from '../tabs/SettingsTab'
 import DispatchTab from '../tabs/DispatchTab'
+import NotificationsTab from '../tabs/NotificationsTab' // ✅ ახალი: შეტყობინებების ტაბი
 
 // ✅ ახალი: AddOrderModal იმპორტი
 import AddOrderModal from '../modals/AddOrderModal'
@@ -96,10 +98,88 @@ export default function AdminDashboard() {
   const privateClientsHook = usePrivateClients({ showNotification, loadData })
   const companiesHook = useCompanies({ showNotification, loadData })
   
-// ✅ FIX: Added required logAudit prop to useDispatch
-const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
+  const dispatchHook = useDispatch({ 
+    showNotification, 
+    loadData, 
+    logAudit,
+    orders,
+    drivers,
+    vehicles: vehiclesData
+  })
 
   const isAdmin = currentUser?.user_metadata?.role === 'admin'
+
+  // 🔔 შეტყობინებების სტეიტები
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [dashboardNotifications, setDashboardNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const fetchDashboardNotifications = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('channel', 'dashboard')
+        .order('created_at', { ascending: false })
+        .limit(20)
+      
+      if (error) throw error
+      
+      setDashboardNotifications(data || [])
+      setUnreadCount((data || []).filter((n: any) => n.status === 'unread').length)
+    } catch (err) {
+      console.error('❌ Failed to fetch dashboard notifications:', err)
+    }
+  }, [])
+
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    try {
+      await supabase
+        .from('notifications')
+        .update({ status: 'read', read_at: new Date().toISOString() })
+        .eq('id', notificationId)
+      
+      setDashboardNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, status: 'read' } : n)
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (err) {
+      console.error('❌ Failed to mark notification as read:', err)
+    }
+  }, [])
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      await supabase
+        .from('notifications')
+        .update({ status: 'read', read_at: new Date().toISOString() })
+        .eq('channel', 'dashboard')
+        .eq('status', 'unread')
+      
+      setDashboardNotifications(prev => prev.map(n => ({ ...n, status: 'read' })))
+      setUnreadCount(0)
+    } catch (err) {
+      console.error('❌ Failed to mark all as read:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDashboardNotifications()
+    
+    const channel = supabase
+      .channel('dashboard_notifications')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: 'channel=eq.dashboard' },
+        () => {
+          fetchDashboardNotifications()
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchDashboardNotifications])
 
   const menuStructure = [
     { category: 'მთავარი', items: [{ id: 'overview', icon: '📈', label: 'მიმოხილვა' }, { id: 'kpi', icon: '🎯', label: 'KPI & ანალიტიკა' }]},
@@ -114,6 +194,8 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
     { category: 'დამკვეთები', items: [{ id: 'private_clients', icon: '👤', label: 'კერძო პირი' }, { id: 'companies', icon: '🏢', label: 'კომპანია' }]},
     { category: 'ფინანსები', items: [{ id: 'invoices', icon: '🧾', label: 'ინვოისები' }, { id: 'invoice_templates', icon: '🎨', label: 'ინვოისის შაბლონები' }, { id: 'payroll', icon: '💸', label: 'Payroll' }]},
     { category: 'სისტემა', items: [{ id: 'audit', icon: '📜', label: 'აუდიტი' }, { id: 'api', icon: '🔌', label: 'API' }, { id: 'settings', icon: '⚙️', label: 'პარამეტრები' }]},
+    // ✅ ახალი: შეტყობინებების კატეგორია
+    { category: 'შეტყობინებები', items: [{ id: 'notifications', icon: '📢', label: 'შეტყობინებები' }]},
   ]
 
   const ActionButtons = ({ onEdit, onDelete, onPrint }: { onEdit: () => void; onDelete: () => void; onPrint?: () => void }) => (
@@ -138,7 +220,7 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
   const currentItem = getCurrentItem()
 
   const renderContent = () => {
-    if (activeTab === 'dispatch') return <DispatchTab orders={orders} drivers={drivers} vehicles={vehiclesData} onAssign={dispatchHook.handleAssign} onViewOrder={(order: any) => { setActiveTab('orders'); ordersHook.handleEditOrderClick(order) }} getStatusColor={getStatusColor} />
+    if (activeTab === 'dispatch') return <DispatchTab orders={orders} drivers={drivers} vehicles={vehiclesData} onAssign={dispatchHook.handleAssign} onUnassign={dispatchHook.handleUnassign} onViewOrder={(order: any) => { setActiveTab('orders'); ordersHook.handleEditOrderClick(order) }} getStatusColor={getStatusColor} />
     if (activeTab === 'overview') return <OverviewTab orders={orders} invoices={invoices} vehicles={vehiclesData} drivers={drivers} getStatusColor={getStatusColor} onNavigateToVehicles={() => setActiveTab('vehicles')} onNavigateToKpi={() => setActiveTab('kpi')} />
     if (activeTab === 'kpi') return <KpiTab orders={orders} invoices={invoices} vehicles={vehiclesData} drivers={drivers} loading={loading} />
     
@@ -152,6 +234,11 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
     if (activeTab === 'audit') return <AuditTab />
     if (activeTab === 'payroll') return <PayrollTab />
     if (activeTab === 'settings') return <SettingsTab />
+    
+    // ✅ ახალი: შეტყობინებების ტაბი
+    if (activeTab === 'notifications') {
+      return <NotificationsTab showNotification={showNotification} />
+    }
     
     if (activeTab === 'vehicles') return (
       <VehiclesTab vehicles={vehiclesData} loading={loading} onEdit={vehicles.handleEditVehicleClick} onDelete={vehicles.handleDeleteVehicleClick} onAdd={() => vehicles.setShowAddVehicleModal(true)} getStatusColor={getStatusColor} ActionButtons={ActionButtons} onPrint={invoicesHook.handlePrintVehicle} />
@@ -199,11 +286,106 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
       </aside>
 
       <main className="flex-1 overflow-y-auto bg-gray-950 flex flex-col">
-        <header className="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800/50 px-5 py-2"><div className="flex justify-between items-center"><div><h1 className="text-sm font-bold flex items-center gap-2 text-gray-100">{currentItem.icon} {currentItem.label}</h1></div><button onClick={() => showNotification('🔔 ახალი შეტყობინებები')} className="relative p-1.5 hover:bg-gray-800 rounded-lg transition"><span className="text-lg leading-none">🔔</span></button></div></header>
+        <header className="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800/50 px-5 py-2">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-sm font-bold flex items-center gap-2 text-gray-100">{currentItem.icon} {currentItem.label}</h1>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)} 
+                className="relative p-1.5 hover:bg-gray-800 rounded-lg transition"
+                title="შეტყობინებები"
+              >
+                <span className="text-lg leading-none">🔔</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[9px] text-white rounded-full flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </header>
+        
         <div className="flex-1 p-4 space-y-4">{renderContent()}</div>
       </main>
 
-      {/* 🚗 ADD VEHICLE MODAL - სრული ვერსია ყველა ველით */}
+      {/* 🔔 შეტყობინებების Dropdown პანელი */}
+      {showNotifications && (
+        <div className="fixed top-12 right-4 z-50 w-80 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+            <h3 className="text-xs font-bold text-white flex items-center gap-2">🔔 შეტყობინებები</h3>
+            {unreadCount > 0 && (
+              <button 
+                onClick={markAllAsRead}
+                className="text-[9px] text-blue-400 hover:text-blue-300 transition"
+              >
+                ყველას წაკითხვა
+              </button>
+            )}
+          </div>
+          
+          <div className="max-h-96 overflow-y-auto">
+            {dashboardNotifications.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-xs">
+                ახალი შეტყობინებები არ არის
+              </div>
+            ) : (
+              dashboardNotifications.map((notif: any) => (
+                <div 
+                  key={notif.id}
+                  onClick={() => {
+                    markNotificationAsRead(notif.id)
+                    if (notif.order_id) {
+                      setActiveTab('orders')
+                    }
+                    setShowNotifications(false)
+                  }}
+                  className={`p-3 border-b border-gray-700/50 hover:bg-gray-700/30 cursor-pointer transition ${
+                    notif.status === 'unread' ? 'bg-blue-500/5 border-l-2 border-l-blue-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg shrink-0">
+                      {notif.title?.startsWith('✅') ? '✅' : notif.title?.startsWith('❌') ? '❌' : '🔔'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[10px] font-medium ${notif.status === 'unread' ? 'text-white' : 'text-gray-300'}`}>
+                        {notif.title}
+                      </p>
+                      <p className="text-[9px] text-gray-400 mt-0.5 line-clamp-2" dangerouslySetInnerHTML={{ __html: notif.message }} />
+                      <p className="text-[8px] text-gray-500 mt-1">
+                        {new Date(notif.created_at).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    {notif.status === 'unread' && (
+                      <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1"></span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {dashboardNotifications.length > 0 && (
+            <div className="px-4 py-2 border-t border-gray-700 bg-gray-800/50">
+              <button 
+                onClick={() => {
+                  setShowNotifications(false)
+                  setActiveTab('orders')
+                }}
+                className="w-full text-[9px] text-blue-400 hover:text-blue-300 transition text-center"
+              >
+                ყველა შეკვეთის ნახვა →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 🚗 ADD VEHICLE MODAL */}
       {vehicles.showAddVehicleModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => vehicles.setShowAddVehicleModal(false)}>
           <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
@@ -212,8 +394,6 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
               <button onClick={() => vehicles.setShowAddVehicleModal(false)} className="text-gray-400 hover:text-white text-xl transition">&times;</button>
             </div>
             <form onSubmit={vehicles.handleAddVehicle} className="p-5 overflow-y-auto space-y-6">
-              
-              {/* 🔴 სექცია 1: კრიტიკულად აუცილებელი */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="🔴 კრიტიკულად აუცილებელი (სავალდებულო)" icon="📋" color="text-red-400" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -228,8 +408,6 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
                   <FormField label="მინდობილობა" hint="თუ მძღოლი არ არის მესაკუთრე" value={vehicles.vehicleForm.power_of_attorney} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, power_of_attorney:e.target.value})} />
                 </div>
               </div>
-
-              {/* 🟡 სექცია 2: საოპერაციო მონაცემები */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="🟡 საოპერაციო მონაცემები" icon="⚙️" color="text-yellow-400" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -250,8 +428,6 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
                   <FormField checkbox label="აქვს მაცივარი" value={vehicles.vehicleForm.has_refrigeration} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, has_refrigeration:e.target.checked})} />
                 </div>
               </div>
-
-              {/* 🔵 სექცია 3: ტექნოლოგიური & მონიტორინგი */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="🔵 ტექნოლოგიური & მონიტორინგი" icon="📡" color="text-blue-400" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -263,8 +439,6 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
                   <FormField label="სტატუსი" required options={[{value:'active',label:'🟢 აქტიური'},{value:'idle',label:'🟡 ლოდინში'},{value:'maintenance',label:'🔧 რემონტში'},{value:'inactive',label:'⚫ არააქტიური'}]} value={vehicles.vehicleForm.status} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, status:e.target.value})} />
                 </div>
               </div>
-
-              {/* 🟣 სექცია 4: დამატებითი */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="🟣 დამატებითი ინფორმაცია" icon="📝" color="text-purple-400" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -272,8 +446,6 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
                   <FormField label="დამატებითი აღჭურვილობა" hint="მაგ: ავტოამწე, GPS ტრეკერი..." textarea value={vehicles.vehicleForm.extra_equipment} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, extra_equipment:e.target.value})} />
                 </div>
               </div>
-
-              {/* ღილაკები */}
               <div className="flex gap-3 pt-4 border-t border-gray-700 mt-2">
                 <button type="button" onClick={() => vehicles.setShowAddVehicleModal(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition">გაუქმება</button>
                 <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-bold transition shadow-lg shadow-blue-500/20">💾 შენახვა</button>
@@ -360,7 +532,7 @@ const dispatchHook = useDispatch({ showNotification, loadData, logAudit })
         </div>
       )}
 
-      {/* 📦 ADD ORDER MODAL (გამოყოფილი კომპონენტი) */}
+      {/* 📦 ADD ORDER MODAL */}
       <AddOrderModal
         isOpen={ordersHook.showOrderModal}
         onClose={() => ordersHook.setShowOrderModal(false)}

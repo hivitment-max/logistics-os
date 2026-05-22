@@ -1,11 +1,13 @@
 'use client'
+
 import { useState, useMemo } from 'react'
 
 interface DispatchTabProps {
   orders: any[]
   drivers: any[]
   vehicles: any[]
-  onAssign: (orderId: string, driverId: string | null, vehicleId: string | null) => Promise<void>
+  onAssign: (orderId: string, driverId: string | null, vehicleId: string | null, pickupDate?: string | null) => Promise<void>
+  onUnassign?: (orderId: string) => Promise<void>
   onViewOrder: (order: any) => void
   getStatusColor: (status: string) => string
 }
@@ -15,6 +17,7 @@ export default function DispatchTab({
   drivers, 
   vehicles, 
   onAssign, 
+  onUnassign,
   onViewOrder,
   getStatusColor 
 }: DispatchTabProps) {
@@ -22,148 +25,162 @@ export default function DispatchTab({
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [pendingDriverId, setPendingDriverId] = useState<string | null>(null)
   const [pendingVehicleId, setPendingVehicleId] = useState<string | null>(null)
+  const [driverType, setDriverType] = useState<'internal' | 'external'>('internal')
+  const [vehicleType, setVehicleType] = useState<'internal' | 'external'>('internal')
+  const [pendingExternalDriverId, setPendingExternalDriverId] = useState<string | null>(null)
+  const [pendingExternalVehicleId, setPendingExternalVehicleId] = useState<string | null>(null)
   const [assigning, setAssigning] = useState(false)
-  const [capacityError, setCapacityError] = useState<string | null>(null)
   const [validationMsg, setValidationMsg] = useState<string | null>(null)
 
-  // 🔍 ფილტრი: მხოლოდ 'pending' და 'new'
+  // 🔍 ფილტრი: მხოლოდ 'pending', 'new', 'assigned' შეკვეთები
   const pendingOrders = useMemo(() => 
-    orders.filter(o => o.status === 'pending' || o.status === 'new'), 
+    orders.filter(o => ['pending', 'new', 'assigned'].includes(o.status)), 
   [orders])
   
   // 🧮 ტრანსპორტის დატვირთვის გამოთვლა
   const getVehicleLoad = (vehicleId: string) => {
     const assignedOrders = orders.filter(o => 
       (o.vehicle_id === vehicleId || o.external_vehicle_id === vehicleId) && 
-      ['dispatched', 'in_transit'].includes(o.status)
+      ['dispatched', 'in_transit', 'assigned'].includes(o.status)
     );
     const weight = assignedOrders.reduce((sum, o) => sum + (parseFloat(o.cargo_weight_kg) || 0), 0);
     const volume = assignedOrders.reduce((sum, o) => sum + (parseFloat(o.cargo_volume_m3) || 0), 0);
     return { weight, volume, assignedOrders };
   }
 
-  // ✅ მანქანის არჩევის ლოგიკა + ვალიდაცია + აღჭურვილობის შემოწმება
-  const handleVehicleSelect = (vehicleId: string) => {
+  // ✅ მანქანის არჩევის ლოგიკა + ვალიდაცია
+  const handleVehicleSelect = (vehicleId: string, isExternal: boolean = false) => {
     if (!selectedOrder) {
-      setValidationMsg('⚠️ ჯერ აუცილებელია შეკვეთის არჩევა "შემოსული შეკვეთები" განყოფილებიდან');
-      setTimeout(() => setValidationMsg(null), 3000);
-      return;
+      setValidationMsg('⚠️ ჯერ აუცილებელია შეკვეთის არჩევა')
+      setTimeout(() => setValidationMsg(null), 3000)
+      return
     }
 
-    // ✅ აღჭურვილობის ვალიდაცია: თუ მანქანა არ აკმაყოფილებს მოთხოვნას
-    const vehicle = vehicles.find(v => v.id === vehicleId);
+    const vehicle = isExternal 
+      ? { ...vehicles.find(v => v.id === vehicleId), is_external: true }
+      : vehicles.find(v => v.id === vehicleId)
+
     if (vehicle && selectedOrder) {
+      // აღჭურვილობის ვალიდაცია
       if (selectedOrder.needs_tail_lift && !vehicle.has_tail_lift) {
-        setValidationMsg('⚠️ ამ მანქანას არ აქვს ლიფტი, რომელიც შეკვეთას სჭირდება');
-        setTimeout(() => setValidationMsg(null), 3000);
-        return;
+        setValidationMsg('⚠️ ამ მანქანას არ აქვს ლიფტი')
+        setTimeout(() => setValidationMsg(null), 3000)
+        return
       }
       if (selectedOrder.needs_straps && (vehicle.straps_count || 0) < 4) {
-        setValidationMsg('⚠️ ამ მანქანას არ აქვს საკმარისი ღვედები');
-        setTimeout(() => setValidationMsg(null), 3000);
-        return;
+        setValidationMsg('⚠️ არასაკმარისი ღვედები')
+        setTimeout(() => setValidationMsg(null), 3000)
+        return
       }
       if (selectedOrder.is_dangerous && !vehicle.adr_capable) {
-        setValidationMsg('⚠️ ამ მანქანას არ შეუძლია სახიფათო ტვირთის გადაზიდვა');
-        setTimeout(() => setValidationMsg(null), 3000);
-        return;
+        setValidationMsg('⚠️ არ შეესაბამება ADR მოთხოვნებს')
+        setTimeout(() => setValidationMsg(null), 3000)
+        return
       }
       if (selectedOrder.body_type === 'refrigerated' && vehicle.body_type !== 'refrigerated') {
-        setValidationMsg('⚠️ ამ შეკვეთას სჭირდება მაცივრიანი მანქანა');
-        setTimeout(() => setValidationMsg(null), 3000);
-        return;
+        setValidationMsg('⚠️ საჭიროა მაცივრიანი მანქანა')
+        setTimeout(() => setValidationMsg(null), 3000)
+        return
       }
     }
 
-    setPendingVehicleId(vehicleId);
-    setCapacityError(null);
-
-    const activeOrdersOnVehicle = orders.filter(o => 
-      (o.vehicle_id === vehicleId || o.external_vehicle_id === vehicleId) && 
-      ['dispatched', 'in_transit'].includes(o.status)
-    );
-
-    if (activeOrdersOnVehicle.length > 0) {
-      const existingDriverId = activeOrdersOnVehicle[0].driver_id;
-      if (existingDriverId) setPendingDriverId(existingDriverId);
+    if (isExternal) {
+      setPendingExternalVehicleId(vehicleId)
+      setPendingVehicleId(null)
+      setVehicleType('external')
+    } else {
+      setPendingVehicleId(vehicleId)
+      setPendingExternalVehicleId(null)
+      setVehicleType('internal')
     }
   }
 
-  // ✅ მძღოლის არჩევის ლოგიკა + ვალიდაცია + ADR შემოწმება
-  const handleDriverSelect = (driverId: string) => {
+  // ✅ მძღოლის არჩევის ლოგიკა + ADR ვალიდაცია
+  const handleDriverSelect = (driverId: string, isExternal: boolean = false) => {
     if (!selectedOrder) {
-      setValidationMsg('⚠️ ჯერ აუცილებელია შეკვეთის არჩევა "შემოსული შეკვეთები" განყოფილებიდან');
-      setTimeout(() => setValidationMsg(null), 3000);
-      return;
+      setValidationMsg('⚠️ ჯერ აუცილებელია შეკვეთის არჩევა')
+      setTimeout(() => setValidationMsg(null), 3000)
+      return
     }
 
-    // ✅ ADR ვალიდაცია: თუ შეკვეთაა სახიფათო, მძღოლს უნდა ჰქონდეს ADR
-    const driver = drivers.find(d => d.id === driverId);
+    const driver = isExternal 
+      ? { ...drivers.find(d => d.id === driverId), is_external: true }
+      : drivers.find(d => d.id === driverId)
+
     if (driver && selectedOrder?.is_dangerous && !driver.has_adr) {
-      setValidationMsg('⚠️ ამ მძღოლს არ აქვს ADR სერტიფიკატი სახიფათო ტვირთისთვის');
-      setTimeout(() => setValidationMsg(null), 3000);
-      return;
+      setValidationMsg('⚠️ მძღოლს არ აქვს ADR სერტიფიკატი')
+      setTimeout(() => setValidationMsg(null), 3000)
+      return
     }
 
-    setPendingDriverId(driverId);
+    if (isExternal) {
+      setPendingExternalDriverId(driverId)
+      setPendingDriverId(null)
+      setDriverType('external')
+    } else {
+      setPendingDriverId(driverId)
+      setPendingExternalDriverId(null)
+      setDriverType('internal')
+    }
   }
 
   // 🧠 ჭკვიანი ფილტრი: ტევადობა + აღჭურვილობა + ტიპი
   const displayVehicles = useMemo(() => {
-    if (!selectedOrder) return vehicles.filter(v => v.status === 'active' || v.status === 'idle');
+    if (!selectedOrder) return vehicles.filter(v => ['active', 'idle'].includes(v.status))
     
-    const orderWeight = parseFloat(selectedOrder.cargo_weight_kg) || 0;
-    const orderVolume = parseFloat(selectedOrder.cargo_volume_m3) || 0;
+    const orderWeight = parseFloat(selectedOrder.cargo_weight_kg) || 0
+    const orderVolume = parseFloat(selectedOrder.cargo_volume_m3) || 0
 
     return vehicles.filter(v => {
-      if (v.status !== 'active' && v.status !== 'idle') return false;
+      if (!['active', 'idle'].includes(v.status)) return false
       
-      const load = getVehicleLoad(v.id);
-      const capWeight = parseFloat(v.capacity_kg) || 0;
-      const capVol = parseFloat(v.volume_m3) || 0;
+      const load = getVehicleLoad(v.id)
+      const capWeight = parseFloat(v.capacity_kg) || 0
+      const capVol = parseFloat(v.volume_m3) || 0
 
-      // 🔹 ტევადობა
-      if (capWeight > 0 && load.weight + orderWeight > capWeight) return false;
-      if (capVol > 0 && load.volume + orderVolume > capVol) return false;
+      // ტევადობა
+      if (capWeight > 0 && load.weight + orderWeight > capWeight) return false
+      if (capVol > 0 && load.volume + orderVolume > capVol) return false
       
-      // 🔹 აღჭურვილობის შესაბამისობა
-      if (selectedOrder.needs_tail_lift === true && v.has_tail_lift !== true) return false;
-      if (selectedOrder.needs_straps === true && (v.straps_count || 0) < 4) return false;
-      if (selectedOrder.is_dangerous === true && v.adr_capable !== true) return false;
+      // აღჭურვილობა
+      if (selectedOrder.needs_tail_lift && !v.has_tail_lift) return false
+      if (selectedOrder.needs_straps && (v.straps_count || 0) < 4) return false
+      if (selectedOrder.is_dangerous && !v.adr_capable) return false
       
-      // 🔹 ძარის ტიპის შესაბამისობა
-      if (selectedOrder.body_type && selectedOrder.body_type !== 'standard') {
-        if (selectedOrder.body_type === 'refrigerated' && v.body_type !== 'refrigerated') return false;
-        if (selectedOrder.body_type === 'tent' && v.body_type !== 'tent' && v.body_type !== 'refrigerated') return false;
-        if (selectedOrder.body_type === 'container' && v.body_type !== 'container') return false;
-        if (selectedOrder.body_type === 'flatbed' && v.body_type !== 'flatbed') return false;
-        if (selectedOrder.body_type === 'bulk' && v.body_type !== 'bulk') return false;
-      }
+      // ძარის ტიპი
+      if (selectedOrder.body_type === 'refrigerated' && v.body_type !== 'refrigerated') return false
+      if (selectedOrder.body_type === 'tent' && !['tent', 'refrigerated'].includes(v.body_type)) return false
       
-      return true;
-    });
-  }, [vehicles, selectedOrder, orders]);
+      return true
+    })
+  }, [vehicles, selectedOrder, orders])
 
-  // 🧠 მძღოლების ჭკვიანი ფილტრი: ADR და სხვა კრიტერიუმები
+  // 🧠 მძღოლების ფილტრი: ADR და ხელმისაწვდომობა
   const displayDrivers = useMemo(() => {
-    if (!selectedOrder) return drivers.filter(d => d.is_available && !d.current_order_id);
+    if (!selectedOrder) return drivers.filter(d => d.is_available && !d.current_order_id)
     
     return drivers.filter(d => {
-      if (!d.is_available || d.current_order_id) return false;
-      
-      // 🔹 ADR ფილტრი
-      if (selectedOrder.is_dangerous === true && d.has_adr !== true) return false;
-      
-      return true;
-    });
-  }, [drivers, selectedOrder]);
+      if (!d.is_available || d.current_order_id) return false
+      if (selectedOrder.is_dangerous && !d.has_adr) return false
+      return true
+    })
+  }, [drivers, selectedOrder])
+
+  // 🧠 გარე მძღოლების/მანქანების ფილტრი (სულ მარტივი - ყველა აქტიური)
+  const externalDrivers = useMemo(() => 
+    drivers.filter(d => d.employment_type === 'external' || d.is_external), 
+  [drivers])
+  
+  const externalVehicles = useMemo(() => 
+    vehicles.filter(v => v.owner_type === 'contractor' || v.is_external), 
+  [vehicles])
 
   // 📊 დატვირთვის პროგრეს-ბარი
   const CapacityBar = ({ current, max, unit }: { current: number, max: number, unit: string }) => {
-    if (max === 0) return null;
-    const percent = Math.min((current / max) * 100, 100);
-    const color = percent < 50 ? 'bg-green-500' : percent < 85 ? 'bg-yellow-500' : 'bg-red-500';
-    const remaining = max - current;
+    if (max === 0) return null
+    const percent = Math.min((current / max) * 100, 100)
+    const color = percent < 50 ? 'bg-green-500' : percent < 85 ? 'bg-yellow-500' : 'bg-red-500'
+    const remaining = max - current
     
     return (
       <div className="w-full mt-2">
@@ -175,24 +192,59 @@ export default function DispatchTab({
           <div className={`h-full ${color} transition-all duration-500 ease-out`} style={{ width: `${percent}%` }} />
         </div>
       </div>
-    );
+    )
   }
 
   // ✅ დადასტურების ლოგიკა
   const handleConfirmAssign = async () => {
-    if (!selectedOrder || !pendingDriverId || !pendingVehicleId) return
+    if (!selectedOrder) return
     
-    setCapacityError(null);
-    setAssigning(true);
+    // განვსაზღვროთ რომელი ID გამოვიყენოთ
+    const finalDriverId = driverType === 'internal' ? pendingDriverId : pendingExternalDriverId
+    const finalVehicleId = vehicleType === 'internal' ? pendingVehicleId : pendingExternalVehicleId
+    
+    if (!finalDriverId && !finalVehicleId) {
+      setValidationMsg('⚠️ აუცილებელია მძღოლის ან/და მანქანის არჩევა')
+      setTimeout(() => setValidationMsg(null), 3000)
+      return
+    }
+
+    setValidationMsg(null)
+    setAssigning(true)
+    
     try {
-      await onAssign(selectedOrder.id, pendingDriverId, pendingVehicleId);
-      setSelectedOrder(null);
-      setPendingDriverId(null);
-      setPendingVehicleId(null);
+      const pickupDate = selectedOrder.scheduled_pickup_date?.split('T')[0] || null
+      await onAssign(selectedOrder.id, finalDriverId, finalVehicleId, pickupDate)
+      
+      // რესეტი
+      setSelectedOrder(null)
+      setPendingDriverId(null)
+      setPendingVehicleId(null)
+      setPendingExternalDriverId(null)
+      setPendingExternalVehicleId(null)
     } catch (error) {
-      console.error('Assignment failed:', error);
+      console.error('Assignment failed:', error)
+      setValidationMsg('❌ შეცდომა მინიჭებისას')
+      setTimeout(() => setValidationMsg(null), 3000)
     } finally {
-      setAssigning(false);
+      setAssigning(false)
+    }
+  }
+
+  // ❌ მინიჭების მოხსნა
+  const handleUnassignClick = async () => {
+    if (!selectedOrder || !onUnassign) return
+    if (!confirm(`დარწმუნებული ხართ რომ გინდათ მინიჭების მოხსნა შეკვეთიდან ${selectedOrder.tracking_code}?`)) return
+    
+    try {
+      await onUnassign(selectedOrder.id)
+      setSelectedOrder(null)
+      setPendingDriverId(null)
+      setPendingVehicleId(null)
+    } catch (error) {
+      console.error('Unassign failed:', error)
+      setValidationMsg('❌ შეცდომა მოხსნისას')
+      setTimeout(() => setValidationMsg(null), 3000)
     }
   }
 
@@ -211,7 +263,6 @@ export default function DispatchTab({
     shadow-[0_8px_30px_rgb(0,0,0,0.4)] backdrop-blur-sm
     hover:shadow-[0_12px_40px_rgb(0,0,0,0.5)] hover:border-white/10
     transition-all duration-300 ease-out
-    hover:-translate-y-0.5 hover:scale-[1.005]
   `
 
   return (
@@ -238,11 +289,12 @@ export default function DispatchTab({
             <button
               key={order.id}
               onClick={() => {
-                setSelectedOrder((prev: any) => prev?.id === order.id ? null : order);
-                setPendingDriverId(null);
-                setPendingVehicleId(null);
-                setCapacityError(null);
-                setValidationMsg(null);
+                setSelectedOrder((prev: any) => prev?.id === order.id ? null : order)
+                setPendingDriverId(null)
+                setPendingVehicleId(null)
+                setPendingExternalDriverId(null)
+                setPendingExternalVehicleId(null)
+                setValidationMsg(null)
               }}
               className={`w-full text-left p-3 rounded-xl border transition-all duration-200 group relative overflow-hidden
                 ${selectedOrder?.id === order.id 
@@ -255,7 +307,7 @@ export default function DispatchTab({
                 <div>
                   <span className="text-xs font-bold text-white font-mono">{order.tracking_code}</span>
                   <span className={`text-[9px] px-1.5 py-0.5 rounded-md ml-2 ${getStatusColor(order.status)}`}>
-                    {order.status === 'pending' ? 'ლოდინში' : 'ახალი'}
+                    {order.status === 'pending' ? 'ლოდინში' : order.status === 'assigned' ? 'მინიჭებული' : 'ახალი'}
                   </span>
                 </div>
               </div>
@@ -275,134 +327,192 @@ export default function DispatchTab({
                 <span className="text-yellow-400 font-bold">{order.price} ₾</span>
               </div>
               <div className="pl-2 flex flex-wrap gap-1.5">
-                {order.is_dangerous === true && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded flex items-center gap-1">⚠️ სახიფათო</span>
-                )}
-                {order.body_type === 'refrigerated' && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded flex items-center gap-1">❄️ მაცივარი</span>
-                )}
-                {order.is_oversized === true && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded flex items-center gap-1">📏 გაბარიტი</span>
-                )}
-                {order.needs_tail_lift === true && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded flex items-center gap-1">🔽 ლიფტი</span>
-                )}
-                {order.needs_straps === true && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded flex items-center gap-1">🔗 ღვედები</span>
-                )}
+                {order.is_dangerous && <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">⚠️ ADR</span>}
+                {order.body_type === 'refrigerated' && <span className="text-[9px] px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded">❄️ მაცივარი</span>}
+                {order.needs_tail_lift && <span className="text-[9px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded">🔽 ლიფტი</span>}
+                {order.needs_straps && <span className="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded">🔗 ღვედები</span>}
               </div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* 🚛 სვეტი 2: ხელმისაწვდომი ტრანსპორტი (ჭკვიანი ფილტრით) */}
+      {/* 🚛 სვეტი 2: ხელმისაწვდომი ტრანსპორტი */}
       <div className={CardBase}>
         <ColumnHeader title="ხელმისაწვდომი ტრანსპორტი" icon="🚛" color="from-indigo-600/20 to-indigo-800/5" />
+        
+        {/* ტაბები: შიდა / გარე */}
+        <div className="px-3 py-2 border-b border-white/5 flex gap-1 bg-gray-900/30">
+          <button 
+            onClick={() => setVehicleType('internal')}
+            className={`flex-1 py-1.5 rounded text-[9px] font-bold transition ${vehicleType === 'internal' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            🏢 შიდა
+          </button>
+          <button 
+            onClick={() => setVehicleType('external')}
+            className={`flex-1 py-1.5 rounded text-[9px] font-bold transition ${vehicleType === 'external' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            🤝 გარე
+          </button>
+        </div>
+        
         <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-          {displayVehicles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
-              <span className="text-3xl mb-2 opacity-50">🚛</span>
-              <p className="text-xs">
-                {selectedOrder ? 'ამ ტვირთისთვის შესაფერისი მანქანა არ არის' : 'თავისუფალი ტრანსპორტი არ არის'}
-              </p>
-            </div>
-          ) : displayVehicles.map(vehicle => {
-            const isOwned = vehicle.owner_type === 'company' || !vehicle.owner_type;
-            const load = getVehicleLoad(vehicle.id);
-            const capWeight = parseFloat(vehicle.capacity_kg) || 0;
-            const capVol = parseFloat(vehicle.volume_m3) || 0;
-            const typeIcon = vehicle.type === 'truck' ? '🚛' : vehicle.type === 'van' ? '🚐' : '🚗';
+          {vehicleType === 'internal' ? (
+            // შიდა მანქანები
+            displayVehicles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
+                <span className="text-3xl mb-2 opacity-50">🚛</span>
+                <p className="text-xs">{selectedOrder ? 'შესაფერისი მანქანა არ არის' : 'თავისუფალი ტრანსპორტი არ არის'}</p>
+              </div>
+            ) : displayVehicles.map(vehicle => {
+              const load = getVehicleLoad(vehicle.id)
+              const capWeight = parseFloat(vehicle.capacity_kg) || 0
+              const capVol = parseFloat(vehicle.volume_m3) || 0
+              const typeIcon = vehicle.type === 'truck' ? '🚛' : vehicle.type === 'van' ? '🚐' : '🚗'
 
-            return (
+              return (
+                <button
+                  key={vehicle.id}
+                  onClick={() => handleVehicleSelect(vehicle.id, false)}
+                  className={`w-full p-3 rounded-xl border transition-all duration-200 text-left
+                    ${pendingVehicleId === vehicle.id 
+                      ? 'bg-indigo-500/10 border-indigo-500/50 ring-1 ring-indigo-500/30' 
+                      : 'bg-gray-900/40 border-gray-700/50 hover:border-indigo-500/30'
+                    }`}
+                >
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-lg leading-none shrink-0">{typeIcon}</span>
+                      <p className="text-xs text-white font-bold font-mono truncate">{vehicle.plate_number}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 truncate pl-6">{vehicle.model || 'მოდელი'}</p>
+                  {(capWeight > 0 || capVol > 0) && (
+                    <div className="mt-2 space-y-1">
+                      <CapacityBar current={load.weight} max={capWeight} unit="კგ" />
+                      <CapacityBar current={load.volume} max={capVol} unit="m³" />
+                    </div>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1 pl-6">
+                    {vehicle.has_tail_lift && <span className="text-[8px] px-1 py-0.5 bg-purple-500/10 text-purple-400 rounded">🔽</span>}
+                    {(vehicle.straps_count || 0) >= 4 && <span className="text-[8px] px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded">🔗</span>}
+                    {vehicle.adr_capable && <span className="text-[8px] px-1 py-0.5 bg-red-500/10 text-red-400 rounded">⚠️</span>}
+                  </div>
+                </button>
+              )
+            })
+          ) : (
+            // გარე მანქანები
+            externalVehicles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
+                <span className="text-3xl mb-2 opacity-50">🚛</span>
+                <p className="text-xs">გარე მანქანები არ არის</p>
+              </div>
+            ) : externalVehicles.map(vehicle => (
               <button
                 key={vehicle.id}
-                onClick={() => handleVehicleSelect(vehicle.id)}
-                className={`w-full p-3 rounded-xl border transition-all duration-200 text-left group
-                  ${pendingVehicleId === vehicle.id 
-                    ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30' 
-                    : 'bg-gray-900/40 border-gray-700/50 hover:border-indigo-500/30 hover:bg-gray-800/60'
+                onClick={() => handleVehicleSelect(vehicle.id, true)}
+                className={`w-full p-3 rounded-xl border transition-all duration-200 text-left
+                  ${pendingExternalVehicleId === vehicle.id 
+                    ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30' 
+                    : 'bg-gray-900/40 border-gray-700/50 hover:border-orange-500/30'
                   }`}
               >
                 <div className="flex justify-between items-start gap-2 mb-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-lg leading-none shrink-0">{typeIcon}</span>
+                    <span className="text-lg leading-none shrink-0">🚛</span>
                     <p className="text-xs text-white font-bold font-mono truncate">{vehicle.plate_number}</p>
                   </div>
-                  <div className="relative group/badge cursor-help shrink-0">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border shadow-sm transition-colors
-                      ${isOwned ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-orange-500/10 border-orange-500/30 text-orange-400'}`}>
-                      {isOwned ? '🏢' : '🤝'}
-                    </div>
-                    <div className="absolute right-0 top-7 w-max px-2 py-1 bg-gray-900 border border-gray-700 rounded text-[10px] text-white opacity-0 group-hover/badge:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
-                      {isOwned ? 'კომპანიის საკუთრება' : 'კონტრაქტით'}
-                    </div>
-                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded">გარე</span>
                 </div>
                 <p className="text-[10px] text-gray-400 truncate pl-6">{vehicle.model || 'მოდელი'}</p>
-                {load.assignedOrders?.length > 0 && (
-                  <div className="mt-1 text-[9px] text-indigo-400 font-bold flex items-center gap-1 pl-6">🔒 მიმდინარე რეისი ({load.assignedOrders.length})</div>
-                )}
-                {(capWeight > 0 || capVol > 0) && (
-                  <div className="mt-2 space-y-1">
-                    <CapacityBar current={load.weight} max={capWeight} unit="კგ" />
-                    <CapacityBar current={load.volume} max={capVol} unit="m³" />
-                  </div>
-                )}
-                {/* ✅ აღჭურვილობის ინდიკატორები */}
-                <div className="mt-2 flex flex-wrap gap-1 pl-6">
-                  {vehicle.has_tail_lift && <span className="text-[8px] px-1 py-0.5 bg-purple-500/10 text-purple-400 rounded">🔽</span>}
-                  {(vehicle.straps_count || 0) >= 4 && <span className="text-[8px] px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded">🔗</span>}
-                  {vehicle.adr_capable && <span className="text-[8px] px-1 py-0.5 bg-red-500/10 text-red-400 rounded">⚠️</span>}
-                </div>
+                <p className="text-[9px] text-orange-400 pl-6 mt-1">💰 {vehicle.rate_per_km || 0} ₾/კმ</p>
               </button>
-            );
-          })}
+            ))
+          )}
         </div>
       </div>
 
-      {/* 👨‍✈️ სვეტი 3: ხელმისაწვდომი მძღოლები (ADR ფილტრით) */}
+      {/* 👨‍✈️ სვეტი 3: ხელმისაწვდომი მძღოლები */}
       <div className={CardBase}>
         <ColumnHeader title="ხელმისაწვდომი მძღოლები" icon="👨‍✈️" color="from-blue-600/20 to-blue-800/5" />
+        
+        {/* ტაბები: შიდა / გარე */}
+        <div className="px-3 py-2 border-b border-white/5 flex gap-1 bg-gray-900/30">
+          <button 
+            onClick={() => setDriverType('internal')}
+            className={`flex-1 py-1.5 rounded text-[9px] font-bold transition ${driverType === 'internal' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            🏢 შიდა
+          </button>
+          <button 
+            onClick={() => setDriverType('external')}
+            className={`flex-1 py-1.5 rounded text-[9px] font-bold transition ${driverType === 'external' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            🤝 გარე
+          </button>
+        </div>
+        
         <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-          {displayDrivers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
-              <span className="text-3xl mb-2 opacity-50">👨‍✈️</span>
-              <p className="text-xs">
-                {selectedOrder?.is_dangerous ? 'ADR სერტიფიცირებული მძღოლი არ არის' : 'თავისუფალი მძღოლი არ არის'}
-              </p>
-            </div>
-          ) : displayDrivers.map(driver => {
-            const isInternal = driver.employment_type === 'internal' || !driver.employment_type;
-            const isAutoSelected = pendingVehicleId && getVehicleLoad(pendingVehicleId).assignedOrders?.[0]?.driver_id === driver.id;
-
-            return (
+          {driverType === 'internal' ? (
+            // შიდა მძღოლები
+            displayDrivers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
+                <span className="text-3xl mb-2 opacity-50">👨‍✈️</span>
+                <p className="text-xs">{selectedOrder?.is_dangerous ? 'ADR მძღოლი არ არის' : 'თავისუფალი მძღოლი არ არის'}</p>
+              </div>
+            ) : displayDrivers.map(driver => (
               <button
                 key={driver.id}
-                onClick={() => handleDriverSelect(driver.id)}
-                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 text-left group
+                onClick={() => handleDriverSelect(driver.id, false)}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 text-left
                   ${pendingDriverId === driver.id 
-                    ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)] ring-1 ring-blue-500/30' 
-                    : 'bg-gray-900/40 border-gray-700/50 hover:border-blue-500/30 hover:bg-gray-800/60'
+                    ? 'bg-blue-500/10 border-blue-500/50 ring-1 ring-blue-500/30' 
+                    : 'bg-gray-900/40 border-gray-700/50 hover:border-blue-500/30'
                   }`}
               >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-sm font-bold text-white shadow-md shrink-0 overflow-hidden">
-                  {driver.photo_url ? (
-                    <img src={driver.photo_url} alt={driver.full_name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; e.currentTarget.parentElement!.innerHTML = driver.full_name?.charAt(0).toUpperCase() || '?'; }} />
-                  ) : (driver.full_name?.charAt(0).toUpperCase() || '?')}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-sm font-bold text-white shadow-md shrink-0">
+                  {driver.full_name?.charAt(0).toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-xs text-white font-medium truncate leading-tight">{driver.full_name}</p>
+                  <p className="text-xs text-white font-medium truncate">{driver.full_name}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`text-[10px] ${isInternal ? 'text-blue-400' : 'text-orange-400'}`}>{isInternal ? '🏢 კომპანია' : '🤝 კონტრაქტი'}</span>
                     {driver.has_adr && <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">⚠️ ADR</span>}
-                    {isAutoSelected && <span className="text-[9px] text-green-400 font-bold animate-pulse ml-auto">ავტო</span>}
                   </div>
                 </div>
-                <div className="shrink-0">{pendingDriverId === driver.id && <span className="text-blue-400 text-lg animate-pulse">✓</span>}</div>
+                {/* ✅ FIX: driverId → driver.id */}
+                {pendingDriverId === driver.id && <span className="text-blue-400 text-lg">✓</span>}
               </button>
-            );
-          })}
+            ))
+          ) : (
+            // გარე მძღოლები
+            externalDrivers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
+                <span className="text-3xl mb-2 opacity-50">👨‍✈️</span>
+                <p className="text-xs">გარე მძღოლები არ არის</p>
+              </div>
+            ) : externalDrivers.map(driver => (
+              <button
+                key={driver.id}
+                onClick={() => handleDriverSelect(driver.id, true)}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 text-left
+                  ${pendingExternalDriverId === driver.id 
+                    ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30' 
+                    : 'bg-gray-900/40 border-gray-700/50 hover:border-orange-500/30'
+                  }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-400 flex items-center justify-center text-sm font-bold text-white shadow-md shrink-0">
+                  {driver.full_name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-xs text-white font-medium truncate">{driver.full_name}</p>
+                  <p className="text-[9px] text-orange-400">💰 {driver.rate_per_km || 0} ₾/კმ</p>
+                </div>
+                {driver.has_adr && <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded">⚠️</span>}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
@@ -412,11 +522,14 @@ export default function DispatchTab({
         <div className="flex-1 overflow-y-auto p-4 flex flex-col custom-scrollbar">
           {selectedOrder ? (
             <div className="flex flex-col h-full">
-              <div className="p-3 bg-gray-900/60 rounded-xl border border-white/5 mb-4 shadow-inner">
+              {/* შეკვეთის ინფო */}
+              <div className="p-3 bg-gray-900/60 rounded-xl border border-white/5 mb-4">
                 <p className="text-[9px] text-gray-400 uppercase mb-1 tracking-wider">არჩეული შეკვეთა</p>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-bold text-white font-mono">{selectedOrder.tracking_code}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${getStatusColor(selectedOrder.status)}`}>{selectedOrder.status}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${getStatusColor(selectedOrder.status)}`}>
+                    {selectedOrder.status}
+                  </span>
                 </div>
                 <div className="space-y-1 text-[10px] text-gray-300">
                   <p className="truncate">📍 {selectedOrder.pickup_city || selectedOrder.pickup_address}</p>
@@ -428,29 +541,59 @@ export default function DispatchTab({
                 </div>
                 <p className="text-sm font-bold text-green-400 mt-2">💰 {selectedOrder.price} {selectedOrder.currency}</p>
               </div>
+
+              {/* არჩეული რესურსები */}
               <div className="space-y-3 mb-4">
                 <div className="flex items-center justify-between p-2.5 bg-gray-900/40 rounded-lg border border-white/5">
                   <span className="text-[10px] text-gray-400">👨‍✈️ მძღოლი</span>
-                  <span className="text-xs text-white font-medium flex items-center gap-1">
-                    {pendingDriverId ? drivers.find(d => d.id === pendingDriverId)?.full_name : '—'}
-                    {pendingDriverId && getVehicleLoad(pendingVehicleId || '').assignedOrders?.[0]?.driver_id === pendingDriverId && <span className="text-[9px] bg-green-500/20 text-green-400 px-1 rounded">ავტო</span>}
+                  <span className="text-xs text-white font-medium">
+                    {driverType === 'internal' 
+                      ? (pendingDriverId ? drivers.find(d => d.id === pendingDriverId)?.full_name : '—')
+                      : (pendingExternalDriverId ? externalDrivers.find(d => d.id === pendingExternalDriverId)?.full_name : '—')
+                    }
+                    {driverType === 'external' && pendingExternalDriverId && <span className="text-[9px] text-orange-400 ml-1">(გარე)</span>}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 bg-gray-900/40 rounded-lg border border-white/5">
                   <span className="text-[10px] text-gray-400">🚛 ტრანსპორტი</span>
-                  <span className="text-xs text-white font-medium font-mono">{pendingVehicleId ? displayVehicles.find(v => v.id === pendingVehicleId)?.plate_number : '—'}</span>
+                  <span className="text-xs text-white font-medium font-mono">
+                    {vehicleType === 'internal' 
+                      ? (pendingVehicleId ? vehicles.find(v => v.id === pendingVehicleId)?.plate_number : '—')
+                      : (pendingExternalVehicleId ? externalVehicles.find(v => v.id === pendingExternalVehicleId)?.plate_number : '—')
+                    }
+                    {vehicleType === 'external' && pendingExternalVehicleId && <span className="text-[9px] text-orange-400 ml-1">(გარე)</span>}
+                  </span>
                 </div>
               </div>
-              {capacityError && <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-[10px] text-red-400 text-center animate-pulse">{capacityError}</div>}
-              <button onClick={handleConfirmAssign} disabled={assigning || !pendingDriverId || !pendingVehicleId} className="mt-auto w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                {assigning ? <><span className="animate-spin">⏳</span> მიმდინარეობს...</> : <>✅ მინიჭების დადასტურება</>}
-              </button>
+
+              {/* ღილაკები */}
+              <div className="mt-auto space-y-2">
+                {selectedOrder.driver_id || selectedOrder.vehicle_id ? (
+                  <button 
+                    onClick={handleUnassignClick}
+                    disabled={assigning}
+                    className="w-full py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 rounded-xl text-xs font-medium transition"
+                  >
+                    ❌ მინიჭების მოხსნა
+                  </button>
+                ) : null}
+                
+                <button 
+                  onClick={handleConfirmAssign} 
+                  disabled={assigning || (!pendingDriverId && !pendingExternalDriverId && !pendingVehicleId && !pendingExternalVehicleId)} 
+                  className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition shadow-lg shadow-green-500/20 flex items-center justify-center gap-2"
+                >
+                  {assigning ? <><span className="animate-spin">⏳</span> მიმდინარეობს...</> : <>✅ მინიჭების დადასტურება</>}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500">
-              <div className="w-16 h-16 rounded-full bg-gray-800/50 flex items-center justify-center mb-3 border border-white/5 shadow-inner"><span className="text-2xl">👈</span></div>
+              <div className="w-16 h-16 rounded-full bg-gray-800/50 flex items-center justify-center mb-3 border border-white/5">
+                <span className="text-2xl">👈</span>
+              </div>
               <p className="text-sm font-medium text-gray-300">აირჩიე შეკვეთა</p>
-              <p className="text-[10px] mt-1 max-w-[200px]">შეკვეთის არჩევისას, სისტემა ავტომატურად დატოვებს მხოლოდ იმ რესურსებს, რომლებიც აკმაყოფილებენ მოთხოვნებს</p>
+              <p className="text-[10px] mt-1 max-w-[200px]">შეკვეთის არჩევისას სისტემა ავტომატურად დატოვებს შესაბამის რესურსებს</p>
             </div>
           )}
         </div>

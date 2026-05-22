@@ -16,6 +16,9 @@ interface Driver {
   status: 'available' | 'on_route' | 'off' | 'inactive'
   current_location?: string
   assigned_vehicle?: { id: string; plate_number: string; model: string }
+  // ✅ ახალი: Telegram შეტყობინებებისთვის
+  telegram_chat_id?: string
+  telegram_username?: string
 }
 
 interface DriversTabProps {
@@ -61,11 +64,15 @@ const DriverCard = ({ driver, onEdit, onDelete, onCall, onEmail, onViewProfile }
       <div className="flex items-center justify-center gap-1.5 mb-4">
         {driver.has_adr && <span className="text-[10px] px-1.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20" title="ADR">⚠️</span>}
         {driver.languages && driver.languages.toString().trim() !== '' && <span className="text-[10px] px-1.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20" title="ენები">🗣️</span>}
+        {/* ✅ ახალი: Telegram ინდიკატორი */}
+        {driver.telegram_chat_id && <span className="text-[10px] px-1.5 py-1 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20" title="Telegram დაკონფიგურირებული">📱</span>}
         <span className={`text-[10px] px-1.5 py-1 rounded-lg border ${driver.employment_type === 'internal' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`} title={driver.employment_type === 'internal' ? 'კომპანია' : 'კონტრაქტი'}>{driver.employment_type === 'internal' ? '🏢' : '🤝'}</span>
       </div>
       <div className="space-y-1.5 w-full mb-4">
         {driver.current_location && <div className="flex items-center justify-center gap-1.5 text-[9px] text-gray-400"><span>📍</span><span className="truncate text-center">{driver.current_location}</span></div>}
         {driver.assigned_vehicle && <div className="flex items-center justify-center gap-1.5 text-[9px]"><span>🚛</span><span className="text-blue-400 truncate text-center">{driver.assigned_vehicle.plate_number}</span></div>}
+        {/* ✅ ახალი: Telegram username-ის ჩვენება თუ არსებობს */}
+        {driver.telegram_username && <div className="flex items-center justify-center gap-1.5 text-[9px] text-teal-400"><span>📱</span><span className="truncate text-center">{driver.telegram_username}</span></div>}
       </div>
       <div className="flex items-center justify-center gap-2 pt-3 border-t border-gray-700/50 w-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={e=>e.stopPropagation()}>
         <button onClick={onCall} className="p-2 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500/20 transition" title="დარეკვა">📞</button>
@@ -85,7 +92,7 @@ export default function DriversTab({ drivers, loading, onEdit, onDelete, onAdd, 
     return drivers.filter((d: any) => {
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
-        if (![d.full_name, d.phone, d.license_number, d.current_location].join('').toLowerCase().includes(term)) return false
+        if (![d.full_name, d.phone, d.license_number, d.current_location, d.telegram_username].join('').toLowerCase().includes(term)) return false
       }
       if (filters.status && d.status !== filters.status) return false
       if (filters.adr === 'true' && !d.has_adr) return false
