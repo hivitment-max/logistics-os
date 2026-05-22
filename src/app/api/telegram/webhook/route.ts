@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     }
     console.log('📝 Update payload:', payload)
 
-    // 🔄 ნაბიჯი 4: ვაახლებთ orders ცხრილს (ყველაზე მნიშვნელოვანი!)
+    // 🔄 ნაბიჯი 4: ვაახლებთ orders ცხრილს
     console.log('🔄 EXECUTING: supabase.from("orders").update(...)')
     const { error: updateErr } = await supabase
       .from('orders')
@@ -79,24 +79,32 @@ export async function POST(req: Request) {
     const driverName = driver?.full_name || 'უცნობი'
     const replyText = isAccept ? '✅ <b>მიღებულია!</b> მადლობა.' : '❌ <b>უარყოფილია!</b> ადმინისტრატორი დაგიკავშირდებათ.'
     
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: cb.from.id, text: replyText, parse_mode: 'HTML' })
-    }).catch(e => console.error('❌ Telegram reply failed:', e))
+    try {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: cb.from.id, text: replyText, parse_mode: 'HTML' })
+      })
+    } catch (e) {
+      console.error('❌ Telegram reply failed:', e)
+    }
 
     // ✏️ ნაბიჯი 6: ღილაკების წაშლა
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: cb.from.id, message_id: cb.message.message_id,
-        text: cb.message.text + `\n\n🔄 პასუხი: ${isAccept ? '✅ მიღებული' : '❌ უარყოფილი'}`,
-        parse_mode: 'HTML', reply_markup: { inline_keyboard: [] }
+    try {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: cb.from.id, message_id: cb.message.message_id,
+          text: cb.message.text + `\n\n🔄 პასუხი: ${isAccept ? '✅ მიღებული' : '❌ უარყოფილი'}`,
+          parse_mode: 'HTML', reply_markup: { inline_keyboard: [] }
+        })
       })
-    }).catch(e => console.error('❌ Edit message failed:', e))
+    } catch (e) {
+      console.error('❌ Edit message failed:', e)
+    }
 
-    // 🔔 ნაბიჯი 7: დეშბორდის შეტყობინება
+    // 🔔 ნაბიჯი 7: დეშბორდის შეტყობინება (✅ შესწორებული სინტაქსი)
     console.log('🔔 Inserting dashboard notification...')
-    await supabase.from('notifications').insert({
+    const { error: notifErr } = await supabase.from('notifications').insert({
       channel: 'dashboard', status: 'unread',
       title: isAccept ? '✅ მძღოლმა მიიღო შეკვეთა' : '❌ მძღოლმა უარყო შეკვეთა',
       message: `👨‍✈️ <b>${driverName}</b>-მა ${isAccept ? 'მიიღო' : 'უარყო'} <code>${order.tracking_code}</code>`,
@@ -105,7 +113,13 @@ export async function POST(req: Request) {
       external_driver_id: order.driver_type === 'external' ? driver?.id : null,
       metadata: { driver_response: payload.driver_response, responded_at: new Date().toISOString() },
       created_at: new Date().toISOString()
-    }).catch(e => console.error('❌ Notification insert failed:', e))
+    })
+    
+    if (notifErr) {
+      console.error('❌ Notification insert failed:', notifErr)
+    } else {
+      console.log('✅ Dashboard notification inserted')
+    }
 
     console.log('🏁 [WEBHOOK] === REQUEST COMPLETED ===\n')
     return NextResponse.json({ ok: true })
