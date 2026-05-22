@@ -1,127 +1,117 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// 🔐 პირდაპირი კლიენტი (უსაფრთხოა Vercel Serverless-ისთვის)
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+if (!SUPABASE_KEY) console.error('🚨 CRITICAL: SUPABASE_SERVICE_ROLE_KEY is MISSING in Vercel Env!')
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false }
+})
 
 export async function POST(req: Request) {
+  console.log('🚀 [WEBHOOK] === REQUEST STARTED ===')
+  
   try {
     const update = await req.json()
-    console.log('📥 [WEBHOOK] Received update:', JSON.stringify(update).slice(0, 150))
-
-    if (update.callback_query) {
-      const callback = update.callback_query
-      const chatId = callback.from.id
-      const messageId = callback.message.message_id
-      const data = callback.data
-      const [action, orderId] = data.split(':')
-
-      if (!orderId) return NextResponse.json({ ok: false }, { status: 400 })
-
-      // 🔍 ვიპოვოთ შეკვეთა
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('*, drivers:driver_id(full_name), external_drivers:external_driver_id(full_name)')
-        .eq('id', orderId)
-        .single()
-
-      if (orderError || !order) {
-        console.error('❌ Order not found:', orderId)
-        return NextResponse.json({ ok: false }, { status: 404 })
-      }
-
-      const driver = order.drivers || order.external_drivers
-      const driverName = driver?.full_name || 'უცნობი'
-
-      let dashboardTitle = '', dashboardMessage = '', replyMsg = ''
-
-      // ✅ ლოგიკა: მიღება თუ უარყოფა + ბაზის განახლება
-      if (action === 'acc') {
-        dashboardTitle = '✅ მძღოლმა მიიღო შეკვეთა'
-        dashboardMessage = `👨‍✈️ <b>${driverName}</b>-მა მიიღო <code>${order.tracking_code}</code>`
-        replyMsg = '✅ <b>მიღებულია!</b> მადლობა.'
-        
-        // 🔄 განვაახლოთ შეკვეთა + driver_response ველები
-        await supabase.from('orders').update({ 
-          status: 'confirmed',                    // ✅ სტატუსი: დადასტურებული
-          driver_response: 'accepted',            // ✅ მძღოლის პასუხი: მიღებული
-          driver_responded_at: new Date().toISOString(),  // ✅ დროის დაფიქსირება
-          driver_confirmed_at: new Date().toISOString()
-        }).eq('id', orderId)
-        
-      } else if (action === 'rej') {
-        dashboardTitle = '❌ მძღოლმა უარყო შეკვეთა'
-        dashboardMessage = `👨‍✈️ <b>${driverName}</b>-მა უარყო <code>${order.tracking_code}</code>`
-        replyMsg = '❌ <b>უარყოფილია!</b> ადმინისტრატორი შეგეკონტაქტებათ.'
-        
-        // 🔄 განვაახლოთ შეკვეთა + driver_response ველები
-        await supabase.from('orders').update({ 
-          status: 'rejected',                     // ❌ სტატუსი: უარყოფილი
-          driver_response: 'rejected',            // ❌ მძღოლის პასუხი: უარყოფილი
-          driver_responded_at: new Date().toISOString(),  // ✅ დროის დაფიქსირება
-          driver_rejected_at: new Date().toISOString(),
-          driver_id: null                          // 🔓 თუ გინდა რომ მძღოლი გათავისუფლდეს
-        }).eq('id', orderId)
-      }
-
-      // 📢 1. პასუხი მძღოლს (დადასტურების მესიჯი)
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          chat_id: chatId, 
-          text: replyMsg, 
-          parse_mode: 'HTML' 
-        })
-      })
-
-      // ✏️ 2. ღილაკების წაშლა/გამოუქმება ძველ მესიჯში
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId, 
-          message_id: messageId,
-          text: callback.message.text + `\n\n🔄 <b>პასუხი:</b> ${action === 'acc' ? '✅ მიღებული' : '❌ უარყოფილი'}`,
-          parse_mode: 'HTML', 
-          reply_markup: { inline_keyboard: [] }  // 🔘 ღილაკების წაშლა
-        })
-      })
-
-      // 🚨 3. დეშბორდის შეტყობინების ჩაწერა (რომ ადმინმა ნახოს)
-      console.log('🔔 [WEBHOOK] Inserting dashboard notification...')
-      const { error: notifError } = await supabase.from('notifications').insert({
-        channel: 'dashboard',
-        status: 'unread',                          // ✅ 'unread' რომ ლურჯი ინდიკატორით გამოჩნდეს
-        title: dashboardTitle,
-        message: dashboardMessage,
-        order_id: orderId,
-        driver_id: order.driver_type === 'internal' ? driver?.id : null,
-        external_driver_id: order.driver_type === 'external' ? driver?.id : null,
-        metadata: { 
-          driver_response: action,                 // ✅ 'acc' ან 'rej'
-          responded_at: new Date().toISOString()   // ✅ პასუხის დრო
-        },
-        created_at: new Date().toISOString()
-      })
-
-      if (notifError) {
-        console.error('❌ Failed to insert notification:', JSON.stringify(notifError))
-      } else {
-        console.log('✅ Dashboard notification inserted successfully!')
-      }
-
+    const cb = update.callback_query
+    
+    if (!cb) {
+      console.log('⚠️ No callback_query, ignoring')
       return NextResponse.json({ ok: true })
     }
 
-    return NextResponse.json({ ok: true })
+    // 🔍 ნაბიჯი 1: ვამოწმებთ მონაცემებს
+    console.log('📥 callback_data:', cb.data)
+    console.log('👤 User:', cb.from?.first_name, cb.from?.username)
+
+    const [action, orderId] = cb.data?.split(':') || []
+    console.log(`🔘 Parsed: action="${action}", orderId="${orderId}"`)
+
+    if (!orderId || !['acc', 'rej'].includes(action)) {
+      console.error('❌ Invalid callback data format')
+      return NextResponse.json({ ok: false, error: 'Invalid data' }, { status: 400 })
+    }
+
+    // 🔍 ნაბიჯი 2: ვიღებთ შეკვეთას
+    console.log('🔎 Fetching order from Supabase...')
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('*, drivers:driver_id(full_name), external_drivers:external_driver_id(full_name)')
+      .eq('id', orderId)
+      .single()
+
+    if (orderErr || !order) {
+      console.error('❌ Order fetch failed:', orderErr?.message || 'Not found')
+      return NextResponse.json({ ok: false }, { status: 404 })
+    }
+    console.log('✅ Order found:', order.tracking_code, '| Current status:', order.status)
+
+    // 📦 ნაბიჯი 3: ვამზადებთ განახლებას
+    const isAccept = action === 'acc'
+    const payload = {
+      status: isAccept ? 'confirmed' : 'rejected',
+      driver_response: isAccept ? 'accepted' : 'rejected',
+      driver_responded_at: new Date().toISOString(),
+      ...(isAccept 
+        ? { driver_confirmed_at: new Date().toISOString() } 
+        : { driver_rejected_at: new Date().toISOString(), driver_id: null })
+    }
+    console.log('📝 Update payload:', payload)
+
+    // 🔄 ნაბიჯი 4: ვაახლებთ orders ცხრილს (ყველაზე მნიშვნელოვანი!)
+    console.log('🔄 EXECUTING: supabase.from("orders").update(...)')
+    const { error: updateErr } = await supabase
+      .from('orders')
+      .update(payload)
+      .eq('id', orderId)
+
+    if (updateErr) {
+      console.error('❌ [DB] ORDERS UPDATE FAILED:', JSON.stringify(updateErr))
+    } else {
+      console.log('✅ [DB] ORDERS TABLE UPDATED SUCCESSFULLY!')
+    }
+
+    // 📢 ნაბიჯი 5: ტელეგრამ პასუხი
+    const driver = order.drivers || order.external_drivers
+    const driverName = driver?.full_name || 'უცნობი'
+    const replyText = isAccept ? '✅ <b>მიღებულია!</b> მადლობა.' : '❌ <b>უარყოფილია!</b> ადმინისტრატორი დაგიკავშირდებათ.'
     
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: cb.from.id, text: replyText, parse_mode: 'HTML' })
+    }).catch(e => console.error('❌ Telegram reply failed:', e))
+
+    // ✏️ ნაბიჯი 6: ღილაკების წაშლა
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: cb.from.id, message_id: cb.message.message_id,
+        text: cb.message.text + `\n\n🔄 პასუხი: ${isAccept ? '✅ მიღებული' : '❌ უარყოფილი'}`,
+        parse_mode: 'HTML', reply_markup: { inline_keyboard: [] }
+      })
+    }).catch(e => console.error('❌ Edit message failed:', e))
+
+    // 🔔 ნაბიჯი 7: დეშბორდის შეტყობინება
+    console.log('🔔 Inserting dashboard notification...')
+    await supabase.from('notifications').insert({
+      channel: 'dashboard', status: 'unread',
+      title: isAccept ? '✅ მძღოლმა მიიღო შეკვეთა' : '❌ მძღოლმა უარყო შეკვეთა',
+      message: `👨‍✈️ <b>${driverName}</b>-მა ${isAccept ? 'მიიღო' : 'უარყო'} <code>${order.tracking_code}</code>`,
+      order_id: orderId,
+      driver_id: order.driver_type === 'internal' ? driver?.id : null,
+      external_driver_id: order.driver_type === 'external' ? driver?.id : null,
+      metadata: { driver_response: payload.driver_response, responded_at: new Date().toISOString() },
+      created_at: new Date().toISOString()
+    }).catch(e => console.error('❌ Notification insert failed:', e))
+
+    console.log('🏁 [WEBHOOK] === REQUEST COMPLETED ===\n')
+    return NextResponse.json({ ok: true })
+
   } catch (err: any) {
-    console.error('❌ Webhook Critical Error:', err)
+    console.error('💥 CRITICAL WEBHOOK ERROR:', err)
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }
 }
