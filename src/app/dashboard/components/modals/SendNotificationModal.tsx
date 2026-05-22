@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
-// ✅ ახალი: შედეგის ტიპი
+// ✅ შედეგის ტიპი
 export type SendNotificationResult = {
   success: boolean
   logs?: any[]
@@ -15,7 +15,7 @@ interface SendNotificationModalProps {
   isOpen: boolean
   onClose: () => void
   order: any
-  onSend: (channels: string[]) => Promise<SendNotificationResult | void> // ✅ განახლებული ტიპი
+  onSend: (channels: string[]) => Promise<SendNotificationResult | void>
   logs?: Array<{
     channel: string
     status: 'sent' | 'failed' | 'pending'
@@ -38,9 +38,13 @@ export default function SendNotificationModal({
   const [driverData, setDriverData] = useState<any>(null)
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null)
 
+  // 🔄 მთავარი გამოსწორება: ყოველ გახსნაზე სტეიტების სრული რესეტი
   useEffect(() => {
-    if (isOpen && order) {
-      fetchDriverData()
+    if (isOpen) {
+      setSending(false)              // ღილაკის განბლოკვა
+      setSendResult(null)            // შეტყობინების წაშლა
+      setSelectedChannels(['telegram']) // არხის ხელახლა არჩევა
+      fetchDriverData()              // მონაცემების განახლება
     }
   }, [isOpen, order])
 
@@ -105,17 +109,19 @@ export default function SendNotificationModal({
   ]
 
   const handleSend = async () => {
-    if (selectedChannels.length === 0) return
+    if (sending || selectedChannels.length === 0) return
+    
     setSending(true)
     setSendResult(null)
     
     try {
-      await onSend(selectedChannels) // ✅ ახლა მუშაობს ნებისმიერი დაბრუნების ტიპით
-      setSendResult({ success: true, message: '✅ შეტყობინება წარმატებით გაიგზავნა!' })
-      setTimeout(() => { onClose() }, 2000)
+      await onSend(selectedChannels)
+      setSendResult({ success: true, message: '✅ წარმატებით გაიგზავნა!' })
+      setTimeout(() => onClose(), 1500)
     } catch (err: any) {
-      setSendResult({ success: false, message: `❌ ${err.message || 'შეცდომა გაგზავნისას'}` })
+      setSendResult({ success: false, message: `❌ ${err.message || 'გაგზავნა ვერ მოხერხდა'}` })
     } finally {
+      // ✅ ეს გარანტირებულად აბრუნებს ღილაკს აქტიურ მდგომარეობაში
       setSending(false)
     }
   }
@@ -176,7 +182,7 @@ export default function SendNotificationModal({
 
           {/* 📡 გაგზავნის არხები */}
           <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">📡 გაგზავნის არხები</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-3">📡 გაგზავნის არხები</h3>
             <div className="space-y-2">
               {channels.map(channel => {
                 const isSelected = selectedChannels.includes(channel.id)
@@ -206,15 +212,7 @@ export default function SendNotificationModal({
                         {channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">მალე</span>}
                         {!channel.available && !channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">მიუწვდომელი</span>}
                       </div>
-                      <div className="ml-6 mt-0.5">
-                        <p className="text-xs text-gray-500">{channel.desc}</p>
-                        {channel.id === 'telegram' && channel.chatId && (
-                          <p className="text-[10px] text-blue-600 font-mono mt-0.5">📱 Chat ID: <code className="bg-blue-100 px-1 rounded">{channel.chatId}</code></p>
-                        )}
-                        {channel.id === 'email' && order?.client_email && (
-                          <p className="text-[10px] text-blue-600 mt-0.5">📧 {order.client_email}</p>
-                        )}
-                      </div>
+                      <p className="ml-6 text-xs text-gray-500">{channel.desc}</p>
                     </div>
                   </label>
                 )
