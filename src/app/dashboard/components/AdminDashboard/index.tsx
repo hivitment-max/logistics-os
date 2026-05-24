@@ -243,6 +243,7 @@ export default function AdminDashboard() {
       return <NotificationsTab showNotification={showNotification} />
     }
     
+    // ✅ გასწორებული: წაშლილია getStatusColor და ActionButtons
     if (activeTab === 'vehicles') return (
       <VehiclesTab 
         vehicles={vehiclesData} 
@@ -250,8 +251,6 @@ export default function AdminDashboard() {
         onEdit={(v) => { setEditingVehicle(v); setShowEditVehicleModal(true) }} 
         onDelete={vehicles.handleDeleteVehicleClick} 
         onAdd={() => vehicles.setShowAddVehicleModal(true)} 
-        getStatusColor={getStatusColor} 
-        ActionButtons={ActionButtons} 
         onPrint={(v) => setPrintVehicle(v)} 
       />
     )
