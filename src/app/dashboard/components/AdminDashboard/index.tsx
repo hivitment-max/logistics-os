@@ -268,9 +268,19 @@ export default function AdminDashboard() {
       />
     )
     
-    if (activeTab === 'drivers') return (
-      <DriversTab drivers={drivers} loading={loading} onEdit={driversHook.handleEditDriverClick} onDelete={driversHook.handleDeleteDriverClick} onAdd={() => driversHook.setShowAddDriverModal(true)} onAssignVehicle={driversHook.handleAssignVehicle} getStatusColor={getStatusColor} ActionButtons={ActionButtons} onPrint={invoicesHook.handlePrintDriver} />
-    )
+// ✅ განახლებული ვერსია:
+if (activeTab === 'drivers') return (
+  <DriversTab 
+    drivers={drivers} 
+    loading={loading} 
+    onEdit={driversHook.handleEditDriverClick} 
+    onDelete={driversHook.handleDeleteDriverClick} 
+    onAdd={() => driversHook.setShowAddDriverModal(true)} 
+    onAssignVehicle={driversHook.handleAssignVehicle} 
+    getStatusColor={getStatusColor} 
+    onPrint={invoicesHook.handlePrintDriver} 
+  />
+)
     
     if (activeTab === 'orders') return (
       <OrdersTab 
