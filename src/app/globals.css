@@ -1,4 +1,11 @@
+/* ✅ Tailwind დირექტივები (თუ v3 იყენებ) ან იმპორტი (თუ v4) */
 @import "tailwindcss";
+/* თუ ზემოთ შეცდომას გაგდებს, წაშალე ეს ხაზი და ჩასვი:
+   @tailwind base;
+   @tailwind components;
+   @tailwind utilities;
+*/
+
 /* 🚛 Logistics OS - Custom Animations */
 
 @keyframes bounce-slow {
@@ -17,6 +24,17 @@
   100% { transform: translateX(100%); }
 }
 
+/* ✅ ახალი ანიმაციები DriversTab-ისთვის */
+@keyframes ringPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.02); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .animate-bounce-slow {
   animation: bounce-slow 2s ease-in-out infinite;
 }
@@ -29,6 +47,22 @@
   animation: loading-bar 2s ease-in-out infinite;
 }
 
+/* ✅ 3D Tilt & Glare ეფექტებისთვის საჭირო ბაზისური სტილები */
+.tilt-card {
+  --tilt-x: 0;
+  --tilt-y: 0;
+  --glare-x: 50%;
+  --glare-y: 50%;
+  /* საწყისი ტრანსფორმაცია */
+  transform: translateZ(0) rotateX(var(--tilt-y)) rotateY(var(--tilt-x));
+  transition: transform 0.1s ease-out;
+}
+
+.card-glare {
+  background: radial-gradient(circle at var(--glare-x) var(--glare-y), rgba(255,255,255,0.06) 0%, transparent 60%);
+  transition: background 0.2s ease-out;
+}
+
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
@@ -36,4 +70,26 @@
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ✅ ✅ ✅ ახალი: თხელი, მუქი სქროლბარი - ჩანს მხოლოდ სქროლისას */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 transparent;
+}
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+*:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
 }

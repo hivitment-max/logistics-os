@@ -25,18 +25,56 @@ export function useInvoices({ showNotification, loadData, logAudit, invoices }: 
       if (!confirm(`ამ შეკვეთისთვის ინვოისი უკვე არსებობს (${existing.invoice_number}). გნებავთ ნახვა?`)) return
       setSelectedInvoice(existing); setShowInvoiceModal(true); return
     }
-    const invoiceNumber = generateInvoiceNumber()
+    
+    const invoiceNumber = order.tracking_code || generateInvoiceNumber() // ✅ შეკვეთის კოდი = ინვოისის ნომერი
+    
     const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 14)
+    
     const invoiceData = {
-      invoice_number: invoiceNumber, order_id: order.id, tracking_code: order.tracking_code,
-      client_name: order.client_name || 'კლიენტი', client_email: order.client_email || '',
-      client_address: order.client_address || '', total_amount: parseFloat(order.price) || 0,
-      currency: order.currency || 'GEL', status: 'pending', issue_date: new Date().toISOString().split('T')[0],
-      due_date: dueDate.toISOString().split('T')[0], notes: `შეკვეთა: ${order.cargo_description}`
+      invoice_number: invoiceNumber, 
+      order_id: order.id, 
+      tracking_code: order.tracking_code,
+      client_name: order.client_name || 'კლიენტი', 
+      client_email: order.client_email || '',
+      client_address: order.client_address || '', 
+      client_tax_id: order.client_tax_id || '',
+      total_amount: parseFloat(order.price) || 0,
+      currency: order.currency || 'GEL', 
+      status: 'pending', 
+      issue_date: new Date().toISOString().split('T')[0],
+      due_date: dueDate.toISOString().split('T')[0], 
+      notes: `შეკვეთა: ${order.cargo_description}`,
+      
+      // ✅ მომსახურების დეტალები (შენი PDF-ის მიხედვით)
+      transport_type: order.transport_type || 'სახმელეთო/LTL',
+      container_number: order.container_number || '',
+      loading_place: order.loading_place || order.pickup_address || '',
+      destination: order.destination || order.delivery_address || '',
+      
+      // ✅ ფინანსური ველები
+      subtotal: parseFloat(order.price) || 0,
+      vat_rate: 18,
+      vat_amount: (parseFloat(order.price) || 0) * 0.18,
+      
+      // ✅ საბანკო ინფო
+      iban: 'GE06TB7146936080100013',
+      bank_details: 'ანგარიშსწორების ანგარიში შპს"ანაბელ ლოჯისტიკ" ს.ს"თიბისი ბანკი" SWIFT:TBCBGE22'
     }
+    
     const { error, data } = await supabase.from('invoices').insert([invoiceData]).select()
     if (error) { showNotification(`❌ ${error.message}`); return }
-    await supabase.from('invoice_items').insert([{ invoice_id: (data as any)[0].id, description: `ტრანსპორტირება: ${order.cargo_description}`, quantity: 1, unit_price: parseFloat(order.price) || 0, total: parseFloat(order.price) || 0 }])
+    
+    // ✅ გასწორებული: invoice_line_items (არა invoice_items!)
+    await supabase.from('invoice_line_items').insert([{ 
+      invoice_id: (data as any)[0].id, 
+      description: `ტრანსპორტირება: ${order.cargo_description}`, 
+      quantity: 1, 
+      unit_price: parseFloat(order.price) || 0, 
+      vat_amount: (parseFloat(order.price) || 0) * 0.18,
+      total: parseFloat(order.price) || 0,
+      sort_order: 1
+    }])
+    
     await logAudit('INVOICE_CREATED', invoiceNumber, `შეიქმნა შეკვეთისთვის: ${order.tracking_code}`)
     showNotification(`✅ ინვოისი შეიქმნა: ${invoiceNumber}`); loadData()
   }, [invoices, showNotification, logAudit, loadData])
@@ -55,8 +93,9 @@ export function useInvoices({ showNotification, loadData, logAudit, invoices }: 
     showNotification(`✅ ინვოისის სტატუსი შეიცვალა: ${newStatus}`); loadData()
   }, [invoices, showNotification, loadData, logAudit])
 
-  // 🖨️ Print Functions (დროებით აქ რჩება, მოგვიანებით შეიძლება `utils/print.ts`-ში გადავიტანოთ)
+  // 🖨️ Print Functions (უცვლელი)
   const handlePrint = useCallback(() => window.print(), [])
+  
   const handlePrintDriver = useCallback((driver: any) => {
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
@@ -80,13 +119,11 @@ export function useInvoices({ showNotification, loadData, logAudit, invoices }: 
   }, [])
 
   return {
-    // Modal States
     showInvoiceModal, setShowInvoiceModal,
     selectedInvoice, setSelectedInvoice,
     showEmailModal, setShowEmailModal,
     emailTo, setEmailTo,
     invoiceFilter, setInvoiceFilter,
-    // Handlers
     handleCreateInvoice,
     handleSendEmail,
     handleInvoiceStatusChange,

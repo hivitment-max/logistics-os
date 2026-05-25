@@ -114,6 +114,19 @@ export default function AdminDashboard() {
   const [dashboardNotifications, setDashboardNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
 
+  // 🗂️ SIDEBAR COLLAPSE STATE + localStorage
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarCollapsed')
+      return saved === 'true'
+    }
+    return false
+  })
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed))
+  }, [sidebarCollapsed])
+
   // 🚗 მანქანების რედაქტირების/პრინტის სტეიტები
   const [showEditVehicleModal, setShowEditVehicleModal] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null)
@@ -296,20 +309,66 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       {notification && <div className="fixed top-3 right-3 z-50 bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg shadow-xl text-xs flex items-center gap-2">{notification}</div>}
 
-      <aside className="w-52 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
-        <div className="h-11 flex items-center px-3 border-b border-gray-800"><span className="text-xs font-bold text-blue-400 tracking-wide">🚛 LOGISTICS OS</span></div>
+      {/* 🗂️ SIDEBAR - collapsible with smooth animation */}
+      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-52'} bg-gray-900 border-r border-gray-800 flex flex-col shrink-0 transition-all duration-300 overflow-hidden`}>
+        {/* Header with toggle button */}
+        <div className="h-11 flex items-center px-3 border-b border-gray-800">
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-1 hover:bg-gray-800 rounded transition text-gray-400 hover:text-white shrink-0"
+            title={sidebarCollapsed ? 'გაშლა' : 'შეკეცვა'}
+          >
+            {sidebarCollapsed ? '▶' : '◀'}
+          </button>
+          {!sidebarCollapsed && <span className="text-xs font-bold text-blue-400 tracking-wide ml-2 truncate">🚛 LOGISTICS OS</span>}
+        </div>
+        
+        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-1.5 space-y-0.5">
-          {menuStructure.map((group: any) => (<div key={group.category} className="mb-2"><p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest px-2 mb-1">{group.category}</p>{group.items.map((item: any) => (<button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-all text-[11px] ${activeTab === item.id ? 'bg-blue-600/90 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-300'}`}><span className="text-sm w-4 text-center shrink-0">{item.icon}</span><span className="truncate">{item.label}</span></button>))}</div>))}
+          {menuStructure.map((group: any) => (
+            <div key={group.category} className="mb-2">
+              {!sidebarCollapsed && (
+                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest px-2 mb-1 truncate">{group.category}</p>
+              )}
+              {group.items.map((item: any) => (
+                <button 
+                  key={item.id} 
+                  onClick={() => setActiveTab(item.id)} 
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-all text-[11px] ${
+                    activeTab === item.id 
+                      ? 'bg-blue-600/90 text-white shadow-sm' 
+                      : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-300'
+                  } ${sidebarCollapsed ? 'justify-center' : ''}`}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <span className="text-sm w-4 text-center shrink-0">{item.icon}</span>
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                </button>
+              ))}
+            </div>
+          ))}
         </nav>
+        
+        {/* User section */}
         <div className="p-3 border-t border-gray-800 shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0"><div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-[10px] font-bold shadow-md shrink-0">A</div><div className="flex-1 min-w-0"><p className="text-[10px] font-medium truncate text-gray-300">{currentUser?.email || 'admin@logistics.ge'}</p></div></div>
-            <button onClick={handleSignOut} className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition">🚪</button>
+          <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
+            <div className={`flex items-center gap-2 ${sidebarCollapsed ? '' : 'min-w-0'}`}>
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-[10px] font-bold shadow-md shrink-0">A</div>
+              {!sidebarCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-medium truncate text-gray-300">{currentUser?.email || 'admin@logistics.ge'}</p>
+                </div>
+              )}
+            </div>
+            {!sidebarCollapsed && (
+              <button onClick={handleSignOut} className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition shrink-0" title="გასვლა">🚪</button>
+            )}
           </div>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-gray-950 flex flex-col">
+      {/* 🎯 MAIN CONTENT - expands automatically */}
+      <main className="flex-1 overflow-y-auto bg-gray-950 flex flex-col transition-all duration-300">
         <header className="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800/50 px-5 py-2">
           <div className="flex justify-between items-center">
             <div>

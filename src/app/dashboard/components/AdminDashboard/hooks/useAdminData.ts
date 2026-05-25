@@ -43,12 +43,25 @@ export function useAdminData() {
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('drivers').select('*').order('created_at', { ascending: false }),
         supabase.from('orders').select('*, drivers(full_name, phone), vehicles(plate_number, model)').order('created_at', { ascending: false }),
-        supabase.from('invoices').select('*, orders(tracking_code, cargo_description)').order('created_at', { ascending: false }),
+        
+        // ✅ ახლა ვაბრუნებთ orders-თან კავშირს (order_id არსებობს ბაზაში):
+        supabase.from('invoices')
+          .select(`
+            *,
+            order_id,
+            orders (
+              tracking_code,
+              cargo_description
+            )
+          `)
+          .order('created_at', { ascending: false }),
+        
         supabase.from('external_drivers').select('*').order('created_at', { ascending: false }),
         supabase.from('external_vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('private_clients').select('*').order('created_at', { ascending: false }),
         supabase.from('companies').select('*').order('created_at', { ascending: false })
       ])
+      
       if (vRes.data) setVehicles(vRes.data)
       if (dRes.data) setDrivers(dRes.data)
       if (oRes.data) setOrders(oRes.data)
@@ -57,6 +70,8 @@ export function useAdminData() {
       if (extVRes.data) setExternalVehicles(extVRes.data)
       if (pcRes.data) setPrivateClients(pcRes.data)
       if (cRes.data) setCompanies(cRes.data)
+    } catch (error) {
+      console.error('❌ Failed to load data:', error)
     } finally {
       setLoading(false)
     }
@@ -74,9 +89,15 @@ export function useAdminData() {
   const logAudit = useCallback(async (action: string, target: string, details: string) => {
     try {
       await supabase.from('audit_logs').insert([{
-        action, user_email: currentUser?.email || 'admin@logistics.ge', target, details, timestamp: new Date().toISOString()
+        action, 
+        user_email: currentUser?.email || 'admin@logistics.ge', 
+        target, 
+        details, 
+        timestamp: new Date().toISOString()
       }])
-    } catch (err) { console.warn('Audit log failed:', err) }
+    } catch (err) { 
+      console.warn('Audit log failed:', err) 
+    }
   }, [currentUser])
 
   return {
