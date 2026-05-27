@@ -275,19 +275,20 @@ async function handleCallbackQuery(callback: any) {
   }
 
   const { driver, order } = verification
-  const driverName = driver.full_name
-  const trackingCode = order.tracking_code
+  // ✅ ✅ ✅ FIX: დავამატეთ ! (non-null assertion) TypeScript-ის შეცდომის გამოსასწორებლად
+  const driverName = driver!.full_name
+  const trackingCode = order!.tracking_code
   const originalText = callback.message?.text || `🚛 შეკვეთა ${trackingCode}`
 
   // ვიპოვოთ მიმდინარე სტატუსი/ეტაპი
   let currentStage: StageKey = 'initial'
-  if (order.driver_response === 'accepted') currentStage = 'accepted'
-  if (order.en_route_at) currentStage = 'en_route'
-  if (order.loaded_at) currentStage = 'loaded'
-  if (order.in_transit_at) currentStage = 'in_transit'
-  if (order.border_crossing_at) currentStage = 'border_crossed'
-  if (order.arrived_at) currentStage = 'arrived'
-  if (order.delivered_at) currentStage = 'delivered'
+  if (order!.driver_response === 'accepted') currentStage = 'accepted'
+  if (order!.en_route_at) currentStage = 'en_route'
+  if (order!.loaded_at) currentStage = 'loaded'
+  if (order!.in_transit_at) currentStage = 'in_transit'
+  if (order!.border_crossing_at) currentStage = 'border_crossed'
+  if (order!.arrived_at) currentStage = 'arrived'
+  if (order!.delivered_at) currentStage = 'delivered'
 
   const stageConfig = STAGES[currentStage]
 
@@ -315,7 +316,7 @@ async function handleCallbackQuery(callback: any) {
     console.log(`✅ Order ${orderId} updated: ${stageConfig.dbField}`)
 
     // 2️⃣ ჩავწეროთ tracking_events
-    await logTrackingEvent(orderId, driver.id, stageConfig.trackingEventType, {
+    await logTrackingEvent(orderId, driver!.id, stageConfig.trackingEventType, {
       action,
       stage: currentStage,
       next_stage: stageConfig.nextStage,
@@ -325,8 +326,8 @@ async function handleCallbackQuery(callback: any) {
     // 3️⃣ ჩავწეროთ dashboard notification
     await logDashboardNotification(
       orderId,
-      driver.id,
-      order.driver_type || 'internal',
+      driver!.id,
+      order!.driver_type || 'internal',
       stageConfig.dashboardTitle,
       stageConfig.dashboardMessage(driverName, trackingCode),
       { action, stage: currentStage }
