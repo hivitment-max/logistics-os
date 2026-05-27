@@ -37,7 +37,6 @@ export default function SendNotificationModal({
   const [driverData, setDriverData] = useState<any>(null)
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null)
   const [loadingDriver, setLoadingDriver] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
 
   // 🔁 1. მოდლის გახსნა: რესეტი და მონაცემების ჩატვირთვა
   useEffect(() => {
@@ -46,13 +45,12 @@ export default function SendNotificationModal({
       setSending(false)
       setSendResult(null)
       setSelectedChannels([])
-      setLoadError(null)
       setLoadingDriver(true)
       
       // მონაცემების ჩატვირთვა
       fetchDriverData()
     }
-  }, [isOpen, order?.id]) // ✅ order?.id-ზე დამოკიდებულობა აცილებს ზედმეტ რენდერებს
+  }, [isOpen, order?.id])
 
   // 🔁 2. როცა მონაცემები ჩაიტვირთება: ავტო-მონიშვნა
   useEffect(() => {
@@ -63,12 +61,9 @@ export default function SendNotificationModal({
         setSelectedChannels(['email'])
       } else {
         setSelectedChannels([])
-        if (!loadError) {
-          setLoadError('⚠️ Telegram და Email მიუწვდომელია')
-        }
       }
     }
-  }, [loadingDriver, telegramChatId, order?.client_email, isOpen, loadError])
+  }, [loadingDriver, telegramChatId, order?.client_email, isOpen])
 
   const fetchDriverData = async () => {
     if (!order) return
@@ -119,7 +114,6 @@ export default function SendNotificationModal({
       
     } catch (error: any) {
       console.error('❌ fetchDriverData failed:', error)
-      setLoadError(`მონაცემების ჩატვირთვა ვერ მოხერხდა: ${error.message}`)
       setTelegramChatId(null)
     } finally {
       setLoadingDriver(false)
@@ -209,23 +203,6 @@ export default function SendNotificationModal({
               <div><span className="text-gray-500 text-xs block mb-1">💰 თანხა:</span><p className="font-bold text-green-600">{order?.price} {order?.currency}</p></div>
             </div>
           </section>
-
-          {/* ⚠️ შეცდომის შეტყობინება */}
-          {loadError && (
-            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700 flex items-start gap-2">
-              <span>⚠️</span>
-              <div>
-                <p className="font-medium">ყურადღება</p>
-                <p className="text-xs mt-0.5">{loadError}</p>
-                <button 
-                  onClick={() => { setLoadingDriver(true); setLoadError(null); fetchDriverData(); }}
-                  className="text-xs text-orange-600 underline mt-1 hover:text-orange-800"
-                >
-                  🔄 ხელახლა ცდა
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* 📡 გაგზავნის არხები */}
           <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
