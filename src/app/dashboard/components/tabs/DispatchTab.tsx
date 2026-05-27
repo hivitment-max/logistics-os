@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 // ✅ განახლებული: დამატებულია vehiclePlateNumber პარამეტრი
 interface DispatchTabProps {
@@ -271,18 +272,36 @@ export default function DispatchTab({
     }
   }
 
-  // ❌ მინიჭების მოხსნა
+  // ❌ მინიჭების მოხსნა - ✅ განახლებული: ასუფთავებს მძღოლის პასუხის ველებს
   const handleUnassignClick = async () => {
     if (!selectedOrder || !onUnassign) return
     if (!confirm(`დარწმუნებული ხართ რომ გინდათ მინიჭების მოხსნა შეკვეთიდან ${selectedOrder.tracking_code}?`)) return
     
     try {
+      // 1️⃣ ჯერ გამოვიძახოთ მშობლის onUnassign (თუ არსებობს)
       await onUnassign(selectedOrder.id)
+      
+      // 2️⃣ ✅ ✅ ✅ ახალი: გავასუფთავოთ მძღოლის პასუხის ველები ბაზაში
+      // ეს აუცილებელია რომ "მძღოლის პასუხი" სვეტი გასუფთავდეს OrdersTab-ში
+      await supabase.from('orders').update({
+        driver_response: null,              // ✅ წავშალოთ პასუხი (accepted/rejected)
+        driver_confirmed_at: null,          // ✅ წავშალოთ დადასტურების დრო
+        driver_rejected_at: null,           // ✅ წავშალოთ უარყოფის დრო
+        driver_confirmed_via: null,         // ✅ ოფციონალური: წყარო
+        updated_at: new Date().toISOString()
+      }).eq('id', selectedOrder.id)
+      
+      console.log(`✅ [UNASSIGN] Cleared driver response for order ${selectedOrder.id}`)
+      
+      // 3️⃣ რესეტი ლოკალურ სტეიტში
       setSelectedOrder(null)
       setPendingDriverId(null)
       setPendingVehicleId(null)
+      setPendingExternalDriverId(null)
+      setPendingExternalVehicleId(null)
+      
     } catch (error) {
-      console.error('Unassign failed:', error)
+      console.error('❌ Unassign failed:', error)
       setValidationMsg('❌ შეცდომა მოხსნისას')
       setTimeout(() => setValidationMsg(null), 3000)
     }
