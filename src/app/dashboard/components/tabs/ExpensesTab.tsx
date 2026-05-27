@@ -107,7 +107,7 @@ export default function ExpensesTab() {
       if (existing) {
         existing.total_amount += expense.amount
         if (expense.status === 'pending') existing.pending_count += 1
-        if (expense.status === 'approved') existing_approved_count += 1
+        if (expense.status === 'approved') existing.approved_count += 1
       } else {
         summaryMap.set(expense.category, {
           category: expense.category,
