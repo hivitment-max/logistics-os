@@ -21,6 +21,8 @@ import VehiclesTab from '../tabs/VehiclesTab'
 import DriversTab from '../tabs/DriversTab'
 import OrdersTab from '../tabs/OrdersTab'
 import InvoicesTab from '../tabs/InvoicesTab'
+import PayrollTab from '../tabs/PayrollTab'
+import ExpensesTab from '../tabs/ExpensesTab'
 import TemplateBuilder from '../templates/TemplateBuilder'
 import PrivateClientsTab from '../tabs/PrivateClientsTab'
 import CompaniesTab from '../tabs/CompaniesTab'
@@ -28,7 +30,6 @@ import UsersTab from '../tabs/UsersTab'
 import RolesTab from '../tabs/RolesTab'
 import TrackingTab from '../tabs/TrackingTab'
 import AuditTab from '../tabs/AuditTab'
-import PayrollTab from '../tabs/PayrollTab'
 import SettingsTab from '../tabs/SettingsTab'
 import DispatchTab from '../tabs/DispatchTab'
 import NotificationsTab from '../tabs/NotificationsTab'
@@ -199,6 +200,7 @@ export default function AdminDashboard() {
     }
   }, [fetchDashboardNotifications])
 
+  // ✅ განახლებული მენიუს სტრუქტურა - ფინანსების კატეგორია
   const menuStructure = [
     { category: 'მთავარი', items: [{ id: 'overview', icon: '📈', label: 'მიმოხილვა' }, { id: 'kpi', icon: '🎯', label: 'KPI & ანალიტიკა' }]},
     { category: 'მომხმარებლები', items: [ ...(isAdmin ? [{ id: 'users', icon: '👥', label: 'მომხმარებლები' }] : []), { id: 'roles', icon: '🔑', label: 'როლები' } ]},
@@ -210,7 +212,12 @@ export default function AdminDashboard() {
       { id: 'tracking', icon: '📍', label: 'ტრეკინგი' }
     ]},
     { category: 'დამკვეთები', items: [{ id: 'private_clients', icon: '👤', label: 'კერძო პირი' }, { id: 'companies', icon: '🏢', label: 'კომპანია' }]},
-    { category: 'ფინანსები', items: [{ id: 'invoices', icon: '🧾', label: 'ინვოისები' }, { id: 'invoice_templates', icon: '🎨', label: 'ინვოისის შაბლონები' }, { id: 'payroll', icon: '💸', label: 'Payroll' }]},
+    { category: 'ფინანსები', items: [
+      { id: 'invoices', icon: '🧾', label: 'ინვოისები' },
+      { id: 'payroll', icon: '💰', label: 'მძღოლების ანაზღაურება' },
+      { id: 'expenses', icon: '🛣️', label: 'ხარჯები' },
+      { id: 'invoice_templates', icon: '🎨', label: 'შაბლონები' }
+    ]},
     { category: 'სისტემა', items: [{ id: 'audit', icon: '📜', label: 'აუდიტი' }, { id: 'api', icon: '🔌', label: 'API' }, { id: 'settings', icon: '⚙️', label: 'პარამეტრები' }]},
     { category: 'შეტყობინებები', items: [{ id: 'notifications', icon: '📢', label: 'შეტყობინებები' }]},
   ]
@@ -236,6 +243,7 @@ export default function AdminDashboard() {
   const getCurrentItem = () => menuStructure.flatMap((g: any) => g.items).find((i: any) => i.id === activeTab) || { icon: '📄', label: 'გვერდი' }
   const currentItem = getCurrentItem()
 
+  // ✅ განახლებული renderContent - ახალი ტაბების დამატება
   const renderContent = () => {
     if (activeTab === 'dispatch') return <DispatchTab orders={orders} drivers={drivers} vehicles={vehiclesData} onAssign={dispatchHook.handleAssign} onUnassign={dispatchHook.handleUnassign} onViewOrder={(order: any) => { setActiveTab('orders'); ordersHook.handleEditOrderClick(order) }} getStatusColor={getStatusColor} />
     if (activeTab === 'overview') return <OverviewTab orders={orders} invoices={invoices} vehicles={vehiclesData} drivers={drivers} getStatusColor={getStatusColor} onNavigateToVehicles={() => setActiveTab('vehicles')} onNavigateToKpi={() => setActiveTab('kpi')} />
@@ -249,12 +257,16 @@ export default function AdminDashboard() {
     if (activeTab === 'roles') return <RolesTab />
     if (activeTab === 'tracking') return <TrackingTab />
     if (activeTab === 'audit') return <AuditTab />
-    if (activeTab === 'payroll') return <PayrollTab />
     if (activeTab === 'settings') return <SettingsTab />
     
     if (activeTab === 'notifications') {
       return <NotificationsTab showNotification={showNotification} />
     }
+    
+    // ✅ ახალი ფინანსური ტაბები
+    if (activeTab === 'invoices') return <InvoicesTab />
+    if (activeTab === 'payroll') return <PayrollTab />
+    if (activeTab === 'expenses') return <ExpensesTab />
     
     // ✅ გასწორებული: წაშლილია getStatusColor და ActionButtons
     if (activeTab === 'vehicles') return (
@@ -268,19 +280,18 @@ export default function AdminDashboard() {
       />
     )
     
-// ✅ განახლებული ვერსია:
-if (activeTab === 'drivers') return (
-  <DriversTab 
-    drivers={drivers} 
-    loading={loading} 
-    onEdit={driversHook.handleEditDriverClick} 
-    onDelete={driversHook.handleDeleteDriverClick} 
-    onAdd={() => driversHook.setShowAddDriverModal(true)} 
-    onAssignVehicle={driversHook.handleAssignVehicle} 
-    getStatusColor={getStatusColor} 
-    onPrint={invoicesHook.handlePrintDriver} 
-  />
-)
+    if (activeTab === 'drivers') return (
+      <DriversTab 
+        drivers={drivers} 
+        loading={loading} 
+        onEdit={driversHook.handleEditDriverClick} 
+        onDelete={driversHook.handleDeleteDriverClick} 
+        onAdd={() => driversHook.setShowAddDriverModal(true)} 
+        onAssignVehicle={driversHook.handleAssignVehicle} 
+        getStatusColor={getStatusColor} 
+        onPrint={invoicesHook.handlePrintDriver} 
+      />
+    )
     
     if (activeTab === 'orders') return (
       <OrdersTab 
@@ -299,10 +310,6 @@ if (activeTab === 'drivers') return (
       />
     )
     
-    if (activeTab === 'invoices') return (
-      <InvoicesTab invoices={invoices} loading={loading} invoiceFilter={invoicesHook.invoiceFilter} setInvoiceFilter={invoicesHook.setInvoiceFilter} onStatusChange={invoicesHook.handleInvoiceStatusChange} onView={(i: any) => { invoicesHook.setSelectedInvoice(i); invoicesHook.setShowInvoiceModal(true); }} onEmail={(i: any) => { invoicesHook.setSelectedInvoice(i); invoicesHook.setEmailTo(i.client_email || ''); invoicesHook.setShowEmailModal(true); }} getStatusColor={getStatusColor} />
-    )
-    
     if (activeTab === 'private_clients') return (
       <PrivateClientsTab clients={privateClients} loading={loading} onEdit={privateClientsHook.handleEditPrivateClientClick} onDelete={privateClientsHook.handleDeletePrivateClientClick} onAdd={() => privateClientsHook.setShowAddPrivateClientModal(true)} ActionButtons={ActionButtons} />
     )
@@ -312,6 +319,7 @@ if (activeTab === 'drivers') return (
     )
     
     if (activeTab === 'invoice_templates') return <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-5 min-h-[600px]"><TemplateBuilder onSave={() => setActiveTab('invoices')} /></div>
+    
     return <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-6 text-center"><h3 className="text-sm font-bold mb-1">{currentItem.label}</h3><p className="text-[10px] text-gray-500">კონტენტი მზადდება...</p></div>
   }
 
@@ -663,14 +671,18 @@ if (activeTab === 'drivers') return (
         </div>
       )}
 
-      {/* 👨‍✈️ ADD DRIVER MODAL */}
+      {/* 👨‍✈️ ADD DRIVER MODAL - ✅ განახლებული ახალი სექციებით */}
       {driversHook.showAddDriverModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => driversHook.setShowAddDriverModal(false)}>
           <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800"><h3 className="text-sm font-bold text-white flex items-center gap-2">👨‍✈️ ახალი მძღოლის რეგისტრაცია</h3><button onClick={() => driversHook.setShowAddDriverModal(false)} className="text-gray-400 hover:text-white text-xl transition">&times;</button></div>
             <form onSubmit={driversHook.handleAddDriver} className="p-5 overflow-y-auto space-y-6">
+              
+              {/* Employment Type Tabs */}
               <div className="flex bg-gray-700/30 p-1 rounded-lg mb-2">{['internal', 'contractor'].map(type => (<button type="button" key={type} onClick={() => driversHook.setDriverForm({...driversHook.driverForm, employment_type: type})} className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide transition ${driversHook.driverForm.employment_type === type ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>{type === 'internal' ? '🏢 კომპანიის მძღოლი' : '🤝 კონტრაქტით'}</button>))}</div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50"><SectionHeader title="კრიტიკულად აუცილებელი" icon="🔴" color="text-red-400" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* 🔴 Section 1: Critical Info */}
+              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50"><SectionHeader title="🔴 კრიტიკულად აუცილებელი" icon="📋" color="text-red-400" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="სრული სახელი" hint="სახელი და გვარი" required value={driversHook.driverForm.full_name} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, full_name:e.target.value})} />
                 <FormField label="დაბადების თარიღი" type="date" required value={driversHook.driverForm.dob} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, dob:e.target.value})} />
                 <FormField label="პირადი ნომერი" hint="ID" required value={driversHook.driverForm.personal_id} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, personal_id:e.target.value})} />
@@ -681,11 +693,120 @@ if (activeTab === 'drivers') return (
                 <FormField label="კატეგორია" required options={[{value:'B',label:'B'},{value:'C',label:'C'},{value:'C+E',label:'C+E'},{value:'D',label:'D'}]} value={driversHook.driverForm.license_category} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, license_category:e.target.value})} />
                 <FormField label="ვადა" type="date" required value={driversHook.driverForm.license_expiry} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, license_expiry:e.target.value})} />
               </div></div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50"><SectionHeader title="საოპერაციო და ფინანსური" icon="🟡" color="text-yellow-400" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* 🟡 Section 2: Operational */}
+              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50"><SectionHeader title="🟡 საოპერაციო და ფინანსური" icon="⚙️" color="text-yellow-400" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="გამოცდილება (წლები)" type="number" value={driversHook.driverForm.total_experience_years} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, total_experience_years:e.target.value})} />
                 <div className="col-span-2"><label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wide">სპეციალური უნარები</label><textarea rows={1} value={driversHook.driverForm.special_experience} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, special_experience:e.target.value})} placeholder="მაგ: მაცივარი..." className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition resize-none" /></div>
                 <FormField checkbox label="ADR სერტიფიკატი" value={driversHook.driverForm.has_adr} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, has_adr:e.target.checked})} />
               </div></div>
+
+              {/* 💰 NEW Section 3: Financial Details */}
+              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
+                <SectionHeader title="💰 ფინანსური დეტალები" icon="💸" color="text-emerald-400" />
+                <p className="text-[10px] text-gray-400 mb-3">ეს მონაცემები გამოიყენება ავტომატური ანგარიშსწორებისთვის.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField 
+                    label="გადახდის მეთოდი" 
+                    options={[
+                      { value: 'bank_transfer', label: '🏦 ბანკის გადარიცხვა' },
+                      { value: 'cash', label: '💵 ნაღდი ფული' },
+                      { value: 'card', label: '💳 ბარათზე' }
+                    ]} 
+                    value={driversHook.driverForm.payment_method} 
+                    onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, payment_method: e.target.value})} 
+                  />
+                  <FormField 
+                    label="კომისია (%)" 
+                    type="number" 
+                    hint="მაგ: 20" 
+                    value={driversHook.driverForm.commission_percent} 
+                    onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, commission_percent: e.target.value})} 
+                  />
+                  <FormField 
+                    label="ტარიფი (₾/კმ)" 
+                    type="number" 
+                    step="0.01"
+                    hint="მაგ: 0.50" 
+                    value={driversHook.driverForm.rate_per_km} 
+                    onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, rate_per_km: e.target.value})} 
+                  />
+                  <FormField 
+                    label="ფიქსირებული/ავანსი (₾)" 
+                    type="number" 
+                    hint="თუ აქვს" 
+                    value={driversHook.driverForm.base_salary} 
+                    onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, base_salary: e.target.value})} 
+                  />
+                  {driversHook.driverForm.payment_method === 'bank_transfer' && (
+                    <>
+                      <FormField 
+                        label="ბანკის სახელი" 
+                        hint="მაგ: თიბისი, ბანკი საქართველო" 
+                        value={driversHook.driverForm.bank_name} 
+                        onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, bank_name: e.target.value})} 
+                      />
+                      <FormField 
+                        label="IBAN ანგარიში" 
+                        hint="GE..." 
+                        value={driversHook.driverForm.bank_account} 
+                        onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, bank_account: e.target.value})} 
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* 🔔 NEW Section 4: Notifications & Communication */}
+              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
+                <SectionHeader title="🔔 შეტყობინებები & კომუნიკაცია" icon="📱" color="text-purple-400" />
+                <p className="text-[10px] text-gray-400 mb-3">მითითებული მონაცემებით სისტემა ავტომატურად გაუგზავნის შეტყობინებებს.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <FormField 
+                    label="Telegram Username" 
+                    hint="მაგ: @driver_name (საძიებლად)" 
+                    value={driversHook.driverForm.telegram_username} 
+                    onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, telegram_username: e.target.value})} 
+                  />
+                  <FormField 
+                    label="Telegram Chat ID ⚠️" 
+                    hint="კრიტიკული: ბოტისთვის (მაგ: 123456789)" 
+                    value={driversHook.driverForm.telegram_chat_id} 
+                    onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, telegram_chat_id: e.target.value})} 
+                  />
+                </div>
+
+                <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <p className="text-[10px] font-bold text-purple-400 mb-2 uppercase">რა შეტყობინებებს იღებს?</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <FormField 
+                      checkbox label="🚛 ახალი შეკვეთა" 
+                      value={driversHook.driverForm.notify_order_assign} 
+                      onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, notify_order_assign: e.target.checked})} 
+                    />
+                    <FormField 
+                      checkbox label="💰 ანგარიშსწორება" 
+                      value={driversHook.driverForm.notify_payment} 
+                      onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, notify_payment: e.target.checked})} 
+                    />
+                    <FormField 
+                      checkbox label="📢 აქციები/სიახლე" 
+                      value={driversHook.driverForm.notify_promo} 
+                      onChange={(e: any) => driversHook.setDriverForm({...driversHook.driverForm, notify_promo: e.target.checked})} 
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-3 p-2 bg-yellow-500/10 rounded border border-yellow-500/30 text-[10px] text-yellow-200">
+                  <strong>💡 როგორ მივიღოთ Chat ID?</strong><br/>
+                  1. მძღოლი ეძებს ბოტს: <code>@getidsbot</code><br/>
+                  2. აჭერს Start → იღებს რიცხვს (მაგ: 123456789)<br/>
+                  3. ეს რიცხვი ჩაწერე ზემოთ ველში.
+                </div>
+              </div>
+
+              {/* Footer Buttons */}
               <div className="flex gap-3 pt-4 border-t border-gray-700 mt-2"><button type="button" onClick={() => driversHook.setShowAddDriverModal(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition">გაუქმება</button><button type="submit" className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20">💾 რეგისტრაცია</button></div>
             </form>
           </div>

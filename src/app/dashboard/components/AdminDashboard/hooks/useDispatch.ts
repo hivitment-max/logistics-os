@@ -92,12 +92,13 @@ export function useDispatch({
     return { available: true, message: '' }
   }, [drivers, vehicles, orders])
 
-  // 🚛 მინიჭების ფუნქცია
+  // 🚛 მინიჭების ფუნქცია - ✅ განახლებული vehiclePlateNumber-ით
   const handleAssign = useCallback(async (
     orderId: string, 
     driverId: string | null, 
     vehicleId: string | null,
-    pickupDate?: string | null
+    pickupDate?: string | null,
+    vehiclePlateNumber?: string | null  // ✅ ახალი პარამეტრი: მანქანის ნომერი
   ) => {
     const availability = checkAvailability(driverId, vehicleId, pickupDate || null)
     if (!availability.available) {
@@ -110,6 +111,11 @@ export function useDispatch({
       vehicle_id: vehicleId || null,
       assigned_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
+    }
+
+    // ✅ თუ მანქანის ნომერი მოგვყვა, ვინახავთ მას ბაზაში
+    if (vehiclePlateNumber) {
+      updatePayload.vehicle_plate_number = vehiclePlateNumber
     }
 
     const order = orders?.find((o: any) => o.id === orderId)

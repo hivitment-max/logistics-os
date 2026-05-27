@@ -234,6 +234,32 @@ export default function AddOrderModal({
               </div>
               <FormField label="📦 შეფუთვა" options={[{ value: 'box', label: '📦 ყუთი' }, { value: 'pallet', label: '🪵 პალიტი' }, { value: 'bag', label: '🛍️ ტომარა' }, { value: 'bulk', label: '🌾 ნაყარი' }]} value={orderForm.packaging_type} onChange={(e: any) => updateField('packaging_type', e.target.value)} />
               <FormField label="🔄 დაბრუნებადი ტარა?" checkbox value={orderForm.returnable_packaging} onChange={(e: any) => updateField('returnable_packaging', e.target.checked)} />
+              
+              {/* ✅ ახალი ველები: გადაზიდვის სახეობა და კონტეინერის ნომერი */}
+              <div className="md:col-span-3 pt-3 border-t border-gray-700/30 mt-2">
+                <p className="text-[10px] font-semibold text-gray-400 mb-2 uppercase tracking-wide">🚛 გადაზიდვის დეტალები</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField 
+                    label="გადაზიდვის სახეობა" 
+                    options={[
+                      { value: 'road_ftl', label: '🚛 სახმელეთო / FTL' },
+                      { value: 'road_ltl', label: '🚚 სახმელეთო / LTL' },
+                      { value: 'sea', label: '🚢 საზღვაო' },
+                      { value: 'air', label: '✈️ ავია' },
+                      { value: 'rail', label: '🚆 რკინიგზა' },
+                      { value: 'multimodal', label: '🔄 მულტიმოდალური' },
+                    ]} 
+                    value={orderForm.transport_type} 
+                    onChange={(e: any) => updateField('transport_type', e.target.value)} 
+                  />
+                  <FormField 
+                    label="კონტეინერის/ტრეილერის ნომერი" 
+                    hint="მაგ: AN008BL-AN004B, MSCU1234567"
+                    value={orderForm.container_number} 
+                    onChange={(e: any) => updateField('container_number', e.target.value)} 
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )
@@ -317,7 +343,7 @@ export default function AddOrderModal({
               <div className="md:col-span-2">
                 <p className="text-[10px] font-semibold text-gray-400 mb-2 uppercase tracking-wide">🔧 საჭირო აღჭურვილობა</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <FormField checkbox label="🔽 იფტი" value={orderForm.needs_tail_lift} onChange={(e: any) => updateField('needs_tail_lift', e.target.checked)} />
+                  <FormField checkbox label="🔽 ლიფტი" value={orderForm.needs_tail_lift} onChange={(e: any) => updateField('needs_tail_lift', e.target.checked)} />
                   <FormField checkbox label="🔗 ღვედები" value={orderForm.needs_straps} onChange={(e: any) => updateField('needs_straps', e.target.checked)} />
                   <FormField checkbox label="🧱 აგურის დალაგება" value={orderForm.needs_bricklaying} onChange={(e: any) => updateField('needs_bricklaying', e.target.checked)} />
                   <FormField checkbox label="👥 2 მზიდავი" value={orderForm.needs_two_cargo_handlers} onChange={(e: any) => updateField('needs_two_cargo_handlers', e.target.checked)} />
@@ -374,7 +400,7 @@ export default function AddOrderModal({
                   <div><p className="text-gray-500">ფასი</p><p className="text-white font-bold text-lg">{orderForm.price} {orderForm.currency}</p></div>
                   <div><p className="text-gray-500">გადახდა</p><p className="text-white font-medium">{orderForm.payment_terms}</p></div>
                   <div><p className="text-gray-500">ინვოისი</p><p className="text-white font-medium">{orderForm.invoice_needed ? '✅ კი' : '❌ არა'}</p></div>
-                  <div><p className="text-gray-500">დამ. ხარჯები</p><p className="text-white font-medium">{(parseFloat(orderForm.road_fee || 0) + parseFloat(orderForm.outside_city_fee || 0) + parseFloat(orderForm.waiting_fee_per_hour || 0) + parseFloat(orderForm.extra_fees || 0)).toFixed(2)} {orderForm.currency}</p></div>
+                  <div><p className="text-gray-500">დამ. ხარჯები</p><p className="text-white font-medium">{(parseFloat(orderForm.road_fee || '0') + parseFloat(orderForm.outside_city_fee || '0') + parseFloat(orderForm.waiting_fee_per_hour || '0') + parseFloat(orderForm.extra_fees || '0')).toFixed(2)} {orderForm.currency}</p></div>
                 </div>
               </div>
 
@@ -390,15 +416,17 @@ export default function AddOrderModal({
               </div>
 
               {/* დამატებითი */}
-              {(orderForm.special_requirements || orderForm.needs_tail_lift || orderForm.needs_straps) && (
+              {(orderForm.special_requirements || orderForm.needs_tail_lift || orderForm.needs_straps || orderForm.transport_type || orderForm.container_number) && (
                 <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                   <h4 className="text-xs font-bold text-green-400 mb-3 flex items-center gap-2">📝 დამატებითი</h4>
                   {orderForm.special_requirements && <div className="mb-2"><p className="text-gray-500 text-[10px]">მოთხოვნები</p><p className="text-white text-xs">{orderForm.special_requirements}</p></div>}
                   <div className="flex flex-wrap gap-2">
                     {orderForm.needs_tail_lift && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">🔽 ლიფტი</span>}
-                    {orderForm.needs_straps && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">🔗 ვედები</span>}
+                    {orderForm.needs_straps && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">🔗 ღვედები</span>}
                     {orderForm.needs_bricklaying && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">🧱 აგური</span>}
                     {orderForm.needs_two_cargo_handlers && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">👥 2 მზიდავი</span>}
+                    {orderForm.transport_type && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">🚛 {orderForm.transport_type}</span>}
+                    {orderForm.container_number && <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-[10px]">📦 {orderForm.container_number}</span>}
                   </div>
                 </div>
               )}

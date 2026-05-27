@@ -196,9 +196,12 @@ export default function InvoiceRenderer({ config, invoiceData, isTemplate = fals
           {config.bill_to?.show_company_name && (
             <><span className="text-gray-500">{lang.company}:</span><span className="font-medium">{resolve('client_name')}</span></>
           )}
-          {config.bill_to?.show_tax_id && (
+          
+          {/* ✅ გასწორებული: მხოლოდ მაშინ ჩანს, როცა client_tax_id არ არის ცარიელი */}
+          {config.bill_to?.show_tax_id && invoiceData.client_tax_id && (
             <><span className="text-gray-500">{lang.taxId}:</span><span className="font-mono">{resolve('client_tax_id')}</span></>
           )}
+          
           {config.bill_to?.show_address && invoiceData.client_address && (
             <><span className="text-gray-500">{lang.address}:</span><span>{resolve('client_address')}</span></>
           )}

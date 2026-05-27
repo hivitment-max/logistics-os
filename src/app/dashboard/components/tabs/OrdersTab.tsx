@@ -6,6 +6,7 @@ import LoadingTruck from '@/app/dashboard/components/ui/LoadingTruck'
 import AddOrderModal from '../modals/AddOrderModal'
 import OrderPreviewModal from '../modals/OrderPreviewModal'
 import SendNotificationModal from '../modals/SendNotificationModal'
+import CreateInvoiceModal from '../modals/CreateInvoiceModal'
 
 interface OrdersTabProps {
   orders: any[]
@@ -43,6 +44,10 @@ export default function OrdersTab({
   const [previewOrder, setPreviewOrder] = useState<any | null>(null)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [notificationOrder, setNotificationOrder] = useState<any | null>(null)
+  
+  // 🧾 ინვოისის მოდალის სტეიტები
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null)
 
   // 🔄 Realtime subscription შეკვეთების ცვლილებებისთვის
   useEffect(() => {
@@ -285,116 +290,100 @@ export default function OrdersTab({
     setShowNotificationModal(true)
   }
 
+  // ✅ ✅ ✅ განახლებული: შეტყობინება ღილაკებით (Inline Keyboard)
   const handleSendNotification = async (channels: string[]) => {
     console.log('🚀 [NOTIFICATION] Starting send process...')
-    console.log('📦 Selected order:', notificationOrder?.id, notificationOrder?.tracking_code)
-    
-    if (!notificationOrder) {
-      console.error('❌ [NOTIFICATION] No order selected')
-      throw new Error('შეკვეთა არ არის არჩეული')
-    }
+    if (!notificationOrder) throw new Error('შეკვეთა არ არის არჩეული')
 
     const order = notificationOrder
-    let driver = order.drivers || order.external_drivers
-    const isExternalDriver = order.driver_type === 'external'
-    
-    if (!driver || !driver.telegram_chat_id) {
-      console.log('🔄 [NOTIFICATION] Telegram ID missing. Fetching from Supabase...')
-      let fetchedDriver = null
-      try {
-        if (isExternalDriver && order.external_driver_id) {
-          const { data, error } = await supabase
-            .from('external_drivers')
-            .select('id, full_name, phone, telegram_chat_id, telegram_username')
-            .eq('id', order.external_driver_id)
-            .single()
-          if (error) console.error('❌ Supabase Error (External):', error)
-          else fetchedDriver = data
-        } else if (!isExternalDriver && order.driver_id) {
-          const { data, error } = await supabase
-            .from('drivers')
-            .select('id, full_name, phone, telegram_chat_id, telegram_username')
-            .eq('id', order.driver_id)
-            .single()
-          if (error) console.error('❌ Supabase Error (Internal):', error)
-          else fetchedDriver = data
-        }
-        if (fetchedDriver) driver = { ...driver, ...fetchedDriver }
-      } catch (err) {
-        console.error('❌ Exception during driver fetch:', err)
+    let chatId = order.drivers?.telegram_chat_id || order.external_drivers?.telegram_chat_id
+
+    // თუ cache-ში არ არის, პირდაპირ ბაზიდან ამოვიღოთ
+    if (!chatId) {
+      console.log('🔄 [NOTIFICATION] Chat ID missing in cache. Fetching from DB...')
+      const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
+      if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
+
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('telegram_chat_id, full_name')
+        .eq('id', driverId)
+        .single()
+
+      if (driver?.telegram_chat_id) {
+        chatId = driver.telegram_chat_id
+        console.log(`✅ Chat ID found in DB: ${chatId}`)
+      } else {
+        console.warn('⚠️ Driver does not have a Telegram Chat ID')
+        alert('⚠️ მძღოლს არ აქვს Telegram Chat ID. გთხოვთ დაამატოთ მძღოლის რედაქტირებისას.')
+        return { success: false, error: 'Chat ID missing' }
       }
     }
 
-    if (!driver) {
-      console.error('❌ [NOTIFICATION] No driver found for this order')
-      return { success: false, error: 'Driver not found' }
+    const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+    if (!token) throw new Error('Bot token missing in .env.local')
+
+    const message = `🚛 <b>ახალი შეკვეთა მინიჭებულია!</b>\n\n` +
+      `📦 კოდი: <code>${order.tracking_code}</code>\n` +
+      `📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n` +
+      `💰 თანხა: ${order.price} ${order.currency}`
+
+    // ✅ ✅ ✅ ღილაკების კონფიგურაცია (Inline Keyboard)
+    const reply_markup = {
+      inline_keyboard: [
+        [
+          { text: '✅ მივიღე', callback_data: `acc:${order.id}` },
+          { text: '❌ უარვყავი', callback_data: `rej:${order.id}` }
+        ]
+      ]
     }
 
-    const notificationLogs = []
-    for (const channel of channels) {
-      const logEntry = {
-        driver_id: isExternalDriver ? null : driver?.id,
-        external_driver_id: isExternalDriver ? driver?.id : null,
-        order_id: order.id,
-        title: '🚛 ახალი შეკვეთა მინიჭებულია',
-        message: `შეკვეთა ${order.tracking_code}: ${order.pickup_address} → ${order.delivery_address}`,
-        channel: channel,
-        status: 'pending' as const,
-        metadata: {
-          order_tracking_code: order.tracking_code,
-          driver_name: driver?.full_name,
-          driver_phone: driver?.phone,
-          driver_telegram: driver?.telegram_username,
-          pickup_date: order.scheduled_pickup_date,
-          price: `${order.price} ${order.currency}`,
-          debug_timestamp: new Date().toISOString()
-        },
-        created_at: new Date().toISOString()
-      }
-      const { data: log, error } = await supabase.from('notifications').insert([logEntry]).select().single()
-      if (error) {
-        console.error(`❌ [NOTIFICATION] Failed to create ${channel} log:`, error)
-        continue
-      }
-      notificationLogs.push(log)
-    }
-
-    if (channels.includes('telegram')) {
-      const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
-      const chatId = driver?.telegram_chat_id
-
-      if (!token) return { success: false, error: 'Bot token missing in env' }
-      if (!chatId) {
-        await supabase.from('notifications').update({ status: 'failed', metadata: { error: 'Driver telegram_chat_id is missing' }}).eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
-        return { success: false, error: 'Driver chat ID missing' }
-      }
-
-      try {
-        const text = `🚛 <b>ახალი შეკვეთა!</b>\n\n📦 კოდი: <code>${order.tracking_code}</code>\n👨‍✈️ მძღოლი: ${driver?.full_name}\n📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n📅 თარიღი: ${order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date).toLocaleDateString('ka-GE') : '–'}\n💰 თანხა: ${order.price} ${order.currency}\n\n🔗 <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard?tab=orders">გადასვლა დაშბორდზე</a>`
-        const reply_markup = { inline_keyboard: [[{ text: '✅ მივიღე', callback_data: `acc:${order.id}` }, { text: '❌ უარვყავი', callback_data: `rej:${order.id}` }]] }
-
-        const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup })
+    try {
+      // 1️⃣ გაგზავნა Telegram-ზე ღილაკებით
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: chatId, 
+          text: message, 
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          reply_markup: reply_markup  // ✅ ღილაკები
         })
-        const result = await response.json()
-        
-        if (result.ok) {
-          await supabase.from('notifications').update({ status: 'sent', sent_at: new Date().toISOString(), metadata: { ...notificationLogs.find((l: any) => l.channel === 'telegram')?.metadata, telegram_message_id: result.result.message_id }}).eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
-          return { success: true, logs: notificationLogs, telegram_message_id: result.result.message_id }
-        } else {
-          throw new Error(result.description || 'Telegram API error')
-        }
-      } catch (err: any) {
-        await supabase.from('notifications').update({ status: 'failed', metadata: { ...notificationLogs.find((l: any) => l.channel === 'telegram')?.metadata, error: err.message }}).eq('id', notificationLogs.find((l: any) => l.channel === 'telegram')?.id)
-        return { success: false, error: err.message }
-      }
+      })
+      const result = await res.json()
+      if (!result.ok) throw new Error(result.description || 'Telegram API error')
+
+      console.log('✅ Telegram message sent successfully!')
+
+      // 2️⃣ ლოგის ჩაწერა ბაზაში
+      await supabase.from('notifications').insert({
+        order_id: order.id,
+        driver_id: order.driver_type === 'internal' ? order.driver_id : null,
+        external_driver_id: order.driver_type === 'external' ? order.external_driver_id : null,
+        title: '🚛 ახალი შეკვეთა',
+        message: `შეტყობინება გაგზავნილია Telegram-ზე`,
+        channel: 'telegram',
+        status: 'sent',
+        metadata: { 
+          chat_id: chatId, 
+          telegram_message_id: result.result?.message_id,
+          callback_data: `acc:${order.id}|rej:${order.id}`
+        },
+        sent_at: new Date().toISOString()
+      })
+      console.log('📝 Notification logged to DB')
+      return { success: true }
+    } catch (err: any) {
+      console.error('❌ Notification failed:', err)
+      return { success: false, error: err.message }
     }
-    return { success: true, logs: notificationLogs }
   }
 
-  const handleInvoiceClick = () => {
-    alert('🧾 ინვოისის ფუნქცია მალე დაემატება!')
+  // 🧾 ინვოისის შექმნის ღილაკის ლოგიკა
+  const handleInvoiceClick = (order: any) => {
+    setSelectedOrderForInvoice(order)
+    setShowInvoiceModal(true)
   }
 
   return (
@@ -474,7 +463,14 @@ export default function OrdersTab({
                     <button onClick={() => handleEditClick(o)} className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition" title="რედაქტირება">✏️</button>
                     <button onClick={() => handlePreviewClick(o)} className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition" title="Preview">👁️</button>
                     <button onClick={() => handleOpenNotification(o)} className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition" title="შეტყობინების გაგზავნა">📢</button>
-                    <button onClick={handleInvoiceClick} className="p-1.5 text-gray-400 bg-gray-700/30 rounded-md cursor-not-allowed opacity-50" title="ინვოისი (მალე)" disabled>🧾</button>
+                    {/* 🧾 ინვოისის ღილაკი - ახლა აქტიურია */}
+                    <button 
+                      onClick={() => handleInvoiceClick(o)} 
+                      className="p-1.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition" 
+                      title="ინვოისის შექმნა"
+                    >
+                      🧾
+                    </button>
                     <button onClick={() => handleDeleteClick(o)} className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md transition" title="წაშლა">🗑️</button>
                   </div>
                 </td>
@@ -501,6 +497,17 @@ export default function OrdersTab({
       {showNotificationModal && notificationOrder && (
         <SendNotificationModal isOpen={showNotificationModal} onClose={() => { setShowNotificationModal(false); setNotificationOrder(null) }} order={notificationOrder} onSend={handleSendNotification} logs={[]} />
       )}
+
+      {/* 🧾 ინვოისის შექმნის მოდალი */}
+      <CreateInvoiceModal 
+        isOpen={showInvoiceModal} 
+        onClose={() => { setShowInvoiceModal(false); setSelectedOrderForInvoice(null) }} 
+        order={selectedOrderForInvoice} 
+        onSuccess={() => { 
+          // ოფციონალური: გადასვლა ინვოისების ტაბზე ან რეფრეში
+          if (loadData) loadData()
+        }} 
+      />
 
     </div>
   )
