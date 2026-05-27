@@ -243,9 +243,20 @@ export default function AdminDashboard() {
   const getCurrentItem = () => menuStructure.flatMap((g: any) => g.items).find((i: any) => i.id === activeTab) || { icon: '📄', label: 'გვერდი' }
   const currentItem = getCurrentItem()
 
-  // ✅ განახლებული renderContent - ახალი ტაბების დამატება
+  // ✅ განახლებული renderContent - ახალი ტაბების დამატება + loadData კოლბეკი DispatchTab-ს
   const renderContent = () => {
-    if (activeTab === 'dispatch') return <DispatchTab orders={orders} drivers={drivers} vehicles={vehiclesData} onAssign={dispatchHook.handleAssign} onUnassign={dispatchHook.handleUnassign} onViewOrder={(order: any) => { setActiveTab('orders'); ordersHook.handleEditOrderClick(order) }} getStatusColor={getStatusColor} />
+    if (activeTab === 'dispatch') return (
+      <DispatchTab 
+        orders={orders} 
+        drivers={drivers} 
+        vehicles={vehiclesData} 
+        onAssign={dispatchHook.handleAssign} 
+        onUnassign={dispatchHook.handleUnassign} 
+        onViewOrder={(order: any) => { setActiveTab('orders'); ordersHook.handleEditOrderClick(order) }} 
+        getStatusColor={getStatusColor}
+        loadData={loadData}  // ✅ ეს არის ახალი კოლბეკი!
+      />
+    )
     if (activeTab === 'overview') return <OverviewTab orders={orders} invoices={invoices} vehicles={vehiclesData} drivers={drivers} getStatusColor={getStatusColor} onNavigateToVehicles={() => setActiveTab('vehicles')} onNavigateToKpi={() => setActiveTab('kpi')} />
     if (activeTab === 'kpi') return <KpiTab orders={orders} invoices={invoices} vehicles={vehiclesData} drivers={drivers} loading={loading} />
     

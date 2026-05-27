@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
-// ✅ განახლებული: დამატებულია vehiclePlateNumber პარამეტრი
+// ✅ განახლებული: დამატებულია vehiclePlateNumber პარამეტრი + loadData კოლბეკი
 interface DispatchTabProps {
   orders: any[]
   drivers: any[]
@@ -18,6 +18,7 @@ interface DispatchTabProps {
   onUnassign?: (orderId: string) => Promise<void>
   onViewOrder: (order: any) => void
   getStatusColor: (status: string) => string
+  loadData?: () => void  // ✅ ახალი: კოლბეკი მონაცემების განახლებისთვის
 }
 
 export default function DispatchTab({ 
@@ -27,7 +28,8 @@ export default function DispatchTab({
   onAssign, 
   onUnassign,
   onViewOrder,
-  getStatusColor 
+  getStatusColor,
+  loadData  // ✅ დავამატეთ ეს პროპი
 }: DispatchTabProps) {
   
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
@@ -272,28 +274,44 @@ export default function DispatchTab({
     }
   }
 
-  // ❌ მინიჭების მოხსნა - ✅ განახლებული: ასუფთავებს მძღოლის პასუხის ველებს
+  // ❌ მინიჭების მოხსნა - ✅ განახლებული: ორმაგი დაცვა + კეშის გასუფთავება
   const handleUnassignClick = async () => {
     if (!selectedOrder || !onUnassign) return
     if (!confirm(`დარწმუნებული ხართ რომ გინდათ მინიჭების მოხსნა შეკვეთიდან ${selectedOrder.tracking_code}?`)) return
     
     try {
       // 1️⃣ ჯერ გამოვიძახოთ მშობლის onUnassign (თუ არსებობს)
-      await onUnassign(selectedOrder.id)
+      if (onUnassign) {
+        await onUnassign(selectedOrder.id)
+      }
       
-      // 2️⃣ ✅ ✅ ✅ ახალი: გავასუფთავოთ მძღოლის პასუხის ველები ბაზაში
+      // 2️⃣ მცირე დაყოვნება რომ დავრწმუნდეთ მშობლის განახლება დასრულდა
+      // ეს აცილებს კონფლიქტს თუ მშობელიც ანახლებს იმავე ველებს
+      await new Promise(resolve => setTimeout(resolve, 150))
+      
+      // 3️⃣ ✅ ✅ ✅ გავასუფთავოთ მძღოლის პასუხის ველები ბაზაში
       // ეს აუცილებელია რომ "მძღოლის პასუხი" სვეტი გასუფთავდეს OrdersTab-ში
-      await supabase.from('orders').update({
+      const { error: updateError } = await supabase.from('orders').update({
         driver_response: null,              // ✅ წავშალოთ პასუხი (accepted/rejected)
         driver_confirmed_at: null,          // ✅ წავშალოთ დადასტურების დრო
         driver_rejected_at: null,           // ✅ წავშალოთ უარყოფის დრო
         driver_confirmed_via: null,         // ✅ ოფციონალური: წყარო
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString() // ✅ აუცილებელია Realtime-ისთვის
       }).eq('id', selectedOrder.id)
       
-      console.log(`✅ [UNASSIGN] Cleared driver response for order ${selectedOrder.id}`)
+      if (updateError) {
+        console.error('❌ Failed to clear driver response:', updateError)
+      } else {
+        console.log(`✅ [UNASSIGN] Cleared driver response for order ${selectedOrder.id}`)
+      }
       
-      // 3️⃣ რესეტი ლოკალურ სტეიტში
+      // 4️⃣ ✅ თუ არის loadData კოლბეკი, გამოვიძახოთ რომ OrdersTab განახლდეს
+      if (typeof loadData === 'function') {
+        loadData()
+        console.log('🔄 [UNASSIGN] Triggered parent loadData refresh')
+      }
+      
+      // 5️⃣ რესეტი ლოკალურ სტეიტში
       setSelectedOrder(null)
       setPendingDriverId(null)
       setPendingVehicleId(null)
