@@ -72,15 +72,18 @@ export default function OrdersTab({
   const filteredOrders = orders.filter(o => orderFilter === 'all' || o.status === orderFilter)
 
   // ============================================================================
-  // 🆕 ახალი: მძღოლის პასუხის ბეჯი (ცალკე ფუნქცია)
+  // 🆕 განახლებული: მძღოლის პასუხის ბეჯი (სწორი ველებით)
   // ============================================================================
-  const getDriverResponseBadge = (response: string | null, respondedAt?: string) => {
+  const getDriverResponseBadge = (response: string | null, confirmedAt?: string, rejectedAt?: string) => {
     if (!response) return <span className="text-[10px] text-gray-500">–</span>
+    
+    // ვიღებთ სწორ თარიღს პასუხის ტიპის მიხედვით
+    const respondedAt = response === 'accepted' ? confirmedAt : rejectedAt
     
     if (response === 'accepted') {
       return (
         <div className="flex flex-col items-start">
-          <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30">
+          <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 font-medium">
             ✅ დადასტურებულია
           </span>
           {respondedAt && (
@@ -94,7 +97,7 @@ export default function OrdersTab({
     if (response === 'rejected') {
       return (
         <div className="flex flex-col items-start">
-          <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 border border-red-500/30">
+          <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 font-medium">
             ❌ უარყოფილია
           </span>
           {respondedAt && (
@@ -454,9 +457,9 @@ export default function OrdersTab({
                     <option value="cancelled">გაუქმებული</option>
                   </select>
                 </td>
-                {/* ✅ ახალი სვეტი: მძღოლის პასუხი */}
+                {/* ✅ ახალი სვეტი: მძღოლის პასუხი - განახლებული */}
                 <td className="px-4 py-3">
-                  {getDriverResponseBadge(o.driver_response, o.driver_responded_at)}
+                  {getDriverResponseBadge(o.driver_response, o.driver_confirmed_at, o.driver_rejected_at)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end items-center gap-1">
