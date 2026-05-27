@@ -14,8 +14,15 @@ interface Order {
   price: number
   currency: string
   created_at: string
-  drivers?: { full_name: string; phone: string } | null
-  vehicles?: { plate_number: string; model: string } | null
+  // ✅ ახალი ოფციონალური ველები (TypeScript-ის შეცდომის გამოსასწორებლად):
+  pickup_city?: string
+  delivery_city?: string
+  driver_id?: string
+  vehicle_id?: string
+  driver_type?: 'internal' | 'external'
+  // ✅ Nested ობიექტები (optional):
+  drivers?: { id: string; full_name: string; phone: string } | null
+  vehicles?: { id: string; plate_number: string; model: string } | null
 }
 
 interface TrackingEvent {
