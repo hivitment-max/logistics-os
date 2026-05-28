@@ -58,20 +58,35 @@ export default function DispatchTab({
     return { weight, volume, assignedOrders };
   }
 
-  // ✅ ✅ ✅ ახალი: შემოწმება არის თუ არა რესურსი დაკავებული
-  const isVehicleBusy = (vehicleId: string) => {
+  // ✅ ✅ ✅ განახლებული: შემოწმება არის თუ არა რესურსი დაკავებული (გამორიცხავს ამჟამად არჩეულ შეკვეთას)
+  const isVehicleBusy = (vehicleId: string, excludeOrderId?: string) => {
     return orders.some(o => 
-      o.vehicle_id === vehicleId && 
-      ['assigned', 'in_transit', 'dispatched'].includes(o.status)
+      (o.vehicle_id === vehicleId || o.external_vehicle_id === vehicleId) && 
+      ['assigned', 'in_transit', 'dispatched'].includes(o.status) &&
+      o.id !== excludeOrderId
     );
   };
 
-  const isDriverBusy = (driverId: string) => {
+  const isDriverBusy = (driverId: string, excludeOrderId?: string) => {
     return orders.some(o => 
       o.driver_id === driverId && 
-      ['assigned', 'in_transit', 'dispatched'].includes(o.status)
+      ['assigned', 'in_transit', 'dispatched'].includes(o.status) &&
+      o.id !== excludeOrderId
     );
   };
+
+  // ✅ ახალი ჰელპერი: შეამოწმე არის თუ არა ეს რესურსი უკვე მიბმული ამ შეკვეთაზე
+  const isResourceAssignedToOrder = (resourceId: string, order: any, type: 'vehicle' | 'driver', isExternal: boolean) => {
+    if (!order) return false
+    if (type === 'vehicle') {
+      return isExternal 
+        ? order.external_vehicle_id === resourceId 
+        : order.vehicle_id === resourceId
+    }
+    return isExternal
+      ? order.external_driver_id === resourceId
+      : order.driver_id === resourceId
+  }
 
   // ✅ მანქანის არჩევის ლოგიკა + ვალიდაცია
   const handleVehicleSelect = (vehicleId: string, isExternal: boolean = false) => {
@@ -397,6 +412,13 @@ export default function DispatchTab({
     );
   };
 
+  // ✅ ახალი: "მიბმულია" ბეჯი - მწვანე, მარცხნივ ზემოთ
+  const AssignedBadge = () => (
+    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 border-2 border-emerald-300 text-white flex items-center justify-center text-sm shadow-lg" title="ეს რესურსი უკვე მიბმულია ამ შეკვეთაზე">
+      🔗
+    </div>
+  );
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-1 relative">
       
@@ -502,23 +524,34 @@ export default function DispatchTab({
               const capWeight = parseFloat(vehicle.capacity_kg) || 0
               const capVol = parseFloat(vehicle.volume_m3) || 0
               const typeIcon = vehicle.type === 'truck' ? '🚛' : vehicle.type === 'van' ? '🚐' : '🚗'
-              const busy = isVehicleBusy(vehicle.id)
+              // ✅ განახლებული: გადავცეთ selectedOrder?.id რომ გამოვრიცხოთ ეს შეკვეთა
+              const busy = isVehicleBusy(vehicle.id, selectedOrder?.id)
+              // ✅ ახალი: შევამოწმოთ არის თუ არა ეს მანქანა უკვე მიბმული ამ შეკვეთაზე
+              const isAssigned = isResourceAssignedToOrder(vehicle.id, selectedOrder, 'vehicle', false)
 
               return (
                 <button
                   key={vehicle.id}
                   onClick={() => handleVehicleSelect(vehicle.id, false)}
                   className={`w-full p-3 rounded-xl border transition-all duration-200 text-left relative
-                    ${busy ? 'opacity-80' : ''}
+                    ${busy && !isAssigned ? 'opacity-80' : ''}
                     ${pendingVehicleId === vehicle.id 
                       ? 'bg-indigo-500/10 border-indigo-500/50 ring-1 ring-indigo-500/30' 
                       : 'bg-gray-900/40 border-gray-700/50 hover:border-indigo-500/30'
                     }`}
                 >
-                  {/* ✅ ბეჯი მარჯვენა ზედა კუთხეში */}
-                  <div className="absolute top-3 right-3 z-10">
-                    <BusyBadge isBusy={busy} type="vehicle" />
-                  </div>
+                  {/* ✅ "მიბმულია" ბეჯი - მარცხნივ ზემოთ */}
+                  {isAssigned && (
+                    <div className="absolute top-3 left-3 z-10">
+                      <AssignedBadge />
+                    </div>
+                  )}
+                  {/* ✅ BusyBadge - მარჯვნივ ზემოთ (მხოლოდ თუ დაკავებულია სხვა შეკვეთაზე) */}
+                  {!isAssigned && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <BusyBadge isBusy={busy} type="vehicle" />
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-start gap-2 mb-1">
                     <div className="flex items-center gap-2 min-w-0">
@@ -549,22 +582,34 @@ export default function DispatchTab({
                 <p className="text-xs">გარე მანქანები არ არის</p>
               </div>
             ) : externalVehicles.map(vehicle => {
-              const busy = isVehicleBusy(vehicle.id)
+              // ✅ განახლებული: გადავცეთ selectedOrder?.id
+              const busy = isVehicleBusy(vehicle.id, selectedOrder?.id)
+              // ✅ ახალი: შევამოწმოთ არის თუ არა ეს მანქანა უკვე მიბმული ამ შეკვეთაზე
+              const isAssigned = isResourceAssignedToOrder(vehicle.id, selectedOrder, 'vehicle', true)
+
               return (
                 <button
                   key={vehicle.id}
                   onClick={() => handleVehicleSelect(vehicle.id, true)}
                   className={`w-full p-3 rounded-xl border transition-all duration-200 text-left relative
-                    ${busy ? 'opacity-80' : ''}
+                    ${busy && !isAssigned ? 'opacity-80' : ''}
                     ${pendingExternalVehicleId === vehicle.id 
                       ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30' 
                       : 'bg-gray-900/40 border-gray-700/50 hover:border-orange-500/30'
                     }`}
                 >
-                  {/* ✅ ბეჯი მარჯვენა ზედა კუთხეში */}
-                  <div className="absolute top-3 right-3 z-10">
-                    <BusyBadge isBusy={busy} type="vehicle" />
-                  </div>
+                  {/* ✅ "მიბმულია" ბეჯი - მარცხნივ ზემოთ */}
+                  {isAssigned && (
+                    <div className="absolute top-3 left-3 z-10">
+                      <AssignedBadge />
+                    </div>
+                  )}
+                  {/* ✅ BusyBadge - მარჯვნივ ზემოთ */}
+                  {!isAssigned && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <BusyBadge isBusy={busy} type="vehicle" />
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-start gap-2 mb-1">
                     <div className="flex items-center gap-2 min-w-0">
@@ -611,22 +656,34 @@ export default function DispatchTab({
                 <p className="text-xs">{selectedOrder?.is_dangerous ? 'ADR მძღოლი არ არის' : 'თავისუფალი მძღოლი არ არის'}</p>
               </div>
             ) : displayDrivers.map(driver => {
-              const busy = isDriverBusy(driver.id)
+              // ✅ განახლებული: გადავცეთ selectedOrder?.id
+              const busy = isDriverBusy(driver.id, selectedOrder?.id)
+              // ✅ ახალი: შევამოწმოთ არის თუ არა ეს მძღოლი უკვე მიბმული ამ შეკვეთაზე
+              const isAssigned = isResourceAssignedToOrder(driver.id, selectedOrder, 'driver', false)
+
               return (
                 <button
                   key={driver.id}
                   onClick={() => handleDriverSelect(driver.id, false)}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 text-left relative
-                    ${busy ? 'opacity-80' : ''}
+                    ${busy && !isAssigned ? 'opacity-80' : ''}
                     ${pendingDriverId === driver.id 
                       ? 'bg-blue-500/10 border-blue-500/50 ring-1 ring-blue-500/30' 
                       : 'bg-gray-900/40 border-gray-700/50 hover:border-blue-500/30'
                     }`}
                 >
-                  {/* ✅ ბეჯი მარჯვენა ზედა კუთხეში */}
-                  <div className="absolute top-2 right-3 z-10">
-                    <BusyBadge isBusy={busy} type="driver" />
-                  </div>
+                  {/* ✅ "მიბმულია" ბეჯი - მარცხნივ ზემოთ */}
+                  {isAssigned && (
+                    <div className="absolute top-2 left-3 z-10">
+                      <AssignedBadge />
+                    </div>
+                  )}
+                  {/* ✅ BusyBadge - მარჯვნივ ზემოთ */}
+                  {!isAssigned && (
+                    <div className="absolute top-2 right-3 z-10">
+                      <BusyBadge isBusy={busy} type="driver" />
+                    </div>
+                  )}
 
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-sm font-bold text-white shadow-md shrink-0">
                     {driver.full_name?.charAt(0).toUpperCase() || '?'}
@@ -649,22 +706,34 @@ export default function DispatchTab({
                 <p className="text-xs">გარე მძღოლები არ არის</p>
               </div>
             ) : externalDrivers.map(driver => {
-              const busy = isDriverBusy(driver.id)
+              // ✅ განახლებული: გადავცეთ selectedOrder?.id
+              const busy = isDriverBusy(driver.id, selectedOrder?.id)
+              // ✅ ახალი: შევამოწმოთ არის თუ არა ეს მძღოლი უკვე მიბმული ამ შეკვეთაზე
+              const isAssigned = isResourceAssignedToOrder(driver.id, selectedOrder, 'driver', true)
+
               return (
                 <button
                   key={driver.id}
                   onClick={() => handleDriverSelect(driver.id, true)}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 text-left relative
-                    ${busy ? 'opacity-80' : ''}
+                    ${busy && !isAssigned ? 'opacity-80' : ''}
                     ${pendingExternalDriverId === driver.id 
                       ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30' 
                       : 'bg-gray-900/40 border-gray-700/50 hover:border-orange-500/30'
                     }`}
                 >
-                  {/* ✅ ბეჯი მარჯვენა ზედა კუთხეში */}
-                  <div className="absolute top-2 right-3 z-10">
-                    <BusyBadge isBusy={busy} type="driver" />
-                  </div>
+                  {/* ✅ "მიბმულია" ბეჯი - მარცხნივ ზემოთ */}
+                  {isAssigned && (
+                    <div className="absolute top-2 left-3 z-10">
+                      <AssignedBadge />
+                    </div>
+                  )}
+                  {/* ✅ BusyBadge - მარჯვნივ ზემოთ */}
+                  {!isAssigned && (
+                    <div className="absolute top-2 right-3 z-10">
+                      <BusyBadge isBusy={busy} type="driver" />
+                    </div>
+                  )}
 
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-400 flex items-center justify-center text-sm font-bold text-white shadow-md shrink-0">
                     {driver.full_name?.charAt(0).toUpperCase() || '?'}
