@@ -27,7 +27,7 @@ const initialFormState = {
   owner_type: 'company' as 'company' | 'individual',
   power_of_attorney: '',
   model: '',
-  type: 'truck' as 'truck' | 'van' | 'car', // ✅ აქ იყო პრობლემა!
+  type: 'truck' as 'truck' | 'van' | 'car',
   body_type: 'tent' as const,
   capacity_kg: '',
   volume_m3: '',
@@ -131,8 +131,10 @@ export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded, showN
               <FormField label="ADR კლასი" hint="სახიფათო ტვირთი 1-9" value={vehicleForm.adr_class} onChange={(e) => setVehicleForm({ ...vehicleForm, adr_class: e.target.value })} />
               <FormField label="EURO სტანდარტი" options={[{ value: '5', label: 'EURO 5' }, { value: '6', label: 'EURO 6' }, { value: 'EEV', label: 'EEV' }]} value={vehicleForm.euro_standard} onChange={(e) => setVehicleForm({ ...vehicleForm, euro_standard: e.target.value as any })} />
               <FormField label="ღვედების რაოდენობა" type="number" hint="მაგ: 8" value={vehicleForm.straps_count} onChange={(e) => setVehicleForm({ ...vehicleForm, straps_count: e.target.value })} />
-              <FormField checkbox label="აქვს ლიფტი (Tail lift)" value={vehicleForm.has_tail_lift} onChange={(e) => setVehicleForm({ ...vehicleForm, has_tail_lift: e.target.checked })} />
-              <FormField checkbox label="აქვს მაცივარი" value={vehicleForm.has_refrigeration} onChange={(e) => setVehicleForm({ ...vehicleForm, has_refrigeration: e.target.checked })} />
+              
+              {/* ✅ განახლებული: checkbox-ებისთვის დავაკასტეთ e.target როგორც HTMLInputElement */}
+              <FormField checkbox label="აქვს ლიფტი (Tail lift)" value={vehicleForm.has_tail_lift} onChange={(e) => setVehicleForm({ ...vehicleForm, has_tail_lift: (e.target as HTMLInputElement).checked })} />
+              <FormField checkbox label="აქვს მაცივარი" value={vehicleForm.has_refrigeration} onChange={(e) => setVehicleForm({ ...vehicleForm, has_refrigeration: (e.target as HTMLInputElement).checked })} />
             </div>
           </div>
 
@@ -141,7 +143,7 @@ export default function AddVehicleModal({ isOpen, onClose, onVehicleAdded, showN
             <SectionHeader title="🔵 ტექნოლოგიური & მონიტორინგი" icon="📡" color="text-blue-400" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField label="GPS მოწყობილობის ID" hint="ტრეკინგის ნომერი" value={vehicleForm.gps_device_id} onChange={(e) => setVehicleForm({ ...vehicleForm, gps_device_id: e.target.value })} />
-              <FormField checkbox label="აქვს საწვავის სენსორი" value={vehicleForm.has_fuel_sensor} onChange={(e) => setVehicleForm({ ...vehicleForm, has_fuel_sensor: e.target.checked })} />
+              <FormField checkbox label="აქვს საწვავის სენსორი" value={vehicleForm.has_fuel_sensor} onChange={(e) => setVehicleForm({ ...vehicleForm, has_fuel_sensor: (e.target as HTMLInputElement).checked })} />
               <FormField label="ფოტოები (URL-ები)" hint="გამოყოფილი მძიმით" textarea value={vehicleForm.photo_urls} onChange={(e) => setVehicleForm({ ...vehicleForm, photo_urls: e.target.value })} />
               <FormField label="საბურავების სეზონი" options={[{ value: 'summer', label: '☀️ ზაფხული' }, { value: 'winter', label: '❄️ ზამთარი' }, { value: 'all_season', label: '🌤️ ყველა სეზონი' }]} value={vehicleForm.tire_season} onChange={(e) => setVehicleForm({ ...vehicleForm, tire_season: e.target.value as any })} />
               <FormField label="საბურავების მდგომარეობა" options={[{ value: 'new', label: '🟢 ახალი' }, { value: 'good', label: '🟡 კარგი' }, { value: 'replace_soon', label: '🟠 მალე შესაცვლელი' }, { value: 'replace_now', label: '🔴 დაუყოვნებლივ' }]} value={vehicleForm.tire_condition} onChange={(e) => setVehicleForm({ ...vehicleForm, tire_condition: e.target.value as any })} />
