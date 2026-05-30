@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
-// ✅ გასწორებული იმპორტები:
 import FormField from '../../helpers/FormField'
 import SectionHeader from '../../helpers/SectionHeader'
 import { Vehicle } from '../../AdminDashboard/types'
@@ -17,10 +16,43 @@ interface EditVehicleModalProps {
 }
 
 export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUpdated, showNotification }: EditVehicleModalProps) {
-  const [formData, setFormData] = useState<Partial<Vehicle>>({})
+  // ✅ განახლებული: რიცხვითი ველები არის სტრიქონები (როგორც AddVehicleModal-ში)
+  const [formData, setFormData] = useState({
+    plate_number: '',
+    vin_number: '',
+    tech_passport: '',
+    pti_expiry: '',
+    insurance_policy: '',
+    insurance_cmre_policy: '',
+    owner_name: '',
+    owner_type: 'company' as 'company' | 'individual',
+    power_of_attorney: '',
+    model: '',
+    type: 'truck' as 'truck' | 'van' | 'car',
+    body_type: 'tent' as const,
+    capacity_kg: '',        // ✅ სტრიქონი!
+    volume_m3: '',          // ✅ სტრიქონი!
+    length_m: '',           // ✅ სტრიქონი!
+    width_m: '',            // ✅ სტრიქონი!
+    height_m: '',           // ✅ სტრიქონი!
+    adr_class: '',
+    euro_standard: '6' as const,
+    straps_count: '',       // ✅ სტრიქონი!
+    has_tail_lift: false,
+    has_refrigeration: false,
+    gps_device_id: '',
+    has_fuel_sensor: false,
+    photo_urls: '',
+    tire_season: 'all_season' as const,
+    tire_condition: 'good' as const,
+    status: 'active' as const,
+    notes: '',
+    extra_equipment: '',
+  })
+  
   const [submitting, setSubmitting] = useState(false)
 
-  // 🔄 Initialize form when vehicle changes
+  // ✅ განახლებული: ინიციალიზაცია სტრიქონებად
   useEffect(() => {
     if (vehicle) {
       setFormData({
@@ -31,17 +63,18 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
         width_m: vehicle.width_m?.toString() || '',
         height_m: vehicle.height_m?.toString() || '',
         straps_count: vehicle.straps_count?.toString() || '',
+        owner_type: vehicle.owner_type as 'company' | 'individual',
+        type: vehicle.type as 'truck' | 'van' | 'car',
       })
     }
   }, [vehicle])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!vehicle) return
-    
     setSubmitting(true)
 
     try {
+      // ✅ განახლებული: კონვერტაცია რიცხვებად სუბმიტის დროს
       const payload: Partial<Vehicle> = {
         ...formData,
         capacity_kg: formData.capacity_kg ? Number(formData.capacity_kg) : null,
@@ -50,10 +83,9 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
         width_m: formData.width_m ? Number(formData.width_m) : null,
         height_m: formData.height_m ? Number(formData.height_m) : null,
         straps_count: formData.straps_count ? Number(formData.straps_count) : null,
-        updated_at: new Date().toISOString(),
       }
 
-      const { error } = await supabase.from('vehicles').update(payload).eq('id', vehicle.id)
+      const { error } = await supabase.from('vehicles').update(payload).eq('id', vehicle?.id)
       if (error) throw error
 
       showNotification('✅ მანქანა წარმატებით განახლდა')
@@ -75,7 +107,7 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
         
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">🚐 მანქანის რედაქტირება</h3>
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">✏️ მანქანის რედაქტირება</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-xl transition">&times;</button>
         </div>
 
@@ -86,15 +118,15 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
           <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
             <SectionHeader title="🔴 კრიტიკულად აუცილებელი" icon="📋" color="text-red-400" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField label="სანომრე ნიშანი" hint="მაგ: AA-123-BB" required value={formData.plate_number || ''} onChange={(e) => setFormData({ ...formData, plate_number: e.target.value })} />
-              <FormField label="VIN კოდი" hint="17 სიმბოლო" required value={formData.vin_number || ''} onChange={(e) => setFormData({ ...formData, vin_number: e.target.value })} />
-              <FormField label="ტექ. პასპორტი / სკანი" hint="ფაილის სახელი ან URL" required value={formData.tech_passport || ''} onChange={(e) => setFormData({ ...formData, tech_passport: e.target.value })} />
-              <FormField label="PTI ვადა" type="date" required value={formData.pti_expiry || ''} onChange={(e) => setFormData({ ...formData, pti_expiry: e.target.value })} />
-              <FormField label="სამოქალაქო დაზღვევა" hint="პოლისის ნომერი" required value={formData.insurance_policy || ''} onChange={(e) => setFormData({ ...formData, insurance_policy: e.target.value })} />
-              <FormField label="CMR დაზღვევა" hint="პოლისის ნომერი" value={formData.insurance_cmre_policy || ''} onChange={(e) => setFormData({ ...formData, insurance_cmre_policy: e.target.value })} />
-              <FormField label="მფლობელი" hint="ვინ არის მესაკუთრე" required value={formData.owner_name || ''} onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })} />
-              <FormField label="მფლობელის ტიპი" options={[{ value: 'company', label: '🏢 კომპანია' }, { value: 'individual', label: '👤 ფიზიკური პირი' }]} value={formData.owner_type || ''} onChange={(e) => setFormData({ ...formData, owner_type: e.target.value as 'company' | 'individual' })} />
-              <FormField label="მინდობილობა" hint="თუ მძღოლი არ არის მესაკუთრე" value={formData.power_of_attorney || ''} onChange={(e) => setFormData({ ...formData, power_of_attorney: e.target.value })} />
+              <FormField label="სანომრე ნიშანი" hint="მაგ: AA-123-BB" required value={formData.plate_number} onChange={(e) => setFormData({ ...formData, plate_number: e.target.value })} />
+              <FormField label="VIN კოდი" hint="17 სიმბოლო" required value={formData.vin_number} onChange={(e) => setFormData({ ...formData, vin_number: e.target.value })} />
+              <FormField label="ტექ. პასპორტი / სკანი" hint="ფაილის სახელი ან URL" required value={formData.tech_passport} onChange={(e) => setFormData({ ...formData, tech_passport: e.target.value })} />
+              <FormField label="PTI ვადა" type="date" required value={formData.pti_expiry} onChange={(e) => setFormData({ ...formData, pti_expiry: e.target.value })} />
+              <FormField label="სამოქალაქო დაზღვევა" hint="პოლისის ნომერი" required value={formData.insurance_policy} onChange={(e) => setFormData({ ...formData, insurance_policy: e.target.value })} />
+              <FormField label="CMR დაზღვევა" hint="პოლისის ნომერი" value={formData.insurance_cmre_policy} onChange={(e) => setFormData({ ...formData, insurance_cmre_policy: e.target.value })} />
+              <FormField label="მფლობელი" hint="ვინ არის მესაკუთრე" required value={formData.owner_name} onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })} />
+              <FormField label="მფლობელის ტიპი" options={[{ value: 'company', label: '🏢 კომპანია' }, { value: 'individual', label: '👤 ფიზიკური პირი' }]} value={formData.owner_type} onChange={(e) => setFormData({ ...formData, owner_type: e.target.value as 'company' | 'individual' })} />
+              <FormField label="მინდობილობა" hint="თუ მძღოლი არ არის მესაკუთრე" value={formData.power_of_attorney} onChange={(e) => setFormData({ ...formData, power_of_attorney: e.target.value })} />
             </div>
           </div>
 
@@ -102,21 +134,21 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
           <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
             <SectionHeader title="🟡 საოპერაციო მონაცემები" icon="⚙️" color="text-yellow-400" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField label="მოდელი" hint="მაგ: Mercedes Actros" required value={formData.model || ''} onChange={(e) => setFormData({ ...formData, model: e.target.value })} />
-              <FormField label="სატრანსპორტო ტიპი" required options={[{ value: 'truck', label: '🚛 სატვირთო' }, { value: 'van', label: '🚐 ფურგონი' }, { value: 'car', label: '🚗 მსუბუქი' }]} value={formData.type || ''} onChange={(e) => setFormData({ ...formData, type: e.target.value as 'truck' | 'van' | 'car' })} />
-              <FormField label="ძარის ტიპი" options={[{ value: 'tent', label: '🟦 ტენტი' }, { value: 'refrigerated', label: '❄️ მაცივარი' }, { value: 'container', label: '📦 კონტეინერი' }, { value: 'flatbed', label: '🔩 პლატფორმა' }, { value: 'bulk', label: '🌾 ნაყარი' }, { value: 'standard', label: '📦 სტანდარტული' }]} value={formData.body_type || ''} onChange={(e) => setFormData({ ...formData, body_type: e.target.value as any })} />
-              <FormField label="ტვირთამწეობა (კგ)" type="number" hint="მაგ: 20000" value={formData.capacity_kg?.toString() || ''} onChange={(e) => setFormData({ ...formData, capacity_kg: e.target.value })} />
-              <FormField label="მოცულობა (m³)" type="number" hint="მაგ: 86" value={formData.volume_m3?.toString() || ''} onChange={(e) => setFormData({ ...formData, volume_m3: e.target.value })} />
+              <FormField label="მოდელი" hint="მაგ: Mercedes Actros" required value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} />
+              <FormField label="სატრანსპორტო ტიპი" required options={[{ value: 'truck', label: '🚛 სატვირთო' }, { value: 'van', label: '🚐 ფურგონი' }, { value: 'car', label: '🚗 მსუბუქი' }]} value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as 'truck' | 'van' | 'car' })} />
+              <FormField label="ძარის ტიპი" options={[{ value: 'tent', label: '🟦 ტენტი' }, { value: 'refrigerated', label: '❄️ მაცივარი' }, { value: 'container', label: '📦 კონტეინერი' }, { value: 'flatbed', label: '🔩 პლატფორმა' }, { value: 'bulk', label: '🌾 ნაყარი' }, { value: 'standard', label: '📦 სტანდარტული' }]} value={formData.body_type} onChange={(e) => setFormData({ ...formData, body_type: e.target.value as any })} />
+              <FormField label="ტვირთამწეობა (კგ)" type="number" hint="მაგ: 20000" value={formData.capacity_kg} onChange={(e) => setFormData({ ...formData, capacity_kg: e.target.value })} />
+              <FormField label="მოცულობა (m³)" type="number" hint="მაგ: 86" value={formData.volume_m3} onChange={(e) => setFormData({ ...formData, volume_m3: e.target.value })} />
               <div className="grid grid-cols-3 gap-2">
-                <FormField label="სიგრძე (მ)" type="number" value={formData.length_m?.toString() || ''} onChange={(e) => setFormData({ ...formData, length_m: e.target.value })} />
-                <FormField label="სიგანე (მ)" type="number" value={formData.width_m?.toString() || ''} onChange={(e) => setFormData({ ...formData, width_m: e.target.value })} />
-                <FormField label="სიმაღლე (მ)" type="number" value={formData.height_m?.toString() || ''} onChange={(e) => setFormData({ ...formData, height_m: e.target.value })} />
+                <FormField label="სიგრძე (მ)" type="number" value={formData.length_m} onChange={(e) => setFormData({ ...formData, length_m: e.target.value })} />
+                <FormField label="სიგანე (მ)" type="number" value={formData.width_m} onChange={(e) => setFormData({ ...formData, width_m: e.target.value })} />
+                <FormField label="სიმაღლე (მ)" type="number" value={formData.height_m} onChange={(e) => setFormData({ ...formData, height_m: e.target.value })} />
               </div>
-              <FormField label="ADR კლასი" hint="სახიფათო ტვირთი 1-9" value={formData.adr_class || ''} onChange={(e) => setFormData({ ...formData, adr_class: e.target.value })} />
-              <FormField label="EURO სტანდარტი" options={[{ value: '5', label: 'EURO 5' }, { value: '6', label: 'EURO 6' }, { value: 'EEV', label: 'EEV' }]} value={formData.euro_standard || ''} onChange={(e) => setFormData({ ...formData, euro_standard: e.target.value as any })} />
-              <FormField label="ღვედების რაოდენობა" type="number" hint="მაგ: 8" value={formData.straps_count?.toString() || ''} onChange={(e) => setFormData({ ...formData, straps_count: e.target.value })} />
-              <FormField checkbox label="აქვს ლიფტი (Tail lift)" value={formData.has_tail_lift || false} onChange={(e) => setFormData({ ...formData, has_tail_lift: e.target.checked })} />
-              <FormField checkbox label="აქვს მაცივარი" value={formData.has_refrigeration || false} onChange={(e) => setFormData({ ...formData, has_refrigeration: e.target.checked })} />
+              <FormField label="ADR კლასი" hint="სახიფათო ტვირთი 1-9" value={formData.adr_class} onChange={(e) => setFormData({ ...formData, adr_class: e.target.value })} />
+              <FormField label="EURO სტანდარტი" options={[{ value: '5', label: 'EURO 5' }, { value: '6', label: 'EURO 6' }, { value: 'EEV', label: 'EEV' }]} value={formData.euro_standard} onChange={(e) => setFormData({ ...formData, euro_standard: e.target.value as any })} />
+              <FormField label="ღვედების რაოდენობა" type="number" hint="მაგ: 8" value={formData.straps_count} onChange={(e) => setFormData({ ...formData, straps_count: e.target.value })} />
+              <FormField checkbox label="აქვს ლიფტი (Tail lift)" value={formData.has_tail_lift} onChange={(e) => setFormData({ ...formData, has_tail_lift: (e.target as HTMLInputElement).checked })} />
+              <FormField checkbox label="აქვს მაცივარი" value={formData.has_refrigeration} onChange={(e) => setFormData({ ...formData, has_refrigeration: (e.target as HTMLInputElement).checked })} />
             </div>
           </div>
 
@@ -124,12 +156,12 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
           <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
             <SectionHeader title="🔵 ტექნოლოგიური & მონიტორინგი" icon="📡" color="text-blue-400" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField label="GPS მოწყობილობის ID" hint="ტრეკინგის ნომერი" value={formData.gps_device_id || ''} onChange={(e) => setFormData({ ...formData, gps_device_id: e.target.value })} />
-              <FormField checkbox label="აქვს საწვავის სენსორი" value={formData.has_fuel_sensor || false} onChange={(e) => setFormData({ ...formData, has_fuel_sensor: e.target.checked })} />
-              <FormField label="ფოტოები (URL-ები)" hint="გამოყოფილი მძიმით" textarea value={formData.photo_urls || ''} onChange={(e) => setFormData({ ...formData, photo_urls: e.target.value })} />
-              <FormField label="საბურავების სეზონი" options={[{ value: 'summer', label: '☀️ ზაფხული' }, { value: 'winter', label: '❄️ ზამთარი' }, { value: 'all_season', label: '🌤️ ყველა სეზონი' }]} value={formData.tire_season || ''} onChange={(e) => setFormData({ ...formData, tire_season: e.target.value as any })} />
-              <FormField label="საბურავების მდგომარეობა" options={[{ value: 'new', label: '🟢 ახალი' }, { value: 'good', label: '🟡 კარგი' }, { value: 'replace_soon', label: '🟠 მალე შესაცვლელი' }, { value: 'replace_now', label: '🔴 დაუყოვნებლივ' }]} value={formData.tire_condition || ''} onChange={(e) => setFormData({ ...formData, tire_condition: e.target.value as any })} />
-              <FormField label="სტატუსი" required options={[{ value: 'active', label: '🟢 აქტიური' }, { value: 'idle', label: '🟡 ლოდინში' }, { value: 'maintenance', label: '🔧 რემონტში' }, { value: 'inactive', label: '⚫ არააქტიური' }]} value={formData.status || ''} onChange={(e) => setFormData({ ...formData, status: e.target.value as any })} />
+              <FormField label="GPS მოწყობილობის ID" hint="ტრეკინგის ნომერი" value={formData.gps_device_id} onChange={(e) => setFormData({ ...formData, gps_device_id: e.target.value })} />
+              <FormField checkbox label="აქვს საწვავის სენსორი" value={formData.has_fuel_sensor} onChange={(e) => setFormData({ ...formData, has_fuel_sensor: (e.target as HTMLInputElement).checked })} />
+              <FormField label="ფოტოები (URL-ები)" hint="გამოყოფილი მძიმით" textarea value={formData.photo_urls} onChange={(e) => setFormData({ ...formData, photo_urls: e.target.value })} />
+              <FormField label="საბურავების სეზონი" options={[{ value: 'summer', label: '☀️ ზაფხული' }, { value: 'winter', label: '❄️ ზამთარი' }, { value: 'all_season', label: '🌤️ ყველა სეზონი' }]} value={formData.tire_season} onChange={(e) => setFormData({ ...formData, tire_season: e.target.value as any })} />
+              <FormField label="საბურავების მდგომარეობა" options={[{ value: 'new', label: '🟢 ახალი' }, { value: 'good', label: '🟡 კარგი' }, { value: 'replace_soon', label: '🟠 მალე შესაცვლელი' }, { value: 'replace_now', label: '🔴 დაუყოვნებლივ' }]} value={formData.tire_condition} onChange={(e) => setFormData({ ...formData, tire_condition: e.target.value as any })} />
+              <FormField label="სტატუსი" required options={[{ value: 'active', label: '🟢 აქტიური' }, { value: 'idle', label: '🟡 ლოდინში' }, { value: 'maintenance', label: '🔧 რემონტში' }, { value: 'inactive', label: '⚫ არააქტიური' }]} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as any })} />
             </div>
           </div>
 
@@ -137,8 +169,8 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
           <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
             <SectionHeader title="🟣 დამატებითი ინფორმაცია" icon="📝" color="text-purple-400" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="შენიშვნები" hint="შიდა შენიშვნა ან დეტალები..." textarea value={formData.notes || ''} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
-              <FormField label="დამატებითი აღჭურვილობა" hint="მაგ: ავტოამწე, GPS ტრეკერი..." textarea value={formData.extra_equipment || ''} onChange={(e) => setFormData({ ...formData, extra_equipment: e.target.value })} />
+              <FormField label="შენიშვნები" hint="შიდა შენიშვნა ან დეტალები..." textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+              <FormField label="დამატებითი აღჭურვილობა" hint="მაგ: ავტოამწე, GPS ტრეკერი..." textarea value={formData.extra_equipment} onChange={(e) => setFormData({ ...formData, extra_equipment: e.target.value })} />
             </div>
           </div>
 
