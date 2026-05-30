@@ -341,23 +341,9 @@ export default function AdminDashboard() {
       return <NotificationsTab showNotification={showNotification} />
     }
     
-    // ✅ განახლებული InvoicesTab - წაშლილია loadData პროპი (არ არის მიღებული კომპონენტში)
-    if (activeTab === 'invoices') return (
-      <InvoicesTab 
-        onEdit={(invoice) => {
-          console.log('✏️ Edit invoice:', invoice)
-          invoicesHook.handleEditInvoiceClick?.(invoice)
-        }}
-        onPrint={(invoice) => {
-          console.log('🖨️ Print invoice:', invoice)
-          invoicesHook.handlePrintInvoice?.(invoice)
-        }}
-        onEmail={(invoice) => {
-          console.log('📧 Email invoice:', invoice)
-          invoicesHook.handleSendEmailClick?.(invoice)
-        }}
-      />
-    )
+    // ✅ ✅ ✅ განახლებული InvoicesTab - მხოლოდ კომპონენტი, პროპების გარეშე!
+    if (activeTab === 'invoices') return <InvoicesTab />
+    
     if (activeTab === 'payroll') return <PayrollTab />
     if (activeTab === 'expenses') return <ExpensesTab />
     
