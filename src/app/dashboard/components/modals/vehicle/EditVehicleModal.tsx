@@ -16,7 +16,7 @@ interface EditVehicleModalProps {
 }
 
 export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUpdated, showNotification }: EditVehicleModalProps) {
-  // ✅ formData ტიპი: ყველა ველი არის არა-ნალაბლი (როგორც AddVehicleModal-ში)
+  // ✅ განახლებული: body_type და სხვა ველები იღებენ უნიონ ტიპებს
   const [formData, setFormData] = useState({
     plate_number: '',
     vin_number: '',
@@ -29,23 +29,23 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
     power_of_attorney: '',
     model: '',
     type: 'truck' as 'truck' | 'van' | 'car',
-    body_type: 'tent' as const,
+    body_type: 'tent' as 'tent' | 'refrigerated' | 'container' | 'flatbed' | 'bulk' | 'standard', // ✅ აქ იყო პრობლემა!
     capacity_kg: '',
     volume_m3: '',
     length_m: '',
     width_m: '',
     height_m: '',
     adr_class: '',
-    euro_standard: '6' as const,
+    euro_standard: '6' as '5' | '6' | 'EEV',
     straps_count: '',
     has_tail_lift: false,
     has_refrigeration: false,
     gps_device_id: '',
     has_fuel_sensor: false,
     photo_urls: '',
-    tire_season: 'all_season' as const,
-    tire_condition: 'good' as const,
-    status: 'active' as const,
+    tire_season: 'all_season' as 'summer' | 'winter' | 'all_season',
+    tire_condition: 'good' as 'new' | 'good' | 'replace_soon' | 'replace_now',
+    status: 'active' as 'active' | 'idle' | 'maintenance' | 'inactive',
     notes: '',
     extra_equipment: '',
   })
@@ -56,13 +56,13 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
   useEffect(() => {
     if (vehicle) {
       setFormData({
-        // 🔴 Critical fields - ყველა ნულიანი სტრიქონი გადაყვანილია ''-ად
+        // 🔴 Critical fields
         plate_number: vehicle.plate_number || '',
         vin_number: vehicle.vin_number || '',
         tech_passport: vehicle.tech_passport || '',
         pti_expiry: vehicle.pti_expiry || '',
         insurance_policy: vehicle.insurance_policy || '',
-        insurance_cmre_policy: vehicle.insurance_cmre_policy || '',  // ✅ null → ''
+        insurance_cmre_policy: vehicle.insurance_cmre_policy || '',
         owner_name: vehicle.owner_name || '',
         owner_type: (vehicle.owner_type as 'company' | 'individual') || 'company',
         power_of_attorney: vehicle.power_of_attorney || '',
@@ -70,14 +70,14 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
         // 🟡 Operational fields
         model: vehicle.model || '',
         type: (vehicle.type as 'truck' | 'van' | 'car') || 'truck',
-        body_type: vehicle.body_type || 'tent',
+        body_type: (vehicle.body_type as 'tent' | 'refrigerated' | 'container' | 'flatbed' | 'bulk' | 'standard') || 'tent', // ✅ ახლა მუშაობს!
         capacity_kg: vehicle.capacity_kg?.toString() || '',
         volume_m3: vehicle.volume_m3?.toString() || '',
         length_m: vehicle.length_m?.toString() || '',
         width_m: vehicle.width_m?.toString() || '',
         height_m: vehicle.height_m?.toString() || '',
         adr_class: vehicle.adr_class || '',
-        euro_standard: vehicle.euro_standard || '6',
+        euro_standard: (vehicle.euro_standard as '5' | '6' | 'EEV') || '6',
         straps_count: vehicle.straps_count?.toString() || '',
         has_tail_lift: vehicle.has_tail_lift || false,
         has_refrigeration: vehicle.has_refrigeration || false,
@@ -86,9 +86,9 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
         gps_device_id: vehicle.gps_device_id || '',
         has_fuel_sensor: vehicle.has_fuel_sensor || false,
         photo_urls: vehicle.photo_urls || '',
-        tire_season: vehicle.tire_season || 'all_season',
-        tire_condition: vehicle.tire_condition || 'good',
-        status: vehicle.status || 'active',
+        tire_season: (vehicle.tire_season as 'summer' | 'winter' | 'all_season') || 'all_season',
+        tire_condition: (vehicle.tire_condition as 'new' | 'good' | 'replace_soon' | 'replace_now') || 'good',
+        status: (vehicle.status as 'active' | 'idle' | 'maintenance' | 'inactive') || 'active',
         
         // 🟣 Extra fields
         notes: vehicle.notes || '',
