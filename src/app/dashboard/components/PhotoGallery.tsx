@@ -4,7 +4,8 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { uploadVehiclePhoto, deleteVehiclePhoto } from '../utils/supabaseStorage'
+// ✅ განახლებული იმპორტი - სწორი რელატიური პათი:
+import { uploadVehiclePhoto, deleteVehiclePhoto } from './tabs/utils/supabaseStorage'
 
 interface PhotoGalleryProps {
   vehicleId: string
