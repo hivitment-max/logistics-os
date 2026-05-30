@@ -1,6 +1,18 @@
+// src/app/dashboard/components/ui/NotificationsDropdown.tsx
 'use client'
 
-import { DashboardNotification } from '../../types'
+// ✅ ტიპის განსაზღვრა ადგილზე - აღარ გვჭირდება იმპორტი!
+export type DashboardNotification = {
+  id: string
+  title: string
+  message: string
+  status: 'unread' | 'read'
+  created_at: string
+  read_at: string | null
+  channel: string
+  order_id?: string | null
+  [key: string]: any  // დამატებითი ველებისთვის
+}
 
 interface NotificationsDropdownProps {
   notifications: DashboardNotification[]
@@ -96,7 +108,17 @@ export default function NotificationsDropdown({
           <button
             onClick={() => {
               onClose()
-              onNotificationClick({ id: 'all', title: '', message: '', channel: 'dashboard', status: 'read', order_id: null, created_at: '', read_at: null })
+              // ✅ შევქმენით dummy ობიექტი რომ TypeScript-მა არ დაგვბლოკოს
+              onNotificationClick({ 
+                id: 'all', 
+                title: '', 
+                message: '', 
+                channel: 'dashboard', 
+                status: 'read', 
+                order_id: null, 
+                created_at: '', 
+                read_at: null 
+              })
             }}
             className="w-full text-[9px] text-blue-400 hover:text-blue-300 transition text-center"
           >
