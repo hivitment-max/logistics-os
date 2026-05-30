@@ -750,10 +750,10 @@ export default function VehiclesTab({
     }
   }, [drivers])
 
-  // 🤝 Drag End
+  // 🤝 Drag End — ✅ განახლებული: წაშლილია preventDefault
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
-    event.preventDefault?.()  // ✅ თავიდან ავიცილოთ გვერდის გადატვირთვა
+    // ✅ წაშლილი: event.preventDefault?.() - DragEndEvent-ს არ აქვს ეს მეთოდი!
     
     setActiveDraggedDriver(null)
     setIsDraggingAnyDriver(false)  // ✅ ჩავაქრეთ დროპ ზონების ანთება
