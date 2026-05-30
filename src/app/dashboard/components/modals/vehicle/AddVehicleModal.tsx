@@ -15,7 +15,7 @@ interface AddVehicleModalProps {
   showNotification: (msg: string) => void
 }
 
-// ✅ განახლებული: owner_type იღებს ორივე ვარიანტს
+// ✅ განახლებული: type და owner_type იღებენ უნიონ ტიპებს
 const initialFormState = {
   plate_number: '',
   vin_number: '',
@@ -24,10 +24,10 @@ const initialFormState = {
   insurance_policy: '',
   insurance_cmre_policy: '',
   owner_name: '',
-  owner_type: 'company' as 'company' | 'individual', // ✅ აქ იყო პრობლემა!
+  owner_type: 'company' as 'company' | 'individual',
   power_of_attorney: '',
   model: '',
-  type: 'truck' as const,
+  type: 'truck' as 'truck' | 'van' | 'car', // ✅ აქ იყო პრობლემა!
   body_type: 'tent' as const,
   capacity_kg: '',
   volume_m3: '',
