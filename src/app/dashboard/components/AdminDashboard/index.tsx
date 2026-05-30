@@ -341,9 +341,9 @@ export default function AdminDashboard() {
       return <NotificationsTab showNotification={showNotification} />
     }
     
+    // ✅ განახლებული InvoicesTab - წაშლილია loadData პროპი (არ არის მიღებული კომპონენტში)
     if (activeTab === 'invoices') return (
       <InvoicesTab 
-        loadData={loadData}
         onEdit={(invoice) => {
           console.log('✏️ Edit invoice:', invoice)
           invoicesHook.handleEditInvoiceClick?.(invoice)
