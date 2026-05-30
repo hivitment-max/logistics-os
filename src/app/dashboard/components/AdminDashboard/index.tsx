@@ -35,6 +35,12 @@ import DispatchTab from '../tabs/DispatchTab'
 import NotificationsTab from '../tabs/NotificationsTab'
 
 // ✅ მოდალების იმპორტები
+import AddVehicleModal from '../modals/vehicle/AddVehicleModal'
+import EditVehicleModal from '../modals/vehicle/EditVehicleModal'
+import PrintVehicleModal from '../modals/vehicle/PrintVehicleModal'
+import DeleteVehicleModal from '../modals/vehicle/DeleteVehicleModal'
+
+// ✅ დანარჩენი მოდალები
 import AddOrderModal from '../modals/AddOrderModal'
 
 // ============================================================================
@@ -147,7 +153,8 @@ export default function AdminDashboard() {
       setDashboardNotifications(data || [])
       setUnreadCount((data || []).filter((n: any) => n.status === 'unread').length)
     } catch (err) {
-      console.error('❌ Failed to fetch dashboard notifications:', err)
+      // Silent fail for notifications - not critical
+      console.debug('Notifications fetch skipped:', err)
     }
   }, [])
 
@@ -163,7 +170,7 @@ export default function AdminDashboard() {
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (err) {
-      console.error('❌ Failed to mark notification as read:', err)
+      console.debug('Mark as read skipped:', err)
     }
   }, [])
 
@@ -178,7 +185,7 @@ export default function AdminDashboard() {
       setDashboardNotifications(prev => prev.map(n => ({ ...n, status: 'read' })))
       setUnreadCount(0)
     } catch (err) {
-      console.error('❌ Failed to mark all as read:', err)
+      console.debug('Mark all as read skipped:', err)
     }
   }, [])
 
@@ -200,7 +207,7 @@ export default function AdminDashboard() {
     }
   }, [fetchDashboardNotifications])
 
-  // ✅ განახლებული მენიუს სტრუქტურა - ფინანსების კატეგორია
+  // ✅ განახლებული მენიუს სტრუქტურა
   const menuStructure = [
     { category: 'მთავარი', items: [{ id: 'overview', icon: '📈', label: 'მიმოხილვა' }, { id: 'kpi', icon: '🎯', label: 'KPI & ანალიტიკა' }]},
     { category: 'მომხმარებლები', items: [ ...(isAdmin ? [{ id: 'users', icon: '👥', label: 'მომხმარებლები' }] : []), { id: 'roles', icon: '🔑', label: 'როლები' } ]},
@@ -243,7 +250,61 @@ export default function AdminDashboard() {
   const getCurrentItem = () => menuStructure.flatMap((g: any) => g.items).find((i: any) => i.id === activeTab) || { icon: '📄', label: 'გვერდი' }
   const currentItem = getCurrentItem()
 
-  // ✅ განახლებული renderContent - ახალი ტაბების დამატება + loadData კოლბეკი DispatchTab-ს
+  // 🚗 მძღოლის მინიჭება მანქანას
+  const handleAssignDriver = useCallback(async (vehicleId: string, driverId: string) => {
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .update({ 
+          driver_id: driverId || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', vehicleId)
+      
+      if (error) throw error
+      
+      await logAudit('update', 'vehicles', vehicleId, `მძღოლი ${driverId ? 'მინიჭებული' : 'მოხსნილი'}: ${driverId}`)
+      loadData()
+      showNotification(driverId ? '✅ მძღოლი წარმატებით მინიჭებულია' : '✅ მძღოლი წარმატებით მოხსნილია')
+    } catch (err: any) {
+      console.error('Failed to assign driver:', err)
+      showNotification(`❌ შეცდომა: ${err.message}`)
+    }
+  }, [loadData, logAudit, showNotification])
+
+  // 📸 ფოტოების განახლება - გასწორებული ვერსია ბაზის ტიპებისთვის
+  const handleUpdateVehiclePhotos = useCallback(async (vehicleId: string, photos: string[]) => {
+    try {
+      // 🔍 ვარიანტი 1: თუ photo_urls არის TEXT (კომა-გამოყოფილი სტრიქონი)
+      const photoUrlsValue = photos.length > 0 ? photos.join(',') : null
+      
+      // ვარიანტი 2: თუ photo_urls არის JSONB ან TEXT[] (მასივი) - გააკომენტარე ზემოთ და გააუქომენტარე ეს:
+      // const photoUrlsValue = photos.length > 0 ? photos : null
+
+      const { data, error } = await supabase
+        .from('vehicles')
+        .update({ 
+          photo_urls: photoUrlsValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', vehicleId)
+        .select() // ✅ დაბრუნება დებაგინგისთვის
+      
+      if (error) {
+        console.error('Supabase update error:', error)
+        throw error
+      }
+      
+      console.log('✅ Photos updated:', data)
+      showNotification('✅ ფოტოები განახლდა')
+      
+    } catch (err: any) {
+      console.error('Failed to update photos:', err)
+      showNotification(`❌ შეცდომა: ${err.message || 'უცნობი შეცდომა'}`)
+    }
+  }, [showNotification])
+
+  // ✅ განახლებული renderContent
   const renderContent = () => {
     if (activeTab === 'dispatch') return (
       <DispatchTab 
@@ -254,7 +315,7 @@ export default function AdminDashboard() {
         onUnassign={dispatchHook.handleUnassign} 
         onViewOrder={(order: any) => { setActiveTab('orders'); ordersHook.handleEditOrderClick(order) }} 
         getStatusColor={getStatusColor}
-        loadData={loadData}  // ✅ ეს არის ახალი კოლბეკი!
+        loadData={loadData}
       />
     )
     if (activeTab === 'overview') return <OverviewTab orders={orders} invoices={invoices} vehicles={vehiclesData} drivers={drivers} getStatusColor={getStatusColor} onNavigateToVehicles={() => setActiveTab('vehicles')} onNavigateToKpi={() => setActiveTab('kpi')} />
@@ -274,12 +335,27 @@ export default function AdminDashboard() {
       return <NotificationsTab showNotification={showNotification} />
     }
     
-    // ✅ ახალი ფინანსური ტაბები
-    if (activeTab === 'invoices') return <InvoicesTab />
+    if (activeTab === 'invoices') return (
+      <InvoicesTab 
+        loadData={loadData}
+        onEdit={(invoice) => {
+          console.log('✏️ Edit invoice:', invoice)
+          invoicesHook.handleEditInvoiceClick?.(invoice)
+        }}
+        onPrint={(invoice) => {
+          console.log('🖨️ Print invoice:', invoice)
+          invoicesHook.handlePrintInvoice?.(invoice)
+        }}
+        onEmail={(invoice) => {
+          console.log('📧 Email invoice:', invoice)
+          invoicesHook.handleSendEmailClick?.(invoice)
+        }}
+      />
+    )
     if (activeTab === 'payroll') return <PayrollTab />
     if (activeTab === 'expenses') return <ExpensesTab />
     
-    // ✅ გასწორებული: წაშლილია getStatusColor და ActionButtons
+    // ✅ განახლებული VehiclesTab - ყველა ახალი პროპით
     if (activeTab === 'vehicles') return (
       <VehiclesTab 
         vehicles={vehiclesData} 
@@ -287,7 +363,13 @@ export default function AdminDashboard() {
         onEdit={(v) => { setEditingVehicle(v); setShowEditVehicleModal(true) }} 
         onDelete={vehicles.handleDeleteVehicleClick} 
         onAdd={() => vehicles.setShowAddVehicleModal(true)} 
-        onPrint={(v) => setPrintVehicle(v)} 
+        onPrint={(v) => setPrintVehicle(v)}
+        // 👥 Drag & Drop პროპები:
+        drivers={drivers}
+        onAssignDriver={(vehicleId, driverId) => handleAssignDriver(vehicleId, driverId)}
+        onUnassignDriver={(vehicleId) => handleAssignDriver(vehicleId, '')}
+        // 📸 ფოტოების პროპი:
+        onUpdateVehiclePhotos={handleUpdateVehiclePhotos}
       />
     )
     
@@ -338,9 +420,8 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       {notification && <div className="fixed top-3 right-3 z-50 bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg shadow-xl text-xs flex items-center gap-2">{notification}</div>}
 
-      {/* 🗂️ SIDEBAR - collapsible with smooth animation */}
+      {/* 🗂️ SIDEBAR */}
       <aside className={`${sidebarCollapsed ? 'w-16' : 'w-52'} bg-gray-900 border-r border-gray-800 flex flex-col shrink-0 transition-all duration-300 overflow-hidden`}>
-        {/* Header with toggle button */}
         <div className="h-11 flex items-center px-3 border-b border-gray-800">
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -352,7 +433,6 @@ export default function AdminDashboard() {
           {!sidebarCollapsed && <span className="text-xs font-bold text-blue-400 tracking-wide ml-2 truncate">🚛 LOGISTICS OS</span>}
         </div>
         
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-1.5 space-y-0.5">
           {menuStructure.map((group: any) => (
             <div key={group.category} className="mb-2">
@@ -378,7 +458,6 @@ export default function AdminDashboard() {
           ))}
         </nav>
         
-        {/* User section */}
         <div className="p-3 border-t border-gray-800 shrink-0">
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
             <div className={`flex items-center gap-2 ${sidebarCollapsed ? '' : 'min-w-0'}`}>
@@ -396,7 +475,7 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* 🎯 MAIN CONTENT - expands automatically */}
+      {/* 🎯 MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto bg-gray-950 flex flex-col transition-all duration-300">
         <header className="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800/50 px-5 py-2">
           <div className="flex justify-between items-center">
@@ -422,7 +501,7 @@ export default function AdminDashboard() {
         <div className="flex-1 p-4 space-y-4">{renderContent()}</div>
       </main>
 
-      {/* 🔔 შეტყობინებების Dropdown პანელი */}
+      {/* 🔔 შეტყობინებების Dropdown */}
       {showNotifications && (
         <div className="fixed top-12 right-4 z-50 w-80 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-700 flex justify-between items-center bg-gray-800">
@@ -462,227 +541,36 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 🚗 ADD VEHICLE MODAL */}
-      {vehicles.showAddVehicleModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => vehicles.setShowAddVehicleModal(false)}>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">🚐 ახალი მანქანის რეგისტრაცია</h3>
-              <button onClick={() => vehicles.setShowAddVehicleModal(false)} className="text-gray-400 hover:text-white text-xl transition">&times;</button>
-            </div>
-            <form onSubmit={vehicles.handleAddVehicle} className="p-5 overflow-y-auto space-y-6">
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🔴 კრიტიკულად აუცილებელი (სავალდებულო)" icon="📋" color="text-red-400" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="სანომრე ნიშანი" hint="მაგ: AA-123-BB" required value={vehicles.vehicleForm.plate_number} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, plate_number:e.target.value})} />
-                  <FormField label="VIN კოდი" hint="17 სიმბოლო" required value={vehicles.vehicleForm.vin_number} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, vin_number:e.target.value})} />
-                  <FormField label="ტექ. პასპორტი / სკანი" hint="ფაილის სახელი ან URL" required value={vehicles.vehicleForm.tech_passport} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, tech_passport:e.target.value})} />
-                  <FormField label="PTI ვადა (ტექ. დათვალიერება)" type="date" required value={vehicles.vehicleForm.pti_expiry} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, pti_expiry:e.target.value})} />
-                  <FormField label="სამოქალაქო დაზღვევა" hint="პოლისის ნომერი" required value={vehicles.vehicleForm.insurance_policy} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, insurance_policy:e.target.value})} />
-                  <FormField label="CMR დაზღვევა (ტვირთი)" hint="პოლისის ნომერი" value={vehicles.vehicleForm.insurance_cmre_policy} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, insurance_cmre_policy:e.target.value})} />
-                  <FormField label="მფლობელი (სახელი/კომპანია)" hint="ვინ არის მესაკუთრე" required value={vehicles.vehicleForm.owner_name} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, owner_name:e.target.value})} />
-                  <FormField label="მფლობელის ტიპი" options={[{value:'company',label:'🏢 კომპანია'},{value:'individual',label:'👤 ფიზიკური პირი'}]} value={vehicles.vehicleForm.owner_type} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, owner_type:e.target.value})} />
-                  <FormField label="მინდობილობა" hint="თუ მძღოლი არ არის მესაკუთრე" value={vehicles.vehicleForm.power_of_attorney} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, power_of_attorney:e.target.value})} />
-                </div>
-              </div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🟡 საოპერაციო მონაცემები" icon="⚙️" color="text-yellow-400" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="მოდელი" hint="მაგ: Mercedes Actros" required value={vehicles.vehicleForm.model} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, model:e.target.value})} />
-                  <FormField label="სატრანსპორტო ტიპი" required options={[{value:'truck',label:'🚛 სატვირთო'},{value:'van',label:'🚐 ფურგონი'},{value:'car',label:'🚗 მსუბუქი'}]} value={vehicles.vehicleForm.type} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, type:e.target.value})} />
-                  <FormField label="ძარის ტიპი" options={[{value:'tent',label:'🟦 ტენტი'},{value:'refrigerated',label:'❄️ მაცივარი'},{value:'container',label:'📦 კონტეინერი'},{value:'flatbed',label:'🔩 პლატფორმა'},{value:'bulk',label:'🌾 ნაყარი'},{value:'standard',label:'📦 სტანდარტული'}]} value={vehicles.vehicleForm.body_type} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, body_type:e.target.value})} />
-                  <FormField label="ტვირთამწეობა (კგ)" type="number" hint="მაგ: 20000" value={vehicles.vehicleForm.capacity_kg} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, capacity_kg:e.target.value})} />
-                  <FormField label="მოცულობა (m³)" type="number" hint="მაგ: 86" value={vehicles.vehicleForm.volume_m3} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, volume_m3:e.target.value})} />
-                  <div className="grid grid-cols-3 gap-2">
-                    <FormField label="სიგრძე (მ)" type="number" value={vehicles.vehicleForm.length_m} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, length_m:e.target.value})} />
-                    <FormField label="სიგანე (მ)" type="number" value={vehicles.vehicleForm.width_m} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, width_m:e.target.value})} />
-                    <FormField label="სიმაღლე (მ)" type="number" value={vehicles.vehicleForm.height_m} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, height_m:e.target.value})} />
-                  </div>
-                  <FormField label="ADR კლასი" hint="სახიფათო ტვირთი 1-9" value={vehicles.vehicleForm.adr_class} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, adr_class:e.target.value})} />
-                  <FormField label="EURO სტანდარტი" options={[{value:'5',label:'EURO 5'},{value:'6',label:'EURO 6'},{value:'EEV',label:'EEV'}]} value={vehicles.vehicleForm.euro_standard} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, euro_standard:e.target.value})} />
-                  <FormField label="ღვედების რაოდენობა" type="number" hint="მაგ: 8" value={vehicles.vehicleForm.straps_count} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, straps_count:e.target.value})} />
-                  <FormField checkbox label="აქვს ლიფტი (Tail lift)" value={vehicles.vehicleForm.has_tail_lift} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, has_tail_lift:e.target.checked})} />
-                  <FormField checkbox label="აქვს მაცივარი" value={vehicles.vehicleForm.has_refrigeration} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, has_refrigeration:e.target.checked})} />
-                </div>
-              </div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🔵 ტექნოლოგიური & მონიტორინგი" icon="📡" color="text-blue-400" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="GPS მოწყობილობის ID" hint="ტრეკინგის ნომერი" value={vehicles.vehicleForm.gps_device_id} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, gps_device_id:e.target.value})} />
-                  <FormField checkbox label="აქვს საწვავის სენსორი" value={vehicles.vehicleForm.has_fuel_sensor} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, has_fuel_sensor:e.target.checked})} />
-                  <FormField label="ფოტოები (URL-ები)" hint="გამოყოფილი მძიმით" textarea value={vehicles.vehicleForm.photo_urls} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, photo_urls:e.target.value})} />
-                  <FormField label="საბურავების სეზონი" options={[{value:'summer',label:'☀️ ზაფხული'},{value:'winter',label:'❄️ ზამთარი'},{value:'all_season',label:'🌤️ ყველა სეზონი'}]} value={vehicles.vehicleForm.tire_season} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, tire_season:e.target.value})} />
-                  <FormField label="საბურავების მდგომარეობა" options={[{value:'new',label:'🟢 ახალი'},{value:'good',label:'🟡 კარგი'},{value:'replace_soon',label:'🟠 მალე შესაცვლელი'},{value:'replace_now',label:'🔴 დაუყოვნებლივ'}]} value={vehicles.vehicleForm.tire_condition} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, tire_condition:e.target.value})} />
-                  <FormField label="სტატუსი" required options={[{value:'active',label:'🟢 აქტიური'},{value:'idle',label:'🟡 ლოდინში'},{value:'maintenance',label:'🔧 რემონტში'},{value:'inactive',label:'⚫ არააქტიური'}]} value={vehicles.vehicleForm.status} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, status:e.target.value})} />
-                </div>
-              </div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🟣 დამატებითი ინფორმაცია" icon="📝" color="text-purple-400" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="შენიშვნები" hint="შიდა შენიშვნა ან დეტალები..." textarea value={vehicles.vehicleForm.notes} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, notes:e.target.value})} />
-                  <FormField label="დამატებითი აღჭურვილობა" hint="მაგ: ავტოამწე, GPS ტრეკერი..." textarea value={vehicles.vehicleForm.extra_equipment} onChange={(e:any)=>vehicles.setVehicleForm({...vehicles.vehicleForm, extra_equipment:e.target.value})} />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4 border-t border-gray-700 mt-2">
-                <button type="button" onClick={() => vehicles.setShowAddVehicleModal(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition">გაუქმება</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-bold transition shadow-lg shadow-blue-500/20">💾 შენახვა</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 🚗 Vehicle Modals */}
+      <AddVehicleModal
+        isOpen={vehicles.showAddVehicleModal}
+        onClose={() => vehicles.setShowAddVehicleModal(false)}
+        onVehicleAdded={loadData}
+        showNotification={showNotification}
+      />
+      
+      <EditVehicleModal
+        isOpen={showEditVehicleModal}
+        onClose={() => { setShowEditVehicleModal(false); setEditingVehicle(null) }}
+        vehicle={editingVehicle}
+        onVehicleUpdated={loadData}
+        showNotification={showNotification}
+      />
+      
+      <PrintVehicleModal
+        isOpen={!!printVehicle}
+        onClose={() => setPrintVehicle(null)}
+        vehicle={printVehicle}
+      />
+      
+      <DeleteVehicleModal
+        isOpen={vehicles.showDeleteVehicleModal}
+        onClose={() => vehicles.setShowDeleteVehicleModal(false)}
+        vehicle={vehicles.deletingVehicle}
+        onConfirm={vehicles.confirmDeleteVehicle}
+      />
 
-      {/* 🚗 EDIT VEHICLE MODAL - სრული ვერსია (იგივე რაც Add) */}
-      {showEditVehicleModal && editingVehicle && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => { setShowEditVehicleModal(false); setEditingVehicle(null) }}>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">🚐 მანქანის რედაქტირება</h3>
-              <button onClick={() => { setShowEditVehicleModal(false); setEditingVehicle(null) }} className="text-gray-400 hover:text-white text-xl transition">&times;</button>
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); vehicles.handleEditVehicleClick(editingVehicle); setShowEditVehicleModal(false); setEditingVehicle(null) }} className="p-5 overflow-y-auto space-y-6">
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🔴 კრიტიკულად აუცილებელი" icon="📋" color="text-red-400" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="სანომრე ნიშანი" hint="მაგ: AA-123-BB" required value={editingVehicle.plate_number || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, plate_number:e.target.value})} />
-                  <FormField label="VIN კოდი" hint="17 სიმბოლო" required value={editingVehicle.vin_number || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, vin_number:e.target.value})} />
-                  <FormField label="ტექ. პასპორტი / სკანი" hint="ფაილის სახელი ან URL" required value={editingVehicle.tech_passport || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, tech_passport:e.target.value})} />
-                  <FormField label="PTI ვადა" type="date" required value={editingVehicle.pti_expiry || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, pti_expiry:e.target.value})} />
-                  <FormField label="სამოქალაქო დაზღვევა" hint="პოლისის ნომერი" required value={editingVehicle.insurance_policy || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, insurance_policy:e.target.value})} />
-                  <FormField label="CMR დაზღვევა" hint="პოლისის ნომერი" value={editingVehicle.insurance_cmre_policy || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, insurance_cmre_policy:e.target.value})} />
-                  <FormField label="მფლობელი" hint="ვინ არის მესაკუთრე" required value={editingVehicle.owner_name || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, owner_name:e.target.value})} />
-                  <FormField label="მფლობელის ტიპი" options={[{value:'company',label:'🏢 კომპანია'},{value:'individual',label:'👤 ფიზიკური პირი'}]} value={editingVehicle.owner_type || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, owner_type:e.target.value})} />
-                  <FormField label="მინდობილობა" hint="თუ მძღოლი არ არის მესაკუთრე" value={editingVehicle.power_of_attorney || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, power_of_attorney:e.target.value})} />
-                </div>
-              </div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🟡 საოპერაციო მონაცემები" icon="⚙️" color="text-yellow-400" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="მოდელი" hint="მაგ: Mercedes Actros" required value={editingVehicle.model || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, model:e.target.value})} />
-                  <FormField label="სატრანსპორტო ტიპი" required options={[{value:'truck',label:'🚛 სატვირთო'},{value:'van',label:'🚐 ფურგონი'},{value:'car',label:'🚗 მსუბუქი'}]} value={editingVehicle.type || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, type:e.target.value})} />
-                  <FormField label="ძარის ტიპი" options={[{value:'tent',label:'🟦 ტენტი'},{value:'refrigerated',label:'❄️ მაცივარი'},{value:'container',label:'📦 კონტეინერი'},{value:'flatbed',label:'🔩 პლატფორმა'},{value:'bulk',label:'🌾 ნაყარი'},{value:'standard',label:'📦 სტანდარტული'}]} value={editingVehicle.body_type || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, body_type:e.target.value})} />
-                  <FormField label="ტვირთამწეობა (კგ)" type="number" hint="მაგ: 20000" value={editingVehicle.capacity_kg?.toString() || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, capacity_kg:e.target.value})} />
-                  <FormField label="მოცულობა (m³)" type="number" hint="მაგ: 86" value={editingVehicle.volume_m3?.toString() || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, volume_m3:e.target.value})} />
-                  <div className="grid grid-cols-3 gap-2">
-                    <FormField label="სიგრძე (მ)" type="number" value={editingVehicle.length_m?.toString() || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, length_m:e.target.value})} />
-                    <FormField label="სიგანე (მ)" type="number" value={editingVehicle.width_m?.toString() || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, width_m:e.target.value})} />
-                    <FormField label="სიმაღლე (მ)" type="number" value={editingVehicle.height_m?.toString() || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, height_m:e.target.value})} />
-                  </div>
-                  <FormField label="ADR კლასი" hint="სახიფათო ტვირთი 1-9" value={editingVehicle.adr_class || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, adr_class:e.target.value})} />
-                  <FormField label="EURO სტანდარტი" options={[{value:'5',label:'EURO 5'},{value:'6',label:'EURO 6'},{value:'EEV',label:'EEV'}]} value={editingVehicle.euro_standard || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, euro_standard:e.target.value})} />
-                  <FormField label="ღვედების რაოდენობა" type="number" hint="მაგ: 8" value={editingVehicle.straps_count?.toString() || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, straps_count:e.target.value})} />
-                  <FormField checkbox label="აქვს ლიფტი (Tail lift)" value={editingVehicle.has_tail_lift || false} onChange={(e:any)=>setEditingVehicle({...editingVehicle, has_tail_lift:e.target.checked})} />
-                  <FormField checkbox label="აქვს მაცივარი" value={editingVehicle.has_refrigeration || false} onChange={(e:any)=>setEditingVehicle({...editingVehicle, has_refrigeration:e.target.checked})} />
-                </div>
-              </div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🔵 ტექნოლოგიური & მონიტორინგი" icon="📡" color="text-blue-400" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="GPS მოწყობილობის ID" hint="ტრეკინგის ნომერი" value={editingVehicle.gps_device_id || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, gps_device_id:e.target.value})} />
-                  <FormField checkbox label="აქვს საწვავის სენსორი" value={editingVehicle.has_fuel_sensor || false} onChange={(e:any)=>setEditingVehicle({...editingVehicle, has_fuel_sensor:e.target.checked})} />
-                  <FormField label="ფოტოები (URL-ები)" hint="გამოყოფილი მძიმით" textarea value={editingVehicle.photo_urls || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, photo_urls:e.target.value})} />
-                  <FormField label="საბურავების სეზონი" options={[{value:'summer',label:'☀️ ზაფხული'},{value:'winter',label:'❄️ ზამთარი'},{value:'all_season',label:'🌤️ ყველა სეზონი'}]} value={editingVehicle.tire_season || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, tire_season:e.target.value})} />
-                  <FormField label="საბურავების მდგომარეობა" options={[{value:'new',label:'🟢 ახალი'},{value:'good',label:'🟡 კარგი'},{value:'replace_soon',label:'🟠 მალე შესაცვლელი'},{value:'replace_now',label:'🔴 დაუყოვნებლივ'}]} value={editingVehicle.tire_condition || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, tire_condition:e.target.value})} />
-                  <FormField label="სტატუსი" required options={[{value:'active',label:'🟢 აქტიური'},{value:'idle',label:'🟡 ლოდინში'},{value:'maintenance',label:'🔧 რემონტში'},{value:'inactive',label:'⚫ არააქტიური'}]} value={editingVehicle.status || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, status:e.target.value})} />
-                </div>
-              </div>
-              <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
-                <SectionHeader title="🟣 დამატებითი ინფორმაცია" icon="📝" color="text-purple-400" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="შენიშვნები" hint="შიდა შენიშვნა ან დეტალები..." textarea value={editingVehicle.notes || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, notes:e.target.value})} />
-                  <FormField label="დამატებითი აღჭურვილობა" hint="მაგ: ავტოამწე, GPS ტრეკერი..." textarea value={editingVehicle.extra_equipment || ''} onChange={(e:any)=>setEditingVehicle({...editingVehicle, extra_equipment:e.target.value})} />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4 border-t border-gray-700 mt-2">
-                <button type="button" onClick={() => { setShowEditVehicleModal(false); setEditingVehicle(null) }} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition">გაუქმება</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-bold transition shadow-lg shadow-blue-500/20">💾 განახლება</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 🖨️ PRINT PREVIEW MODAL */}
-      {printVehicle && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setPrintVehicle(null)}>
-          <div className="bg-white text-gray-900 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl print:shadow-none" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center print:hidden">
-              <h3 className="text-lg font-bold text-gray-900">🚛 მანქანის დეტალები</h3>
-              <div className="flex gap-2">
-                <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">🖨️ დაბეჭდვა</button>
-                <button onClick={() => setPrintVehicle(null)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition">დახურვა</button>
-              </div>
-            </div>
-            <div className="p-6 print:p-0">
-              <div className="flex items-center gap-4 pb-4 border-b border-gray-200 print:border-gray-300">
-                <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-3xl print:bg-gray-200">
-                  {printVehicle.type === 'truck' ? '🚛' : printVehicle.type === 'van' ? '🚐' : '🚗'}
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-900">{printVehicle.model}</h2>
-                  <div className="mt-1 inline-flex items-center rounded-sm overflow-hidden shadow-sm border border-gray-400" style={{ background: 'linear-gradient(180deg, #fffdf0 0%, #fff9e6 100%)', height: '24px', fontFamily: 'monospace' }}>
-                    <div className="flex flex-col items-center justify-center px-1.5 h-full flex-shrink-0 border-r border-gray-400" style={{ background: '#1e3a8a' }}><span className="text-[8px] text-[#fbbf24] leading-none font-bold tracking-tight">GEO</span></div>
-                    <div className="flex items-center justify-center px-2 h-full flex-shrink-0"><span className="font-bold tracking-[0.15em] uppercase" style={{ fontSize: '13px', color: '#1a1a1a' }}>{printVehicle.plate_number}</span></div>
-                  </div>
-                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border mt-2 ${getStatusColor(printVehicle.status).replace('bg-', 'border-').replace('/20', '/20')}`}>
-                    <span className={`w-2 h-2 rounded-full ${getStatusColor(printVehicle.status).includes('green') ? 'bg-green-400' : getStatusColor(printVehicle.status).includes('blue') ? 'bg-blue-400' : getStatusColor(printVehicle.status).includes('amber') ? 'bg-amber-400' : getStatusColor(printVehicle.status).includes('rose') ? 'bg-rose-400' : 'bg-gray-400'}`} />
-                    {printVehicle.status === 'active' ? 'თავისუფალი' : printVehicle.status === 'in_transit' ? 'მოძრავია' : printVehicle.status === 'idle' ? 'ლოდინში' : printVehicle.status === 'maintenance' ? 'ტექ. მომსახ.' : 'არააქტიური'}
-                  </span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">ტიპი</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.type === 'truck' ? 'სატვირთო' : printVehicle.type === 'van' ? 'ფურგონი' : 'მსუბუქი'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">ძარა</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.body_type || '–'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">ტვირთამწეობა</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.capacity_kg ? `${printVehicle.capacity_kg.toLocaleString()} კგ` : '–'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">მოცულობა</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.volume_m3 ? `${printVehicle.volume_m3} მ³` : '–'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">VIN კოდი</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.vin_number || '–'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">ტექ. პასპორტი</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.tech_passport || '–'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">დაზღვევა</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.insurance_policy || '–'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-gray-500">მფლობელი</p><p className="text-sm font-medium text-gray-900 mt-0.5">{printVehicle.owner_name || '–'}</p></div>
-              </div>
-              {(printVehicle.has_tail_lift || printVehicle.has_refrigeration || printVehicle.adr_capable || (printVehicle.straps_count && printVehicle.straps_count >= 4)) && (
-                <div className="mt-6 pt-4 border-t border-gray-200 print:border-gray-300">
-                  <h4 className="text-sm font-bold text-gray-700 mb-2">🔧 აღჭურვილობა</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {printVehicle.has_tail_lift && <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200">🔽 ლიფტი</span>}
-                    {printVehicle.has_refrigeration && <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200">❄️ მაცივარი</span>}
-                    {printVehicle.adr_capable && <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200">⚠️ ADR</span>}
-                    {printVehicle.straps_count && printVehicle.straps_count >= 4 && <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200">🔗 {printVehicle.straps_count} ვედი</span>}
-                  </div>
-                </div>
-              )}
-              {printVehicle.driver_name && (
-                <div className="mt-6 pt-4 border-t border-gray-200 print:border-gray-300">
-                  <h4 className="text-sm font-bold text-gray-700 mb-2">👨‍✈️ მინიჭებული მძღოლი</h4>
-                  <p className="text-base font-medium text-gray-900">{printVehicle.driver_name}</p>
-                </div>
-              )}
-              {printVehicle.notes && (
-                <div className="mt-6 pt-4 border-t border-gray-200 print:border-gray-300">
-                  <h4 className="text-sm font-bold text-gray-700 mb-2">📝 შენიშვნები</h4>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{printVehicle.notes}</p>
-                </div>
-              )}
-              <div className="mt-8 pt-4 border-t border-gray-200 text-center text-xs text-gray-500 print:block hidden">
-                <p>Logistics OS • დაბეჭდილი: {new Date().toLocaleString('ka-GE')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🗑️ DELETE VEHICLE MODAL */}
-      {vehicles.showDeleteVehicleModal && vehicles.deletingVehicle && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => vehicles.setShowDeleteVehicleModal(false)}>
-          <div className="bg-gray-800 border border-red-500/30 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><span className="text-3xl">🗑️</span></div>
-            <h3 className="text-lg font-bold text-white mb-2">მანქანის წაშლა</h3>
-            <div className="flex gap-3"><button onClick={() => vehicles.setShowDeleteVehicleModal(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm font-medium transition">არყოფა</button><button onClick={vehicles.confirmDeleteVehicle} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-red-500/20">ვადასტურებ</button></div>
-          </div>
-        </div>
-      )}
-
-      {/* 👨‍✈️ ADD DRIVER MODAL - ✅ განახლებული ახალი სექციებით */}
+      {/* 👨‍✈️ ADD DRIVER MODAL */}
       {driversHook.showAddDriverModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => driversHook.setShowAddDriverModal(false)}>
           <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
@@ -712,7 +600,7 @@ export default function AdminDashboard() {
                 <FormField checkbox label="ADR სერტიფიკატი" value={driversHook.driverForm.has_adr} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, has_adr:e.target.checked})} />
               </div></div>
 
-              {/* 💰 NEW Section 3: Financial Details */}
+              {/* 💰 Section 3: Financial Details */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="💰 ფინანსური დეტალები" icon="💸" color="text-emerald-400" />
                 <p className="text-[10px] text-gray-400 mb-3">ეს მონაცემები გამოიყენება ავტომატური ანგარიშსწორებისთვის.</p>
@@ -768,7 +656,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* 🔔 NEW Section 4: Notifications & Communication */}
+              {/* 🔔 Section 4: Notifications & Communication */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="🔔 შეტყობინებები & კომუნიკაცია" icon="📱" color="text-purple-400" />
                 <p className="text-[10px] text-gray-400 mb-3">მითითებული მონაცემებით სისტემა ავტომატურად გაუგზავნის შეტყობინებებს.</p>
