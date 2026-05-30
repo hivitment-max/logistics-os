@@ -250,7 +250,7 @@ export default function AdminDashboard() {
   const getCurrentItem = () => menuStructure.flatMap((g: any) => g.items).find((i: any) => i.id === activeTab) || { icon: '📄', label: 'გვერდი' }
   const currentItem = getCurrentItem()
 
-  // 🚗 მძღოლის მინიჭება მანქანას
+  // 🚗 მძღოლის მინიჭება მანქანას — ✅ განახლებული logAudit-ით (3 არგუმენტი)
   const handleAssignDriver = useCallback(async (vehicleId: string, driverId: string) => {
     try {
       const { error } = await supabase
@@ -263,7 +263,13 @@ export default function AdminDashboard() {
       
       if (error) throw error
       
-      await logAudit('update', 'vehicles', vehicleId, `მძღოლი ${driverId ? 'მინიჭებული' : 'მოხსნილი'}: ${driverId}`)
+      // ✅ განახლებული: 3 არგუმენტი logAudit-ისთვის
+      await logAudit(
+        'update', 
+        `vehicles/${vehicleId}`,  // target: vehicles/abc123
+        `მძღოლი ${driverId ? 'მინიჭებული' : 'მოხსნილი'}: ${driverId || 'none'}`  // details
+      )
+      
       loadData()
       showNotification(driverId ? '✅ მძღოლი წარმატებით მინიჭებულია' : '✅ მძღოლი წარმატებით მოხსნილია')
     } catch (err: any) {
