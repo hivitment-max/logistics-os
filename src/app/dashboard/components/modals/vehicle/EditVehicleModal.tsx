@@ -16,7 +16,7 @@ interface EditVehicleModalProps {
 }
 
 export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUpdated, showNotification }: EditVehicleModalProps) {
-  // ✅ განახლებული: რიცხვითი ველები არის სტრიქონები (როგორც AddVehicleModal-ში)
+  // ✅ formData ტიპი: ყველა ველი არის არა-ნალაბლი (როგორც AddVehicleModal-ში)
   const [formData, setFormData] = useState({
     plate_number: '',
     vin_number: '',
@@ -30,14 +30,14 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
     model: '',
     type: 'truck' as 'truck' | 'van' | 'car',
     body_type: 'tent' as const,
-    capacity_kg: '',        // ✅ სტრიქონი!
-    volume_m3: '',          // ✅ სტრიქონი!
-    length_m: '',           // ✅ სტრიქონი!
-    width_m: '',            // ✅ სტრიქონი!
-    height_m: '',           // ✅ სტრიქონი!
+    capacity_kg: '',
+    volume_m3: '',
+    length_m: '',
+    width_m: '',
+    height_m: '',
     adr_class: '',
     euro_standard: '6' as const,
-    straps_count: '',       // ✅ სტრიქონი!
+    straps_count: '',
     has_tail_lift: false,
     has_refrigeration: false,
     gps_device_id: '',
@@ -52,19 +52,47 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
   
   const [submitting, setSubmitting] = useState(false)
 
-  // ✅ განახლებული: ინიციალიზაცია სტრიქონებად
+  // ✅ განახლებული: ყველა ველი ცალ-ცალკე დამუშავებული, null → ''
   useEffect(() => {
     if (vehicle) {
       setFormData({
-        ...vehicle,
+        // 🔴 Critical fields - ყველა ნულიანი სტრიქონი გადაყვანილია ''-ად
+        plate_number: vehicle.plate_number || '',
+        vin_number: vehicle.vin_number || '',
+        tech_passport: vehicle.tech_passport || '',
+        pti_expiry: vehicle.pti_expiry || '',
+        insurance_policy: vehicle.insurance_policy || '',
+        insurance_cmre_policy: vehicle.insurance_cmre_policy || '',  // ✅ null → ''
+        owner_name: vehicle.owner_name || '',
+        owner_type: (vehicle.owner_type as 'company' | 'individual') || 'company',
+        power_of_attorney: vehicle.power_of_attorney || '',
+        
+        // 🟡 Operational fields
+        model: vehicle.model || '',
+        type: (vehicle.type as 'truck' | 'van' | 'car') || 'truck',
+        body_type: vehicle.body_type || 'tent',
         capacity_kg: vehicle.capacity_kg?.toString() || '',
         volume_m3: vehicle.volume_m3?.toString() || '',
         length_m: vehicle.length_m?.toString() || '',
         width_m: vehicle.width_m?.toString() || '',
         height_m: vehicle.height_m?.toString() || '',
+        adr_class: vehicle.adr_class || '',
+        euro_standard: vehicle.euro_standard || '6',
         straps_count: vehicle.straps_count?.toString() || '',
-        owner_type: vehicle.owner_type as 'company' | 'individual',
-        type: vehicle.type as 'truck' | 'van' | 'car',
+        has_tail_lift: vehicle.has_tail_lift || false,
+        has_refrigeration: vehicle.has_refrigeration || false,
+        
+        // 🔵 Tech fields
+        gps_device_id: vehicle.gps_device_id || '',
+        has_fuel_sensor: vehicle.has_fuel_sensor || false,
+        photo_urls: vehicle.photo_urls || '',
+        tire_season: vehicle.tire_season || 'all_season',
+        tire_condition: vehicle.tire_condition || 'good',
+        status: vehicle.status || 'active',
+        
+        // 🟣 Extra fields
+        notes: vehicle.notes || '',
+        extra_equipment: vehicle.extra_equipment || '',
       })
     }
   }, [vehicle])
@@ -74,7 +102,7 @@ export default function EditVehicleModal({ isOpen, onClose, vehicle, onVehicleUp
     setSubmitting(true)
 
     try {
-      // ✅ განახლებული: კონვერტაცია რიცხვებად სუბმიტის დროს
+      // ✅ კონვერტაცია რიცხვებად სუბმიტის დროს
       const payload: Partial<Vehicle> = {
         ...formData,
         capacity_kg: formData.capacity_kg ? Number(formData.capacity_kg) : null,
