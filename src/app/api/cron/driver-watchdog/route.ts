@@ -44,7 +44,16 @@ export async function GET(request: Request) {
     // 2️⃣ მოძებნე შეკვეთები სადაც მძღოლი მინიჭებულია მაგრამ არ უპასუხია
     const { data: pendingOrders, error } = await supabase
       .from('orders')
-      .select('id, tracking_code, driver_id, external_driver_id, driver_notified_at, driver_reminder_at, driver_escalated_at, drivers!inner(telegram_chat_id, full_name)')
+      .select(`
+        id, 
+        tracking_code, 
+        driver_id, 
+        external_driver_id, 
+        driver_notified_at, 
+        driver_reminder_at, 
+        driver_escalated_at, 
+        drivers!inner(telegram_chat_id, full_name)
+      `)
       .in('status', ['assigned', 'confirmed']) 
       .is('driver_response', null)
       .not('driver_notified_at', 'is', null)
@@ -55,8 +64,10 @@ export async function GET(request: Request) {
     let actionsTaken = 0
 
     for (const order of pendingOrders || []) {
-      const driverName = order.drivers?.full_name || 'მძღოლი'
-      const chatId = order.drivers?.telegram_chat_id
+      // ✅ ✅ ✅ FIX: drivers არის მასივი (Supabase join), ვიღებთ პირველ ელემენტს
+      const driver = Array.isArray(order.drivers) ? order.drivers[0] : order.drivers
+      const driverName = driver?.full_name || 'მძღოლი'
+      const chatId = driver?.telegram_chat_id
       
       if (!chatId) {
         console.log(`⚠️ Driver ${driverName} has no telegram_chat_id, skipping`)
