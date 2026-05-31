@@ -2,7 +2,7 @@
     "crons": [
       {
         "path": "/api/cron/driver-watchdog",
-        "schedule": "* * * * *"
+        "schedule": "0 0 * * *"
       }
     ]
   }
