@@ -1,28 +1,29 @@
-# Logistics OS
+# Logistics OS 🚛
 
-A logistics operating system built with TypeScript and Supabase.
+სრულყოფილი ლოჯისტიკის მართვის სისტემა, აგებული Next.js 14-ზე, TypeScript-ით და Supabase-ით.
 
-## Setup
+## ✨ ფუნქციონალი
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+- 🚚 შეკვეთების მართვა (CRUD)
+- 👥 მომხმარებლებისა და მძღოლების მენეჯმენტი
+- 🔔 Telegram ბოტი შეტყობინებებისთვის
+- ⏰ ავტომატური Cron Jobs (მძღოლების მონიტორინგი)
+- 📊 ადმინ დაშბორდი როლების მიხედვით
+- 🔐 უსაფრთხო ავტორიზაცია Supabase Auth-ით
 
-2. Copy environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   Fill in your Supabase URL and anon key.
+## 🛠️ ტექნოლოგიები
 
-3. Run the diagnostic script:
-   ```bash
-   npx ts-node -r dotenv/config check.ts
-   ```
+| ტექნოლოგია | აღწერა |
+|------------|---------|
+| **Next.js 14** | App Router, Server Components, Server Actions |
+| **TypeScript** | ტიპების უსაფრთხოება |
+| **Supabase** | PostgreSQL, Auth, Realtime, Storage |
+| **Tailwind CSS** | სწრაფი და რესპონსიული დიზაინი |
+| **Telegram Bot API** | შეტყობინებები მძღოლებისთვის |
+| **Vercel** | ავტომატური დეპლოი და Cron Jobs |
 
-## Project Structure
+## 🚀 დაწყება
 
-- `src/lib/supabase/client.ts` - Supabase client setup
-- `src/types.ts` - TypeScript type definitions
-- `check.ts` - Diagnostic script for Supabase connection</content>
-<parameter name="filePath">/workspaces/logistics-os/README.md
+### 1. დამოკიდებულებების ინსტალაცია
+```bash
+npm install
