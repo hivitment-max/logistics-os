@@ -19,10 +19,20 @@ const REMINDER_THRESHOLD_MINUTES = 5  // 5 წუთში შეხსენე
 const ESCALATION_THRESHOLD_MINUTES = 10 // 10 წუთში ესკალაცია
 
 export async function GET(request: Request) {
-  // 1️⃣ უსაფრთხოების შემოწმება
+  // 🔍 მივიღოთ Secret ორი წყაროდან:
+  // 1. Authorization ჰედერი (სტანდარტული, Cron-ისთვის)
+  // 2. URL პარამეტრი (ტესტირებისთვის, ბრაუზერში გასახსნელად)
   const authHeader = request.headers.get('Authorization')
-  if (authHeader !== `Bearer ${CRON_SECRET}`) {
-    console.warn('🚫 Unauthorized Cron Attempt')
+  const url = new URL(request.url)
+  const querySecret = url.searchParams.get('secret')
+  
+  const expectedSecret = CRON_SECRET
+  const providedSecret = authHeader?.replace('Bearer ', '') || querySecret
+
+  // 🔐 უსაფრთხოების შემოწმება
+  // დეველოპმენტში შეიძლება გამოვტოვოთ, პროდაქშენში - არა
+  if (process.env.NODE_ENV !== 'development' && providedSecret !== expectedSecret) {
+    console.warn('🚫 Unauthorized Cron Attempt. Provided:', providedSecret ? '[REDACTED]' : 'none')
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
@@ -31,7 +41,7 @@ export async function GET(request: Request) {
   const now = new Date()
 
   try {
-    // 2️ მოძებნე შეკვეთები სადაც მძღოლი მინიჭებულია მაგრამ არ უპასუხია
+    // 2️⃣ მოძებნე შეკვეთები სადაც მძღოლი მინიჭებულია მაგრამ არ უპასუხია
     const { data: pendingOrders, error } = await supabase
       .from('orders')
       .select('id, tracking_code, driver_id, external_driver_id, driver_notified_at, driver_reminder_at, driver_escalated_at, drivers!inner(telegram_chat_id, full_name)')
@@ -48,7 +58,10 @@ export async function GET(request: Request) {
       const driverName = order.drivers?.full_name || 'მძღოლი'
       const chatId = order.drivers?.telegram_chat_id
       
-      if (!chatId) continue // თუ მძღოლს ტელეგრამი არ აქვს მიბმული, გამოვტოვოთ
+      if (!chatId) {
+        console.log(`⚠️ Driver ${driverName} has no telegram_chat_id, skipping`)
+        continue // თუ მძღოლს ტელეგრამი არ აქვს მიბმული, გამოვტოვოთ
+      }
 
       const notifiedAt = new Date(order.driver_notified_at)
       const timeDiffMinutes = (now.getTime() - notifiedAt.getTime()) / (1000 * 60)
@@ -62,11 +75,22 @@ export async function GET(request: Request) {
 
         // გაგზავნა Telegram-ზე
         try {
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text: reminderText, parse_mode: 'HTML' })
+            body: JSON.stringify({ 
+              chat_id: chatId, 
+              text: reminderText, 
+              parse_mode: 'HTML',
+              disable_web_page_preview: true
+            })
           })
+          const tgResult = await tgRes.json()
+          if (!tgRes.ok) {
+            console.error(`❌ Telegram API error:`, tgResult)
+          } else {
+            console.log(`✅ Telegram reminder sent to ${chatId}`)
+          }
         } catch (tgErr) {
           console.error(`❌ Failed to send Telegram reminder to ${chatId}`, tgErr)
         }
@@ -80,7 +104,7 @@ export async function GET(request: Request) {
         actionsTaken++
       }
 
-      //  ლოგიკა 2: 10 წუთი გავიდა და ესკალაცია არ მომხდარა
+      // 🔥 ლოგიკა 2: 10 წუთი გავიდა და ესკალაცია არ მომხდარა
       else if (timeDiffMinutes >= ESCALATION_THRESHOLD_MINUTES && !order.driver_escalated_at) {
         console.log(`🚨 [ESCALATION] Order ${order.tracking_code} ESCALATED!`)
 
@@ -93,13 +117,13 @@ export async function GET(request: Request) {
           })
           .eq('id', order.id)
 
-        // აქ შეგიძლია დისპეტჩერისთვის შეტყობინების გაგზავნა (Dashboard notification)
+        // დისპეტჩერისთვის შეტყობინების გაგზავნა (Dashboard notification)
         await supabase.from('notifications').insert({
           channel: 'dashboard',
           status: 'unread',
           title: '🚨 ესკალაცია! მძღოლმა არ უპასუხა',
           message: `მძღოლმა (${driverName}) არ უპასუხა შეკვეთას <code>${order.tracking_code}</code>. გთხოვთ დაუკავშირდეთ.`,
-          metadata: { order_id: order.id, driver_name: driverName },
+          metadata: { order_id: order.id, driver_name: driverName, escalated_at: now.toISOString() },
           created_at: now.toISOString()
         })
 
@@ -108,7 +132,7 @@ export async function GET(request: Request) {
     }
 
     console.log(`✅ [WATCHDOG] Check finished. Actions taken: ${actionsTaken}`)
-    return NextResponse.json({ ok: true, actions: actionsTaken })
+    return NextResponse.json({ ok: true, actions: actionsTaken, timestamp: now.toISOString() })
 
   } catch (err: any) {
     console.error('💥 [WATCHDOG] Error:', err)
