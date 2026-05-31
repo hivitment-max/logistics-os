@@ -404,6 +404,12 @@ export default function OrdersTab({
       <div className="px-4 py-3 border-b border-gray-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-800/80">
         <div className="flex items-center gap-3">
           <h2 className="text-xs font-bold uppercase text-gray-300">📦 შეკვეთები</h2>
+          
+          {/* 🧪 სატესტო ელემენტი: მცირე ბეიჯი რომელიც აშკარად გამოჩნდება */}
+          <span className="px-2 py-0.5 bg-pink-500/20 text-pink-400 border border-pink-500/30 rounded text-[9px] font-bold animate-pulse">
+            🧪 TEST
+          </span>
+          
           <select value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-[10px] outline-none focus:border-blue-500 transition">
             <option value="all">ყველა</option>
             <option value="pending">ლოდინში</option>
