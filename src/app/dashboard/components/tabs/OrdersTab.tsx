@@ -23,6 +23,41 @@ interface OrdersTabProps {
   loadData?: () => void
 }
 
+// ============================================================================
+// 🎖️ DriverResponseBadge Component - ახალი: მძღოლის პასუხის ბეიჯი
+// ============================================================================
+const DriverResponseBadge = ({ order }: { order: any }) => {
+  // თუ მძღოლი ჯერ არ არის მინიჭებული
+  if (!order.driver_id && !order.external_driver_id) {
+    return <span className="text-[9px] text-gray-500">—</span>
+  }
+
+  // ✅ მძღოლმა დაადასტურა
+  if (order.driver_response === 'accepted') {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-medium">
+        ✅ დაადასტურა
+      </span>
+    )
+  }
+
+  // ❌ მძღოლმა უარყო
+  if (order.driver_response === 'rejected') {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-medium">
+        ❌ უარყო
+      </span>
+    )
+  }
+
+  // ⏳ მოლოდინში (მძღოლი მინიჭებულია, მაგრამ პასუხი ჯერ არ მოსულა)
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-medium animate-pulse">
+      ⏳ მოლოდინში
+    </span>
+  )
+}
+
 export default function OrdersTab({ 
   orders, 
   loading, 
@@ -70,46 +105,6 @@ export default function OrdersTab({
   if (loading) return <LoadingTruck message="შეკვეთები იტვირთება..." size="md" />
   
   const filteredOrders = orders.filter(o => orderFilter === 'all' || o.status === orderFilter)
-
-  // ============================================================================
-  // 🆕 განახლებული: მძღოლის პასუხის ბეჯი (სწორი ველებით)
-  // ============================================================================
-  const getDriverResponseBadge = (response: string | null, confirmedAt?: string, rejectedAt?: string) => {
-    if (!response) return <span className="text-[10px] text-gray-500">–</span>
-    
-    // ვიღებთ სწორ თარიღს პასუხის ტიპის მიხედვით
-    const respondedAt = response === 'accepted' ? confirmedAt : rejectedAt
-    
-    if (response === 'accepted') {
-      return (
-        <div className="flex flex-col items-start">
-          <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 font-medium">
-            ✅ დადასტურებულია
-          </span>
-          {respondedAt && (
-            <span className="text-[9px] text-gray-500 mt-0.5">
-              {new Date(respondedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-        </div>
-      )
-    }
-    if (response === 'rejected') {
-      return (
-        <div className="flex flex-col items-start">
-          <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 font-medium">
-            ❌ უარყოფილია
-          </span>
-          {respondedAt && (
-            <span className="text-[9px] text-gray-500 mt-0.5">
-              {new Date(respondedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-        </div>
-      )
-    }
-    return <span className="text-[10px] text-gray-500">{response}</span>
-  }
 
   // ============================================================================
   // 🔄 HELPER: ბაზის მონაცემები → ფორმის ფორმატი
@@ -457,9 +452,9 @@ export default function OrdersTab({
                     <option value="cancelled">გაუქმებული</option>
                   </select>
                 </td>
-                {/* ✅ ახალი სვეტი: მძღოლის პასუხი - განახლებული */}
+                {/* ✅ ახალი სვეტი: მძღოლის პასუხი - განახლებული DriverResponseBadge-ით */}
                 <td className="px-4 py-3">
-                  {getDriverResponseBadge(o.driver_response, o.driver_confirmed_at, o.driver_rejected_at)}
+                  <DriverResponseBadge order={o} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end items-center gap-1">
