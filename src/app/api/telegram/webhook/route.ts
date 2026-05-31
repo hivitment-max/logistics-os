@@ -41,7 +41,9 @@ const STAGES: Record<StageKey, StageConfig> = {
     nextAction: 'acc',
     nextStage: 'accepted',
     buttonText: '✅ მივიღე',
-    dbField: 'driver_response',
+    // ✅ ✅ ✅ განახლებული: dbField ახლა არის driver_confirmed_at (თარიღისთვის)
+    // driver_response ცალკე დაყენდება ქვემოთ კოდში
+    dbField: 'driver_confirmed_at',
     orderStatus: 'confirmed',
     trackingEventType: 'accepted',
     dashboardTitle: '✅ მძღოლმა მიიღო შეკვეთა',
@@ -307,13 +309,21 @@ async function handleCallbackQuery(callback: any) {
       dbUpdate.status = stageConfig.orderStatus
     }
 
+    // ✅ ✅ ✅ FIX: დავამატეთ driver_response-ის სწორი დაყენება
+    // თუ მძღოლმა დაადასტურა ან უარყო, ვაყენებთ შესაბამის მნიშვნელობას
+    if (action === 'acc') {
+      dbUpdate.driver_response = 'accepted'
+    } else if (action === 'rej') {
+      dbUpdate.driver_response = 'rejected'
+    }
+
     const { error: updateErr } = await supabase
       .from('orders')
       .update(dbUpdate)
       .eq('id', orderId)
 
     if (updateErr) throw updateErr
-    console.log(`✅ Order ${orderId} updated: ${stageConfig.dbField}`)
+    console.log(`✅ Order ${orderId} updated: ${stageConfig.dbField}, driver_response: ${dbUpdate.driver_response || 'unchanged'}`)
 
     // 2️⃣ ჩავწეროთ tracking_events
     await logTrackingEvent(orderId, driver!.id, stageConfig.trackingEventType, {
