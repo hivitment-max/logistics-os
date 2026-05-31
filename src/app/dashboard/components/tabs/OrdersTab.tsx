@@ -24,15 +24,12 @@ interface OrdersTabProps {
 }
 
 // ============================================================================
-// 🎖️ DriverResponseBadge Component - ახალი: მძღოლის პასუხის ბეიჯი
+// 🎖️ DriverResponseBadge Component
 // ============================================================================
 const DriverResponseBadge = ({ order }: { order: any }) => {
-  // თუ მძღოლი ჯერ არ არის მინიჭებული
   if (!order.driver_id && !order.external_driver_id) {
     return <span className="text-[9px] text-gray-500">—</span>
   }
-
-  // ✅ მძღოლმა დაადასტურა
   if (order.driver_response === 'accepted') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-medium">
@@ -40,8 +37,6 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
       </span>
     )
   }
-
-  // ❌ მძღოლმა უარყო
   if (order.driver_response === 'rejected') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-medium">
@@ -49,14 +44,35 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
       </span>
     )
   }
-
-  // ⏳ მოლოდინში (მძღოლი მინიჭებულია, მაგრამ პასუხი ჯერ არ მოსულა)
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-medium animate-pulse">
       ⏳ მოლოდინში
     </span>
   )
 }
+
+// ============================================================================
+// 🔄 RefreshIcon Component (SVG)
+// ============================================================================
+const RefreshIcon = ({ spinning }: { spinning?: boolean }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={spinning ? 'animate-spin' : ''}
+  >
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 21h5v-5" />
+  </svg>
+)
 
 export default function OrdersTab({ 
   orders, 
@@ -79,15 +95,15 @@ export default function OrdersTab({
   const [previewOrder, setPreviewOrder] = useState<any | null>(null)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [notificationOrder, setNotificationOrder] = useState<any | null>(null)
-  
-  // 🧾 ინვოისის მოდალის სტეიტები
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null)
+  
+  // 🔄 Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // 🔄 Realtime subscription შეკვეთების ცვლილებებისთვის
+  // 🔄 Realtime subscription
   useEffect(() => {
     if (!loadData) return
-    
     const channel = supabase
       .channel('orders_realtime')
       .on('postgres_changes', 
@@ -98,9 +114,22 @@ export default function OrdersTab({
         }
       )
       .subscribe()
-    
     return () => { supabase.removeChannel(channel) }
   }, [loadData])
+
+  // 🔄 Refresh handler
+  const handleRefresh = async () => {
+    if (!loadData || isRefreshing) return
+    setIsRefreshing(true)
+    try {
+      await loadData()
+      console.log('✅ [ORDERS] Data refreshed')
+    } catch (err) {
+      console.error('❌ [ORDERS] Refresh failed:', err)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   if (loading) return <LoadingTruck message="შეკვეთები იტვირთება..." size="md" />
   
@@ -288,26 +317,20 @@ export default function OrdersTab({
     setShowNotificationModal(true)
   }
 
-  // ✅ ✅ ✅ განახლებული: შეტყობინება ღილაკებით (Inline Keyboard)
   const handleSendNotification = async (channels: string[]) => {
     console.log('🚀 [NOTIFICATION] Starting send process...')
     if (!notificationOrder) throw new Error('შეკვეთა არ არის არჩეული')
-
     const order = notificationOrder
     let chatId = order.drivers?.telegram_chat_id || order.external_drivers?.telegram_chat_id
-
-    // თუ cache-ში არ არის, პირდაპირ ბაზიდან ამოვიღოთ
     if (!chatId) {
       console.log('🔄 [NOTIFICATION] Chat ID missing in cache. Fetching from DB...')
       const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
       if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
-
       const { data: driver } = await supabase
         .from('drivers')
         .select('telegram_chat_id, full_name')
         .eq('id', driverId)
         .single()
-
       if (driver?.telegram_chat_id) {
         chatId = driver.telegram_chat_id
         console.log(`✅ Chat ID found in DB: ${chatId}`)
@@ -317,16 +340,12 @@ export default function OrdersTab({
         return { success: false, error: 'Chat ID missing' }
       }
     }
-
     const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
     if (!token) throw new Error('Bot token missing in .env.local')
-
     const message = `🚛 <b>ახალი შეკვეთა მინიჭებულია!</b>\n\n` +
       `📦 კოდი: <code>${order.tracking_code}</code>\n` +
       `📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n` +
       `💰 თანხა: ${order.price} ${order.currency}`
-
-    // ✅ ✅ ✅ ღილაკების კონფიგურაცია (Inline Keyboard)
     const reply_markup = {
       inline_keyboard: [
         [
@@ -335,9 +354,7 @@ export default function OrdersTab({
         ]
       ]
     }
-
     try {
-      // 1️⃣ გაგზავნა Telegram-ზე ღილაკებით
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -346,15 +363,12 @@ export default function OrdersTab({
           text: message, 
           parse_mode: 'HTML',
           disable_web_page_preview: true,
-          reply_markup: reply_markup  // ✅ ღილაკები
+          reply_markup: reply_markup
         })
       })
       const result = await res.json()
       if (!result.ok) throw new Error(result.description || 'Telegram API error')
-
       console.log('✅ Telegram message sent successfully!')
-
-      // 2️⃣ ლოგის ჩაწერა ბაზაში
       await supabase.from('notifications').insert({
         order_id: order.id,
         driver_id: order.driver_type === 'internal' ? order.driver_id : null,
@@ -378,7 +392,6 @@ export default function OrdersTab({
     }
   }
 
-  // 🧾 ინვოისის შექმნის ღილაკის ლოგიკა
   const handleInvoiceClick = (order: any) => {
     setSelectedOrderForInvoice(order)
     setShowInvoiceModal(true)
@@ -401,7 +414,31 @@ export default function OrdersTab({
             <option value="cancelled">გაუქმებული</option>
           </select>
         </div>
-        <button onClick={onAdd} className="bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded text-[10px] font-semibold transition shadow-lg shadow-purple-500/20">+ ახალი</button>
+        
+        {/* 🔄 Refresh Button + New Order Button */}
+        <div className="flex items-center gap-2">
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing || !loadData}
+            className={`p-2 rounded-lg transition flex items-center justify-center ${
+              isRefreshing || !loadData
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+            }`}
+            title="მონაცემების განახლება"
+          >
+            <RefreshIcon spinning={isRefreshing} />
+          </button>
+          
+          {/* New Order Button */}
+          <button 
+            onClick={onAdd} 
+            className="bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded text-[10px] font-semibold transition shadow-lg shadow-purple-500/20"
+          >
+            + ახალი
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -415,7 +452,6 @@ export default function OrdersTab({
               <th className="px-4 py-3 text-left">მძღოლი / მანქანა</th>
               <th className="px-4 py-3 text-left">ფასი</th>
               <th className="px-4 py-3 text-left">სტატუსი</th>
-              {/* ✅ ახალი სვეტი: მძღოლის პასუხი */}
               <th className="px-4 py-3 text-left">მძღოლის პასუხი</th>
               <th className="px-4 py-3 text-right">მოქმედება</th>
             </tr>
@@ -452,7 +488,6 @@ export default function OrdersTab({
                     <option value="cancelled">გაუქმებული</option>
                   </select>
                 </td>
-                {/* ✅ ახალი სვეტი: მძღოლის პასუხი - განახლებული DriverResponseBadge-ით */}
                 <td className="px-4 py-3">
                   <DriverResponseBadge order={o} />
                 </td>
@@ -461,7 +496,6 @@ export default function OrdersTab({
                     <button onClick={() => handleEditClick(o)} className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition" title="რედაქტირება">✏️</button>
                     <button onClick={() => handlePreviewClick(o)} className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition" title="Preview">👁️</button>
                     <button onClick={() => handleOpenNotification(o)} className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition" title="შეტყობინების გაგზავნა">📢</button>
-                    {/* 🧾 ინვოისის ღილაკი - ახლა აქტიურია */}
                     <button 
                       onClick={() => handleInvoiceClick(o)} 
                       className="p-1.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition" 
@@ -481,32 +515,24 @@ export default function OrdersTab({
         </table>
       </div>
 
-      {/* ✏️ Edit Order Modal */}
+      {/* Modals */}
       {showEditModal && editingOrder && (
         <AddOrderModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingOrder(null) }} orderForm={editingOrder} setOrderForm={setEditingOrder} onSubmit={handleEditSave} />
       )}
-
-      {/* 👁️ Preview Modal */}
       {showPreviewModal && previewOrder && (
         <OrderPreviewModal isOpen={showPreviewModal} onClose={() => { setShowPreviewModal(false); setPreviewOrder(null) }} order={previewOrder} />
       )}
-
-      {/* 🆕 შეტყობინების მოდალი */}
       {showNotificationModal && notificationOrder && (
         <SendNotificationModal isOpen={showNotificationModal} onClose={() => { setShowNotificationModal(false); setNotificationOrder(null) }} order={notificationOrder} onSend={handleSendNotification} logs={[]} />
       )}
-
-      {/* 🧾 ინვოისის შექმნის მოდალი */}
       <CreateInvoiceModal 
         isOpen={showInvoiceModal} 
         onClose={() => { setShowInvoiceModal(false); setSelectedOrderForInvoice(null) }} 
         order={selectedOrderForInvoice} 
         onSuccess={() => { 
-          // ოფციონალური: გადასვლა ინვოისების ტაბზე ან რეფრეში
           if (loadData) loadData()
         }} 
       />
-
     </div>
   )
 }
