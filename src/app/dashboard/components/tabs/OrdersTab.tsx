@@ -74,6 +74,26 @@ const RefreshIcon = ({ spinning }: { spinning?: boolean }) => (
   </svg>
 )
 
+// ============================================================================
+// ⏰ ReminderIcon Component (SVG)
+// ============================================================================
+const ReminderIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
+
 export default function OrdersTab({ 
   orders, 
   loading, 
@@ -128,6 +148,80 @@ export default function OrdersTab({
       console.error('❌ [ORDERS] Refresh failed:', err)
     } finally {
       setIsRefreshing(false)
+    }
+  }
+
+  // ⏰ Send reminder to driver (manual trigger, no cron needed)
+  const sendReminder = async (order: any) => {
+    if (!confirm(`გავუგზავნოთ შეხსენება მძღოლს შეკვეთისთვის #${order.tracking_code}?`)) {
+      return
+    }
+
+    const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
+    if (!driverId) {
+      alert('მძღოლი არ არის მინიჭებული')
+      return
+    }
+
+    try {
+      // 1. მივიღოთ მძღოლის Chat ID
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('telegram_chat_id, full_name')
+        .eq('id', driverId)
+        .single()
+      
+      if (!driver?.telegram_chat_id) {
+        alert('⚠️ მძღოლს არ აქვს Telegram Chat ID')
+        return
+      }
+
+      // 2. გავგზავნოთ შეხსენება
+      const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+      if (!token) throw new Error('Bot token missing')
+
+      const message = `⏰ <b>შეხსენება!</b>\n\n` +
+        `შეკვეთა #${order.tracking_code} ჯერ კიდევ ლოდინშია.\n` +
+        `📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n` +
+        `გთხოვთ, უპასუხოთ! ✅ ან ❌`
+
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: driver.telegram_chat_id,
+          text: message,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ მივიღე', callback_data: `acc:${order.id}` }],
+              [{ text: '❌ უარვყავი', callback_data: `rej:${order.id}` }]
+            ]
+          }
+        })
+      })
+
+      const result = await res.json()
+      if (!result.ok) throw new Error(result.description || 'Telegram API error')
+
+      // 3. ჩავწეროთ ლოგი
+      await supabase.from('notifications').insert({
+        order_id: order.id,
+        driver_id: order.driver_type === 'internal' ? order.driver_id : null,
+        external_driver_id: order.driver_type === 'external' ? order.external_driver_id : null,
+        title: '⏰ შეხსენება',
+        message: 'გაგზავნილია ადმინის მიერ',
+        channel: 'telegram',
+        status: 'sent',
+        metadata: { type: 'reminder', sent_by: 'admin' },
+        sent_at: new Date().toISOString()
+      })
+
+      alert('✅ შეხსენება გაგზავნილია!')
+      console.log('📝 Reminder logged')
+    } catch (err: any) {
+      console.error('❌ Reminder failed:', err)
+      alert(`შეცდომა: ${err.message}`)
     }
   }
 
@@ -404,12 +498,6 @@ export default function OrdersTab({
       <div className="px-4 py-3 border-b border-gray-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-800/80">
         <div className="flex items-center gap-3">
           <h2 className="text-xs font-bold uppercase text-gray-300">📦 შეკვეთები</h2>
-          
-          {/* 🧪 სატესტო ელემენტი: მცირე ბეიჯი რომელიც აშკარად გამოჩნდება */}
-          <span className="px-2 py-0.5 bg-pink-500/20 text-pink-400 border border-pink-500/30 rounded text-[9px] font-bold animate-pulse">
-            🧪 TEST
-          </span>
-          
           <select value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-[10px] outline-none focus:border-blue-500 transition">
             <option value="all">ყველა</option>
             <option value="pending">ლოდინში</option>
@@ -459,63 +547,97 @@ export default function OrdersTab({
               <th className="px-4 py-3 text-left">ფასი</th>
               <th className="px-4 py-3 text-left">სტატუსი</th>
               <th className="px-4 py-3 text-left">მძღოლის პასუხი</th>
+              <th className="px-4 py-3 text-left">ლოდინში</th>
               <th className="px-4 py-3 text-right">მოქმედება</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/30">
-            {filteredOrders.map(o => (
-              <tr key={o.id} className="hover:bg-gray-700/20 transition">
-                <td className="px-4 py-3 font-mono font-bold text-purple-400">{o.tracking_code}</td>
-                <td className="px-4 py-3 text-[10px] text-gray-200">
-                  📍 {o.pickup_address?.slice(0,15)}{o.pickup_address?.length > 15 ? '...' : ''}<br/>
-                  🏁 {o.delivery_address?.slice(0,15)}{o.delivery_address?.length > 15 ? '...' : ''}
-                </td>
-                <td className="px-4 py-3 text-gray-300">
-                  {o.cargo_description?.slice(0,20)}{o.cargo_description?.length > 20 ? '...' : ''}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-gray-300 flex items-center gap-1">
-                    {o.drivers?.full_name || o.external_drivers?.full_name || '–'}
-                    {o.driver_type === 'external' && <span className="text-[8px] px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded">გარე</span>}
-                  </div>
-                  <div className="text-blue-400 text-[10px] flex items-center gap-1">
-                    {o.vehicles?.plate_number || o.external_vehicles?.plate_number || '–'}
-                    {o.vehicle_type === 'external' && <span className="text-[8px] px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded">გარე</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 font-medium">{o.price} {o.currency}</td>
-                <td className="px-4 py-3">
-                  <select value={o.status} onChange={(e) => onStatusChange(o.id, e.target.value)} className={`px-2 py-0.5 rounded text-[10px] border bg-transparent outline-none cursor-pointer ${getStatusColor(o.status)}`}>
-                    <option value="pending">ლოდინში</option>
-                    <option value="confirmed">✅ დადასტურებულია</option>
-                    <option value="rejected">❌ უარყოფილია</option>
-                    <option value="in_transit">გზაში</option>
-                    <option value="delivered">მიწოდებული</option>
-                    <option value="cancelled">გაუქმებული</option>
-                  </select>
-                </td>
-                <td className="px-4 py-3">
-                  <DriverResponseBadge order={o} />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end items-center gap-1">
-                    <button onClick={() => handleEditClick(o)} className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition" title="რედაქტირება">✏️</button>
-                    <button onClick={() => handlePreviewClick(o)} className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition" title="Preview">👁️</button>
-                    <button onClick={() => handleOpenNotification(o)} className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition" title="შეტყობინების გაგზავნა">📢</button>
-                    <button 
-                      onClick={() => handleInvoiceClick(o)} 
-                      className="p-1.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition" 
-                      title="ინვოისის შექმნა"
-                    >
-                      🧾
-                    </button>
-                    <button onClick={() => handleDeleteClick(o)} className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md transition" title="წაშლა">🗑️</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {filteredOrders.map(o => {
+              // ⏱️ Calculate minutes elapsed since order creation
+              const minutesElapsed = Math.floor(
+                (new Date().getTime() - new Date(o.created_at).getTime()) / 60000
+              )
+              
+              // 🎨 Color code based on waiting time
+              const waitingColor = 
+                minutesElapsed > 30 ? 'text-red-400 font-bold' :
+                minutesElapsed > 15 ? 'text-amber-400' :
+                'text-gray-400'
+
+              return (
+                <tr key={o.id} className="hover:bg-gray-700/20 transition">
+                  <td className="px-4 py-3 font-mono font-bold text-purple-400">{o.tracking_code}</td>
+                  <td className="px-4 py-3 text-[10px] text-gray-200">
+                    📍 {o.pickup_address?.slice(0,15)}{o.pickup_address?.length > 15 ? '...' : ''}<br/>
+                    🏁 {o.delivery_address?.slice(0,15)}{o.delivery_address?.length > 15 ? '...' : ''}
+                  </td>
+                  <td className="px-4 py-3 text-gray-300">
+                    {o.cargo_description?.slice(0,20)}{o.cargo_description?.length > 20 ? '...' : ''}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-gray-300 flex items-center gap-1">
+                      {o.drivers?.full_name || o.external_drivers?.full_name || '–'}
+                      {o.driver_type === 'external' && <span className="text-[8px] px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded">გარე</span>}
+                    </div>
+                    <div className="text-blue-400 text-[10px] flex items-center gap-1">
+                      {o.vehicles?.plate_number || o.external_vehicles?.plate_number || '–'}
+                      {o.vehicle_type === 'external' && <span className="text-[8px] px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded">გარე</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 font-medium">{o.price} {o.currency}</td>
+                  <td className="px-4 py-3">
+                    <select value={o.status} onChange={(e) => onStatusChange(o.id, e.target.value)} className={`px-2 py-0.5 rounded text-[10px] border bg-transparent outline-none cursor-pointer ${getStatusColor(o.status)}`}>
+                      <option value="pending">ლოდინში</option>
+                      <option value="confirmed">✅ დადასტურებულია</option>
+                      <option value="rejected">❌ უარყოფილია</option>
+                      <option value="in_transit">გზაში</option>
+                      <option value="delivered">მიწოდებული</option>
+                      <option value="cancelled">გაუქმებული</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <DriverResponseBadge order={o} />
+                  </td>
+                  {/* ⏱️ New column: Waiting time indicator */}
+                  <td className={`px-4 py-3 text-[10px] ${waitingColor}`}>
+                    {o.status === 'pending' && !o.driver_response ? (
+                      <span title="წუთები ლოდინში">
+                        {minutesElapsed} წთ
+                      </span>
+                    ) : (
+                      <span className="text-gray-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end items-center gap-1">
+                      <button onClick={() => handleEditClick(o)} className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition" title="რედაქტირება">✏️</button>
+                      <button onClick={() => handlePreviewClick(o)} className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition" title="Preview">👁️</button>
+                      <button onClick={() => handleOpenNotification(o)} className="p-1.5 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-md transition" title="შეტყობინების გაგზავნა">📢</button>
+                      <button 
+                        onClick={() => handleInvoiceClick(o)} 
+                        className="p-1.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition" 
+                        title="ინვოისის შექმნა"
+                      >
+                        🧾
+                      </button>
+                      {/* ⏰ Reminder button - only for pending orders without response */}
+                      {o.status === 'pending' && !o.driver_response && o.driver_id && (
+                        <button 
+                          onClick={() => sendReminder(o)}
+                          className="p-1.5 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-md transition"
+                          title="გაგზავნა შეხსენება"
+                        >
+                          <ReminderIcon />
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteClick(o)} className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md transition" title="წაშლა">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {filteredOrders.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">შეკვეთები არ არის</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">შეკვეთები არ არის</td></tr>
             )}
           </tbody>
         </table>
