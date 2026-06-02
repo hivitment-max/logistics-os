@@ -220,7 +220,7 @@ export default function OrdersTab({
     try {
       const { data: driver } = await supabase
         .from('drivers')
-        .select('telegram_chat_id, full_name')
+        .select('id, telegram_chat_id, full_name')  // ⬅️ FIX: დავამატეთ 'id'
         .eq('id', driverId)
         .single()
       
@@ -258,8 +258,8 @@ export default function OrdersTab({
 
       await supabase.from('notifications').insert({
         order_id: order.id,
-        driver_id: order.driver_type === 'internal' ? order.driver_id : null,
-        external_driver_id: order.driver_type === 'external' ? order.external_driver_id : null,
+        driver_id: order.driver_type === 'internal' ? driver.id : null,
+        external_driver_id: order.driver_type === 'external' ? driver.id : null,
         title: '⏰ შეხსენება',
         message: 'გაგზავნილია ადმინის მიერ',
         channel: 'telegram',
@@ -291,7 +291,7 @@ export default function OrdersTab({
     try {
       const { data: driver } = await supabase
         .from('drivers')
-        .select('telegram_chat_id, full_name')
+        .select('id, telegram_chat_id, full_name')  // ⬅️ FIX: დავამატეთ 'id'
         .eq('id', driverId)
         .single()
       
@@ -371,7 +371,7 @@ export default function OrdersTab({
     }
   }
 
-  // 📋 Send detailed instructions to driver (Phase 2)
+  // 📋 Send detailed instructions to driver (Phase 2) - FIXED VERSION
   const handleSendInstructions = async () => {
     if (!instructionsOrder) return
     if (!instructionsText.trim()) {
@@ -386,10 +386,10 @@ export default function OrdersTab({
       const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
       if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
 
-      // 1. მივიღოთ მძღოლის Chat ID
+      // 1. მივიღოთ მძღოლის Chat ID - ⬅️ FIX: დავამატეთ 'id' select-ში
       const { data: driver } = await supabase
         .from('drivers')
-        .select('telegram_chat_id, full_name')
+        .select('id, telegram_chat_id, full_name')  // ⬅️ ეს ხაზი შეიცვალა!
         .eq('id', driverId)
         .single()
 
@@ -428,7 +428,7 @@ export default function OrdersTab({
       const result = await res.json()
       if (!result.ok) throw new Error(result.description || 'Telegram API error')
 
-      // 4. განვაახლოთ ბაზა - დავამატეთ instruction_message_id
+      // 4. განვაახლოთ ბაზა
       const { error: updateError } = await supabase
         .from('orders')
         .update({
@@ -440,7 +440,7 @@ export default function OrdersTab({
 
       if (updateError) throw updateError
 
-      // 5. ჩავწეროთ ლოგი
+      // 5. ჩავწეროთ ლოგი - ⬅️ ახლა driver.id მუშაობს!
       await supabase.from('notifications').insert({
         order_id: order.id,
         driver_id: order.driver_type === 'internal' ? driver.id : null,
@@ -672,7 +672,7 @@ export default function OrdersTab({
       if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
       const { data: driver } = await supabase
         .from('drivers')
-        .select('telegram_chat_id, full_name')
+        .select('id, telegram_chat_id, full_name')  // ⬅️ FIX: დავამატეთ 'id'
         .eq('id', driverId)
         .single()
       if (driver?.telegram_chat_id) {
@@ -715,8 +715,8 @@ export default function OrdersTab({
       console.log('✅ Telegram message sent successfully!')
       await supabase.from('notifications').insert({
         order_id: order.id,
-        driver_id: order.driver_type === 'internal' ? order.driver_id : null,
-        external_driver_id: order.driver_type === 'external' ? order.external_driver_id : null,
+        driver_id: order.driver_type === 'internal' ? driver.id : null,
+        external_driver_id: order.driver_type === 'external' ? driver.id : null,
         title: '🚛 ახალი შეკვეთა',
         message: `შეტყობინება გაგზავნილია Telegram-ზე`,
         channel: 'telegram',
