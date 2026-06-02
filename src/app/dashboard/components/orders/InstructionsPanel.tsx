@@ -15,6 +15,7 @@ interface InstructionsPanelProps {
     external_driver_id?: string
     driver_type?: 'internal' | 'external'
     instructions_sent_at?: string | null
+    instructions_content?: string | null  // ⬅️ FIX: დაემატა ეს ველი!
   }
   onInstructionsSent?: () => void
 }
@@ -31,7 +32,9 @@ export default function InstructionsPanel({ order, onInstructionsSent }: Instruc
         <p className="text-sm text-emerald-400 font-medium">
           ✅ ინსტრუქცია გაგზავნილია: {new Date(order.instructions_sent_at!).toLocaleString('ka-GE')}
         </p>
-        <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{order.instructions_content}</p>
+        <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">
+          {order.instructions_content || '—'}
+        </p>
       </div>
     )
   }
