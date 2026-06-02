@@ -5,8 +5,6 @@ import { createClient } from '@supabase/supabase-js'
 // ============================================================================
 // 🔐 კონფიგურაცია (შენი .env-ის მიხედვით)
 // ============================================================================
-// ⚠️ შენიშვნა: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN გამოყენებულია, რადგან შენს .env-ში ასეა.
-// პროდაქშენში რეკომენდებულია TELEGRAM_BOT_TOKEN (NEXT_PUBLIC_ გარეშე) უსაფრთხოებისთვის.
 const BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -37,20 +35,25 @@ interface StageConfig {
 }
 
 const STAGES: Record<StageKey, StageConfig> = {
+  // ============================================================================
+  // 🎯 PHASE 1: მხოლოდ მიღება/უარყოფა (შემდეგი ეტაპი ჩერდება)
+  // ============================================================================
   initial: {
     nextAction: 'acc',
-    nextStage: 'accepted',
+    nextStage: null, // ⬅️ Phase 1: ჩერდება აქ (ადმინი მართავს შემდეგ ნაბიჯს)
     buttonText: '✅ მივიღე',
-    // ✅ ✅ ✅ განახლებული: dbField ახლა არის driver_confirmed_at (თარიღისთვის)
-    // driver_response ცალკე დაყენდება ქვემოთ კოდში
     dbField: 'driver_confirmed_at',
     orderStatus: 'confirmed',
     trackingEventType: 'accepted',
     dashboardTitle: '✅ მძღოლმა მიიღო შეკვეთა',
     dashboardMessage: (name, code) => `👨‍✈️ <b>${name}</b>-მა მიიღო შეკვეთა <code>${code}</code>`,
-    replyText: '✅ <b>მიღებულია!</b>\nახლა გამოჩნდება სამუშაო ღილაკები.',
-    shouldRemoveButtons: false
+    replyText: '✅ <b>შეკვეთა დადასტურებულია!</b>\n\n⏳ დაელოდეთ დეტალურ ინსტრუქციას.', // ⬅️ შენი ტექსტი
+    shouldRemoveButtons: true // ⬅️ Phase 1: ღილაკები ქრება დადასტურების შემდეგ
   },
+
+  // ============================================================================
+  // 🔮 მომავალი ეტაპები (მზადაა ფაზა 2-ისთვის - უცვლელია)
+  // ============================================================================
   accepted: {
     nextAction: 'en_route',
     nextStage: 'en_route',
@@ -120,7 +123,6 @@ const STAGES: Record<StageKey, StageConfig> = {
     shouldRemoveButtons: true
   },
   delivered: {
-    // Terminal state - no further actions
     nextAction: '',
     nextStage: null,
     buttonText: '',
@@ -137,7 +139,6 @@ const STAGES: Record<StageKey, StageConfig> = {
 // 🛠️ Helper ფუნქციები
 // ============================================================================
 
-// 📩 პასუხი callback_query-ზე (მოკლე ტექსტი ზემოთ)
 async function answerCallback(callbackQueryId: string, text: string, showAlert: boolean = false) {
   if (!BOT_TOKEN) return
   try {
@@ -149,7 +150,6 @@ async function answerCallback(callbackQueryId: string, text: string, showAlert: 
   } catch (e) { console.error('❌ Failed to answer callback:', e) }
 }
 
-// 💬 ტექსტური მესიჯის გაგზავნა
 async function sendTelegramMessage(chatId: string, text: string, parseMode: 'HTML' | 'Markdown' = 'HTML') {
   if (!BOT_TOKEN) return
   try {
@@ -161,7 +161,6 @@ async function sendTelegramMessage(chatId: string, text: string, parseMode: 'HTM
   } catch (e) { console.error('❌ Failed to send message:', e) }
 }
 
-// ✏️ მესიჯის რედაქტირება (ღილაკების ჩანაცვლება)
 async function editTelegramMessage(chatId: number, messageId: number, newText: string, newKeyboard?: any) {
   if (!BOT_TOKEN) return
   try {
@@ -182,9 +181,7 @@ async function editTelegramMessage(chatId: number, messageId: number, newText: s
   } catch (e) { console.error('❌ Failed to edit message:', e) }
 }
 
-// 🔍 მძღოლის ვერიფიკაცია + შეკვეთის მოძიება
 async function verifyDriverAndOrder(chatId: string, orderId: string) {
-  // 1. ვიპოვოთ მძღოლი chat_id-ით
   const { data: driver, error: driverErr } = await supabase
     .from('drivers')
     .select('id, full_name, telegram_chat_id')
@@ -195,7 +192,6 @@ async function verifyDriverAndOrder(chatId: string, orderId: string) {
     return { error: 'Driver not found or not linked to this Telegram account' }
   }
 
-  // 2. ვიპოვოთ შეკვეთა და დავრწმუნდეთ რომ ეს მძღოლი ეკუთვნის
   const { data: order, error: orderErr } = await supabase
     .from('orders')
     .select('*, drivers:driver_id(id, full_name), external_drivers:external_driver_id(id, full_name), driver_type')
@@ -206,7 +202,6 @@ async function verifyDriverAndOrder(chatId: string, orderId: string) {
     return { error: 'Order not found' }
   }
 
-  // 3. უსაფრთხოების შემოწმება: მძღოლი უნდა ეკუთვნოდეს ამ შეკვეთას
   const assignedDriverId = order.driver_type === 'internal' ? order.drivers?.id : order.external_drivers?.id
   if (assignedDriverId !== driver.id) {
     return { error: 'This order is not assigned to you' }
@@ -215,9 +210,8 @@ async function verifyDriverAndOrder(chatId: string, orderId: string) {
   return { driver, order }
 }
 
-// 📝 tracking_events-ის ჩაწერა
 async function logTrackingEvent(orderId: string | null, driverId: string, eventType: string, eventData: any = {}) {
-  if (!orderId) return // ოფციონალური: შეიძლება ჩავწეროთ უკვე არსებობის გარეშეც
+  if (!orderId) return
   
   const { error } = await supabase.from('tracking_events').insert({
     order_id: orderId,
@@ -231,7 +225,6 @@ async function logTrackingEvent(orderId: string | null, driverId: string, eventT
   else console.log(`✅ Tracking event logged: ${eventType}`)
 }
 
-// 🔔 dashboard notification-ის ჩაწერა
 async function logDashboardNotification(orderId: string | null, driverId: string | null, driverType: string, title: string, message: string, metadata: any = {}) {
   const { error } = await supabase.from('notifications').insert({
     channel: 'dashboard',
@@ -254,21 +247,19 @@ async function logDashboardNotification(orderId: string | null, driverId: string
 async function handleCallbackQuery(callback: any) {
   const callbackQueryId = callback.id
   const driverChatId = callback.from.id.toString()
-  const data = callback.data // ფორმატი: "action:ORDER_ID"
+  const data = callback.data
 
   console.log(`🎮 [CALLBACK] Driver ${driverChatId} pressed: ${data}`)
 
-  // პარსინგი
   const parts = data?.split(':') || []
   const action = parts[0]
   const orderId = parts[1]
 
-  if (!orderId || !action) {
+  if (!orderId || !['acc', 'rej'].includes(action)) {
     await answerCallback(callbackQueryId, '❌ არასწორი ფორმატი', true)
     return NextResponse.json({ ok: false, error: 'Invalid callback data' }, { status: 400 })
   }
 
-  // ვერიფიკაცია
   const verification = await verifyDriverAndOrder(driverChatId, orderId)
   if (verification.error) {
     console.error('❌ Verification failed:', verification.error)
@@ -277,12 +268,10 @@ async function handleCallbackQuery(callback: any) {
   }
 
   const { driver, order } = verification
-  // ✅ ✅ ✅ FIX: დავამატეთ ! (non-null assertion) TypeScript-ის შეცდომის გამოსასწორებლად
   const driverName = driver!.full_name
   const trackingCode = order!.tracking_code
   const originalText = callback.message?.text || `🚛 შეკვეთა ${trackingCode}`
 
-  // ვიპოვოთ მიმდინარე სტატუსი/ეტაპი
   let currentStage: StageKey = 'initial'
   if (order!.driver_response === 'accepted') currentStage = 'accepted'
   if (order!.en_route_at) currentStage = 'en_route'
@@ -294,14 +283,13 @@ async function handleCallbackQuery(callback: any) {
 
   const stageConfig = STAGES[currentStage]
 
-  // შევამოწმოთ რომ მოქმედება ემთხვევა მოსალოდნელს
   if (action !== stageConfig.nextAction) {
     await answerCallback(callbackQueryId, '⚠️ ეს ნაბიჯი უკვე გავლილია ან არასწორია', true)
     return NextResponse.json({ ok: false, error: 'Action mismatch' }, { status: 400 })
   }
 
   try {
-    // 1️⃣ განვაახლოთ შეკვეთა ბაზაში
+    // 1️⃣ ბაზის განახლება
     const dbUpdate: Record<string, any> = {
       [stageConfig.dbField]: new Date().toISOString()
     }
@@ -309,8 +297,6 @@ async function handleCallbackQuery(callback: any) {
       dbUpdate.status = stageConfig.orderStatus
     }
 
-    // ✅ ✅ ✅ FIX: დავამატეთ driver_response-ის სწორი დაყენება
-    // თუ მძღოლმა დაადასტურა ან უარყო, ვაყენებთ შესაბამის მნიშვნელობას
     if (action === 'acc') {
       dbUpdate.driver_response = 'accepted'
     } else if (action === 'rej') {
@@ -325,7 +311,7 @@ async function handleCallbackQuery(callback: any) {
     if (updateErr) throw updateErr
     console.log(`✅ Order ${orderId} updated: ${stageConfig.dbField}, driver_response: ${dbUpdate.driver_response || 'unchanged'}`)
 
-    // 2️⃣ ჩავწეროთ tracking_events
+    // 2️⃣ ლოგირება
     await logTrackingEvent(orderId, driver!.id, stageConfig.trackingEventType, {
       action,
       stage: currentStage,
@@ -333,7 +319,6 @@ async function handleCallbackQuery(callback: any) {
       callback_query_id: callbackQueryId
     })
 
-    // 3️⃣ ჩავწეროთ dashboard notification
     await logDashboardNotification(
       orderId,
       driver!.id,
@@ -343,15 +328,13 @@ async function handleCallbackQuery(callback: any) {
       { action, stage: currentStage }
     )
 
-    // 4️⃣ გავუგზავნოთ პასუხი მძღოლს + განვაახლოთ ღილაკები
+    // 3️⃣ ტელეგრამის პასუხი + ღილაკების განახლება
     const newMessageText = `${originalText}\n\n🔄 ${stageConfig.replyText}`
     
     let newKeyboard: any = undefined
     if (stageConfig.shouldRemoveButtons) {
-      // ბოლო ეტაპი → ვშლით ყველა ღილაკს
-      newKeyboard = { inline_keyboard: [] }
+      newKeyboard = { inline_keyboard: [] } // ღილაკების წაშლა
     } else if (stageConfig.nextStage && STAGES[stageConfig.nextStage]) {
-      // გადავდივართ შემდეგ ეტაპზე → ვაჩვენებთ ახალ ღილაკს
       const nextStage = STAGES[stageConfig.nextStage]
       newKeyboard = {
         inline_keyboard: [[
@@ -359,7 +342,6 @@ async function handleCallbackQuery(callback: any) {
         ]]
       }
     }
-    // თუ newKeyboard === undefined, ძველ ღილაკებს ვტოვებთ (არ ვაგზავნით reply_markup)
 
     await editTelegramMessage(callback.from.id, callback.message.message_id, newMessageText, newKeyboard)
     await answerCallback(callbackQueryId, '✅ განახლდა!', false)
@@ -375,16 +357,15 @@ async function handleCallbackQuery(callback: any) {
 }
 
 // ============================================================================
-// 🆘 ჰენდლერი: /sos კომანდა (პრობლემა / დახმარება)
+// 🆘 ჰენდლერი: /sos კომანდა
 // ============================================================================
 async function handleSosCommand(message: any) {
   const chatId = message.from.id.toString()
   const firstName = message.from.first_name
-  const text = message.text // /sos ან დამატებითი ტექსტი
+  const text = message.text
 
   console.log(`🆘 [SOS] Request from: ${firstName} [${chatId}]`)
 
-  // ვიპოვოთ მძღოლი
   const { data: driver, error: driverErr } = await supabase
     .from('drivers')
     .select('id, full_name')
@@ -396,7 +377,6 @@ async function handleSosCommand(message: any) {
     return NextResponse.json({ ok: true })
   }
 
-  // ვიპოვოთ აქტიური შეკვეთა (თუ არის)
   const { data: activeOrder } = await supabase
     .from('orders')
     .select('id, tracking_code, status')
@@ -406,14 +386,12 @@ async function handleSosCommand(message: any) {
     .limit(1)
     .single()
 
-  // ჩავწეროთ tracking_event
   await logTrackingEvent(activeOrder?.id || null, driver.id, 'issue_reported', {
     source_command: '/sos',
     user_message: text,
     order_tracking_code: activeOrder?.tracking_code
   })
 
-  // ჩავწეროთ dashboard notification (პრიორიტეტული!)
   await logDashboardNotification(
     activeOrder?.id || null,
     driver.id,
@@ -423,7 +401,6 @@ async function handleSosCommand(message: any) {
     { type: 'sos_alert', urgent: true }
   )
 
-  // პასუხი მძღოლს
   await sendTelegramMessage(chatId, 
     `⚠️ <b>პრობლემა დაფიქსირდა!</b>\n\n` +
     `👨‍💼 დისპეტჩერი მალე დაგიკავშირდებათ.\n` +
@@ -435,7 +412,7 @@ async function handleSosCommand(message: any) {
 }
 
 // ============================================================================
-// 🚀 ჰენდლერი: /start კომანდა (მძღოლის დაკავშირება)
+// 🚀 ჰენდლერი: /start კომანდა
 // ============================================================================
 async function handleStartCommand(message: any) {
   const chatId = message.from.id.toString()
@@ -444,7 +421,6 @@ async function handleStartCommand(message: any) {
 
   console.log(`🚀 [START] Connection request from: ${firstName} (@${username}) [${chatId}]`)
 
-  // ვიპოვოთ თუ უკვე რეგისტრირებულია
   const { data: existingDriver } = await supabase
     .from('drivers')
     .select('id, full_name, telegram_chat_id')
@@ -460,7 +436,6 @@ async function handleStartCommand(message: any) {
       `/sos - 🆨 პრობლემა / დახმარება`
     )
   } else {
-    // ახალი მომხმარებელი - ინსტრუქცია
     await sendTelegramMessage(chatId, 
       `👋 გამარჯობა, <b>${firstName}</b>!\n\n` +
       `🤖 ეს არის <b>Logistics OS</b> ბოტი მძღოლებისთვის.\n\n` +
@@ -503,13 +478,10 @@ export async function POST(request: NextRequest) {
         return await handleSosCommand(body.message)
       }
       
-      // ნებისმიერი სხვა ტექსტი - ლოგი
       console.log(`💬 [MESSAGE] User ${body.message.from.id}: ${text}`)
-      // აქ შეიძლება დაემატოს Chatbot ლოგიკა მომავალში
       return NextResponse.json({ ok: true })
     }
 
-    // 3️⃣ სხვა განახლებები (შეიძლება დამატებითი ლოგიკა მომავალში)
     return NextResponse.json({ ok: true, message: 'No action needed' })
 
   } catch (error: any) {
