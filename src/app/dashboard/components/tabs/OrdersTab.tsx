@@ -220,7 +220,7 @@ export default function OrdersTab({
     try {
       const { data: driver } = await supabase
         .from('drivers')
-        .select('id, telegram_chat_id, full_name')  // ⬅️ FIX: დავამატეთ 'id'
+        .select('id, telegram_chat_id, full_name')
         .eq('id', driverId)
         .single()
       
@@ -291,7 +291,7 @@ export default function OrdersTab({
     try {
       const { data: driver } = await supabase
         .from('drivers')
-        .select('id, telegram_chat_id, full_name')  // ⬅️ FIX: დავამატეთ 'id'
+        .select('id, telegram_chat_id, full_name')
         .eq('id', driverId)
         .single()
       
@@ -324,7 +324,6 @@ export default function OrdersTab({
             if (editRes.ok) {
               console.log('✅ Old instruction keyboard removed')
             } else {
-              // ⚠️ 400 არ არის კრიტიკული - შეიძლება მესიჯი უკვე რედაქტირებული იყოს
               console.warn('⚠️ Could not edit old message (this is OK):', editResult)
             }
           }
@@ -389,7 +388,7 @@ export default function OrdersTab({
       // 1. მივიღოთ მძღოლის Chat ID - ⬅️ FIX: დავამატეთ 'id' select-ში
       const { data: driver } = await supabase
         .from('drivers')
-        .select('id, telegram_chat_id, full_name')  // ⬅️ ეს ხაზი შეიცვალა!
+        .select('id, telegram_chat_id, full_name')
         .eq('id', driverId)
         .single()
 
@@ -440,7 +439,7 @@ export default function OrdersTab({
 
       if (updateError) throw updateError
 
-      // 5. ჩავწეროთ ლოგი - ⬅️ ახლა driver.id მუშაობს!
+      // 5. ჩავწეროთ ლოგი
       await supabase.from('notifications').insert({
         order_id: order.id,
         driver_id: order.driver_type === 'internal' ? driver.id : null,
@@ -661,35 +660,37 @@ export default function OrdersTab({
     setShowNotificationModal(true)
   }
 
+  // 📢 გაგზავნის ფუნქცია - FIXED VERSION (driver ყოველთვის ხელმისაწვდომია)
   const handleSendNotification = async (channels: string[]) => {
     console.log('🚀 [NOTIFICATION] Starting send process...')
     if (!notificationOrder) throw new Error('შეკვეთა არ არის არჩეული')
     const order = notificationOrder
-    let chatId = order.drivers?.telegram_chat_id || order.external_drivers?.telegram_chat_id
-    if (!chatId) {
-      console.log('🔄 [NOTIFICATION] Chat ID missing in cache. Fetching from DB...')
-      const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
-      if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
-      const { data: driver } = await supabase
-        .from('drivers')
-        .select('id, telegram_chat_id, full_name')  // ⬅️ FIX: დავამატეთ 'id'
-        .eq('id', driverId)
-        .single()
-      if (driver?.telegram_chat_id) {
-        chatId = driver.telegram_chat_id
-        console.log(`✅ Chat ID found in DB: ${chatId}`)
-      } else {
-        console.warn('⚠️ Driver does not have a Telegram Chat ID')
-        alert('⚠️ მძღოლს არ აქვს Telegram Chat ID. გთხოვთ დაამატოთ მძღოლის რედაქტირებისას.')
-        return { success: false, error: 'Chat ID missing' }
-      }
+    
+    // ⬅️ FIX: ჯერ მივიღოთ მძღოლის მონაცემები (გარეთ if-ისგან)
+    const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
+    if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
+    
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('id, telegram_chat_id, full_name')
+      .eq('id', driverId)
+      .single()
+    
+    if (!driver?.telegram_chat_id) {
+      console.warn('⚠️ Driver does not have a Telegram Chat ID')
+      alert('⚠️ მძღოლს არ აქვს Telegram Chat ID. გთხოვთ დაამატოთ მძღოლის რედაქტირებისას.')
+      return { success: false, error: 'Chat ID missing' }
     }
+    
+    const chatId = driver.telegram_chat_id
     const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
     if (!token) throw new Error('Bot token missing in .env.local')
+    
     const message = `🚛 <b>ახალი შეკვეთა მინიჭებულია!</b>\n\n` +
       `📦 კოდი: <code>${order.tracking_code}</code>\n` +
       `📍 მარშრუტი: ${order.pickup_address} → ${order.delivery_address}\n` +
       `💰 თანხა: ${order.price} ${order.currency}`
+    
     const reply_markup = {
       inline_keyboard: [
         [
@@ -698,6 +699,7 @@ export default function OrdersTab({
         ]
       ]
     }
+    
     try {
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
@@ -710,9 +712,13 @@ export default function OrdersTab({
           reply_markup: reply_markup
         })
       })
+      
       const result = await res.json()
       if (!result.ok) throw new Error(result.description || 'Telegram API error')
+      
       console.log('✅ Telegram message sent successfully!')
+      
+      // ⬅️ ახლა driver.id ნამდვილად არსებობს!
       await supabase.from('notifications').insert({
         order_id: order.id,
         driver_id: order.driver_type === 'internal' ? driver.id : null,
@@ -728,8 +734,10 @@ export default function OrdersTab({
         },
         sent_at: new Date().toISOString()
       })
+      
       console.log('📝 Notification logged to DB')
       return { success: true }
+      
     } catch (err: any) {
       console.error('❌ Notification failed:', err)
       return { success: false, error: err.message }
