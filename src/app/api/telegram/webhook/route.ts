@@ -242,23 +242,40 @@ async function logDashboardNotification(orderId: string | null, driverId: string
 }
 
 // ============================================================================
-// 🎮 ჰენდლერი: Callback Query (ღილაკების დამუშავება)
+// 🎮 ჰენდლერი: Callback Query (ღილაკების დამუშავება) - DEBUG VERSION
 // ============================================================================
 async function handleCallbackQuery(callback: any) {
   const callbackQueryId = callback.id
   const driverChatId = callback.from.id.toString()
   const data = callback.data
 
-  console.log(`🎮 [CALLBACK] Driver ${driverChatId} pressed: ${data}`)
+  // 🐛 DEBUG: დავბეჭდოთ ყველაფერი
+  console.log('🔍 [DEBUG] Full callback object:', JSON.stringify(callback, null, 2))
+  console.log(`🎮 [CALLBACK] Raw data: "${data}"`)
+  console.log(`🎮 [CALLBACK] driverChatId: "${driverChatId}"`)
 
   const parts = data?.split(':') || []
   const action = parts[0]
   const orderId = parts[1]
 
-  if (!orderId || !['acc', 'rej'].includes(action)) {
-    await answerCallback(callbackQueryId, '❌ არასწორი ფორმატი', true)
-    return NextResponse.json({ ok: false, error: 'Invalid callback data' }, { status: 400 })
+  console.log(`🔍 [DEBUG] Parsed: action="${action}", orderId="${orderId}"`)
+
+  // ✅ ვალიდაცია
+  const VALID_ACTIONS = ['acc', 'rej', 'en_route', 'loaded', 'in_transit', 'border', 'arrived', 'delivered']
+  
+  if (!orderId) {
+    console.error(`❌ [VALIDATION] orderId is EMPTY. data="${data}", parts=`, parts)
+    await answerCallback(callbackQueryId, '❌ შეცდომა: Order ID ცარიელია', true)
+    return NextResponse.json({ ok: false, error: 'orderId empty' }, { status: 400 })
   }
+  
+  if (!VALID_ACTIONS.includes(action)) {
+    console.error(`❌ [VALIDATION] action="${action}" not in VALID_ACTIONS`, VALID_ACTIONS)
+    await answerCallback(callbackQueryId, `❌ არასწორი მოქმედება: ${action}`, true)
+    return NextResponse.json({ ok: false, error: `Invalid action: ${action}` }, { status: 400 })
+  }
+
+  console.log(`✅ [VALIDATION] Passed: action="${action}", orderId="${orderId}"`)
 
   const verification = await verifyDriverAndOrder(driverChatId, orderId)
   if (verification.error) {
@@ -272,6 +289,16 @@ async function handleCallbackQuery(callback: any) {
   const trackingCode = order!.tracking_code
   const originalText = callback.message?.text || `🚛 შეკვეთა ${trackingCode}`
 
+  // 🐛 DEBUG: დავბეჭდოთ order-ის სტატუსები
+  console.log(`🔍 [DEBUG] Order ${orderId} fields:`, {
+    driver_response: order.driver_response,
+    en_route_at: order.en_route_at,
+    loaded_at: order.loaded_at,
+    driver_type: order.driver_type,
+    driver_id: order.driver_id,
+    external_driver_id: order.external_driver_id
+  })
+
   let currentStage: StageKey = 'initial'
   if (order!.driver_response === 'accepted') currentStage = 'accepted'
   if (order!.en_route_at) currentStage = 'en_route'
@@ -281,9 +308,13 @@ async function handleCallbackQuery(callback: any) {
   if (order!.arrived_at) currentStage = 'arrived'
   if (order!.delivered_at) currentStage = 'delivered'
 
+  console.log(`🔍 [DEBUG] Determined currentStage: "${currentStage}"`)
+
   const stageConfig = STAGES[currentStage]
+  console.log(`🔍 [DEBUG] stageConfig.nextAction: "${stageConfig.nextAction}"`)
 
   if (action !== stageConfig.nextAction) {
+    console.error(`❌ [ACTION MISMATCH] action="${action}" !== stageConfig.nextAction="${stageConfig.nextAction}"`)
     await answerCallback(callbackQueryId, '⚠️ ეს ნაბიჯი უკვე გავლილია ან არასწორია', true)
     return NextResponse.json({ ok: false, error: 'Action mismatch' }, { status: 400 })
   }
@@ -303,13 +334,20 @@ async function handleCallbackQuery(callback: any) {
       dbUpdate.driver_response = 'rejected'
     }
 
-    const { error: updateErr } = await supabase
+    console.log(`🔍 [DEBUG] Updating DB with:`, dbUpdate)
+
+    const { error: updateErr, data: updateData } = await supabase
       .from('orders')
       .update(dbUpdate)
       .eq('id', orderId)
+      .select()  // ⬅️ დავაბრუნოთ განახლებული მონაცემები დებაგინგისთვის
 
-    if (updateErr) throw updateErr
-    console.log(`✅ Order ${orderId} updated: ${stageConfig.dbField}, driver_response: ${dbUpdate.driver_response || 'unchanged'}`)
+    if (updateErr) {
+      console.error('❌ [DB] Update error:', updateErr)
+      throw updateErr
+    }
+    
+    console.log(`✅ [DB] Update success:`, updateData)
 
     // 2️⃣ ლოგირება
     await logTrackingEvent(orderId, driver!.id, stageConfig.trackingEventType, {
@@ -333,7 +371,7 @@ async function handleCallbackQuery(callback: any) {
     
     let newKeyboard: any = undefined
     if (stageConfig.shouldRemoveButtons) {
-      newKeyboard = { inline_keyboard: [] } // ღილაკების წაშლა
+      newKeyboard = { inline_keyboard: [] }
     } else if (stageConfig.nextStage && STAGES[stageConfig.nextStage]) {
       const nextStage = STAGES[stageConfig.nextStage]
       newKeyboard = {
@@ -342,6 +380,8 @@ async function handleCallbackQuery(callback: any) {
         ]]
       }
     }
+
+    console.log(`🔍 [DEBUG] Editing message with keyboard:`, newKeyboard)
 
     await editTelegramMessage(callback.from.id, callback.message.message_id, newMessageText, newKeyboard)
     await answerCallback(callbackQueryId, '✅ განახლდა!', false)

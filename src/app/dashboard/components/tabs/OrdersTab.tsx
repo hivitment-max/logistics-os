@@ -25,12 +25,32 @@ interface OrdersTabProps {
 }
 
 // ============================================================================
-// 🎖️ DriverResponseBadge Component
+// 🎖️ DriverResponseBadge Component (განახლებული - ახალი სტატუსებით)
 // ============================================================================
 const DriverResponseBadge = ({ order }: { order: any }) => {
   if (!order.driver_id && !order.external_driver_id) {
     return <span className="text-[9px] text-gray-500">—</span>
   }
+
+  // 🚗 თუ მძღოლი უკვე გზაშია (en_route_at არის)
+  if (order.en_route_at) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] font-medium">
+        🚗 გზაშია
+      </span>
+    )
+  }
+
+  // 🟡 თუ ინსტრუქცია გაგზავნილია, მაგრამ მძღოლი ჯერ არ დაძრულა
+  if (order.instructions_sent_at && order.driver_response === 'accepted') {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-medium animate-pulse">
+        🟡 ელოდება გასვლას
+      </span>
+    )
+  }
+
+  // ✅ თუ მძღოლმა მიიღო შეკვეთა, მაგრამ ინსტრუქცია ჯერ არ გაგზავნილა
   if (order.driver_response === 'accepted') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-medium">
@@ -38,6 +58,8 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
       </span>
     )
   }
+
+  // ❌ თუ უარყო
   if (order.driver_response === 'rejected') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-medium">
@@ -45,6 +67,8 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
       </span>
     )
   }
+
+  // ⏳ თუ ჯერ არ უპასუხია
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-medium animate-pulse">
       ⏳ მოლოდინში
@@ -95,6 +119,29 @@ const ReminderIcon = () => (
   </svg>
 )
 
+// ============================================================================
+// 📋 InstructionsIcon Component (SVG)
+// ============================================================================
+const InstructionsIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+)
+
 export default function OrdersTab({ 
   orders, 
   loading, 
@@ -118,6 +165,12 @@ export default function OrdersTab({
   const [notificationOrder, setNotificationOrder] = useState<any | null>(null)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null)
+  
+  // 📋 Instructions modal state
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false)
+  const [instructionsOrder, setInstructionsOrder] = useState<any | null>(null)
+  const [instructionsText, setInstructionsText] = useState('')
+  const [sendingInstructions, setSendingInstructions] = useState(false)
   
   // 🔄 Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -165,7 +218,6 @@ export default function OrdersTab({
     }
 
     try {
-      // 1. მივიღოთ მძღოლის Chat ID
       const { data: driver } = await supabase
         .from('drivers')
         .select('telegram_chat_id, full_name')
@@ -177,7 +229,6 @@ export default function OrdersTab({
         return
       }
 
-      // 2. გავგზავნოთ შეხსენება
       const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
       if (!token) throw new Error('Bot token missing')
 
@@ -205,7 +256,6 @@ export default function OrdersTab({
       const result = await res.json()
       if (!result.ok) throw new Error(result.description || 'Telegram API error')
 
-      // 3. ჩავწეროთ ლოგი
       await supabase.from('notifications').insert({
         order_id: order.id,
         driver_id: order.driver_type === 'internal' ? order.driver_id : null,
@@ -224,6 +274,205 @@ export default function OrdersTab({
       console.error('❌ Reminder failed:', err)
       alert(`შეცდომა: ${err.message}`)
     }
+  }
+
+  // 🔔 Send reminder if driver hasn't started after instructions - FIXED VERSION
+  const sendEnRouteReminder = async (order: any) => {
+    if (!confirm(`გავუგზავნოთ შეხსენება მძღოლს შეკვეთისთვის #${order.tracking_code}?\n\n"გთხოვთ, დააჭირეთ [🚗 მივდივარ] ღილაკს, როცა დაიძრებით."`)) {
+      return
+    }
+
+    const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
+    if (!driverId) {
+      alert('მძღოლი არ არის მინიჭებული')
+      return
+    }
+
+    try {
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('telegram_chat_id, full_name')
+        .eq('id', driverId)
+        .single()
+      
+      if (!driver?.telegram_chat_id) {
+        alert('⚠️ მძღოლს არ აქვს Telegram Chat ID')
+        return
+      }
+
+      const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+      if (!token) throw new Error('Bot token missing')
+
+      // 🔄 1. ჯერ ვცადოთ ძველი ღილაკის წაშლა (თუ არსებობს instruction_message_id)
+      if (order.instruction_message_id) {
+        try {
+          const messageId = parseInt(order.instruction_message_id)
+          if (isNaN(messageId)) {
+            console.warn('⚠️ Invalid instruction_message_id:', order.instruction_message_id)
+          } else {
+            const editRes = await fetch(`https://api.telegram.org/bot${token}/editMessageReplyMarkup`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: driver.telegram_chat_id,
+                message_id: messageId,
+                reply_markup: { inline_keyboard: [] }
+              })
+            })
+            
+            const editResult = await editRes.json()
+            if (editRes.ok) {
+              console.log('✅ Old instruction keyboard removed')
+            } else {
+              // ⚠️ 400 არ არის კრიტიკული - შეიძლება მესიჯი უკვე რედაქტირებული იყოს
+              console.warn('⚠️ Could not edit old message (this is OK):', editResult)
+            }
+          }
+        } catch (editErr) {
+          console.warn('⚠️ Could not edit old message (network error):', editErr)
+        }
+      }
+
+      // 📩 2. ახლა გავგზავნოთ ახალი შეხსენების მესიჯი ღილაკით
+      const reminderMessage = `🔔 <b>შეხსენება!</b>\n\n` +
+        `შეკვეთა #${order.tracking_code} ჯერ კიდევ ლოდინშია.\n` +
+        `გთხოვთ, დააჭირეთ ქვემოთ მოცემულ ღილაკს, როცა რეალურად დაიძრებით მისამართზე:\n\n` +
+        `📍 ${order.pickup_address}`
+
+      const newRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: driver.telegram_chat_id,
+          text: reminderMessage,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '🚗 მივდივარ ატვირთვაზე', callback_data: `en_route:${order.id}` }
+            ]]
+          }
+        })
+      })
+
+      const newResult = await newRes.json()
+      if (!newRes.ok) throw new Error(newResult.description || 'Telegram API error')
+
+      // 📝 3. განვაახლოთ ბაზა ახალი message_id-ით
+      await supabase.from('orders').update({
+        instruction_message_id: newResult.result?.message_id?.toString()
+      }).eq('id', order.id)
+
+      alert('✅ შეხსენება გაგზავნილია!')
+      console.log('📝 En-route reminder sent with new button')
+
+    } catch (err: any) {
+      console.error('❌ En-route reminder failed:', err)
+      alert(`შეცდომა: ${err.message}`)
+    }
+  }
+
+  // 📋 Send detailed instructions to driver (Phase 2)
+  const handleSendInstructions = async () => {
+    if (!instructionsOrder) return
+    if (!instructionsText.trim()) {
+      alert('გთხოვთ, შეიყვანოთ ინსტრუქცია')
+      return
+    }
+
+    setSendingInstructions(true)
+
+    try {
+      const order = instructionsOrder
+      const driverId = order.driver_type === 'external' ? order.external_driver_id : order.driver_id
+      if (!driverId) throw new Error('მძღოლი არ არის მინიჭებული')
+
+      // 1. მივიღოთ მძღოლის Chat ID
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('telegram_chat_id, full_name')
+        .eq('id', driverId)
+        .single()
+
+      if (!driver?.telegram_chat_id) {
+        throw new Error('მძღოლს არ აქვს Telegram Chat ID')
+      }
+
+      // 2. შევქმნათ დეტალური შეტყობინება
+      const message = `📋 *დეტალური ინსტრუქცია შეკვეთისთვის #${order.tracking_code}*\n\n` +
+        `📍 მისამართი: ${order.pickup_address}\n` +
+        `${order.pickup_contact_person ? `👤 კონტაქტი: ${order.pickup_contact_person}\n` : ''}` +
+        `${order.pickup_phone ? `📞 ტელ: ${order.pickup_phone}\n` : ''}` +
+        `${order.scheduled_pickup_date ? `🕒 დრო: ${new Date(order.scheduled_pickup_date).toLocaleString('ka-GE')}\n` : ''}` +
+        `\n📝 დამატებითი შენიშვნები:\n${instructionsText}` +
+        `\n\nგთხოვთ, დაადასტუროთ რომ მიდიხართ:`
+
+      const inline_keyboard = [[
+        { text: '🚗 მივდივარ ატვირთვაზე', callback_data: `en_route:${order.id}` }
+      ]]
+
+      // 3. გავგზავნოთ Telegram-ზე
+      const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+      if (!token) throw new Error('Bot token missing')
+
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: driver.telegram_chat_id,
+          text: message,
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard }
+        })
+      })
+
+      const result = await res.json()
+      if (!result.ok) throw new Error(result.description || 'Telegram API error')
+
+      // 4. განვაახლოთ ბაზა - დავამატეთ instruction_message_id
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          instructions_sent_at: new Date().toISOString(),
+          instructions_content: instructionsText,
+          instruction_message_id: result.result?.message_id?.toString()
+        })
+        .eq('id', order.id)
+
+      if (updateError) throw updateError
+
+      // 5. ჩავწეროთ ლოგი
+      await supabase.from('notifications').insert({
+        order_id: order.id,
+        driver_id: order.driver_type === 'internal' ? driver.id : null,
+        external_driver_id: order.driver_type === 'external' ? driver.id : null,
+        title: '📋 ინსტრუქცია გაგზავნილია',
+        message: `დისპეტჩერმა გაუგზავნა დეტალური ინსტრუქცია მძღოლს ${driver.full_name}`,
+        channel: 'telegram',
+        status: 'sent',
+        metadata: { type: 'instructions', telegram_message_id: result.result?.message_id },
+        sent_at: new Date().toISOString()
+      })
+
+      alert('✅ ინსტრუქცია გაგზავნილია!')
+      
+      // დახურვა და განახლება
+      setShowInstructionsModal(false)
+      setInstructionsOrder(null)
+      setInstructionsText('')
+      if (loadData) loadData()
+
+    } catch (err: any) {
+      console.error('❌ Failed to send instructions:', err)
+      alert(`შეცდომა: ${err.message}`)
+    } finally {
+      setSendingInstructions(false)
+    }
+  }
+
+  const handleOpenInstructions = (order: any) => {
+    setInstructionsOrder(order)
+    setInstructionsText('')
+    setShowInstructionsModal(true)
   }
 
   if (loading) return <LoadingTruck message="შეკვეთები იტვირთება..." size="md" />
@@ -554,16 +803,21 @@ export default function OrdersTab({
           </thead>
           <tbody className="divide-y divide-gray-700/30">
             {filteredOrders.map(o => {
-              // ⏱️ Calculate minutes elapsed since order creation
               const minutesElapsed = Math.floor(
                 (new Date().getTime() - new Date(o.created_at).getTime()) / 60000
               )
               
-              // 🎨 Color code based on waiting time
               const waitingColor = 
                 minutesElapsed > 30 ? 'text-red-400 font-bold' :
                 minutesElapsed > 15 ? 'text-amber-400' :
                 'text-gray-400'
+
+              // 📋 Instructions button visibility logic
+              const canSendInstructions = 
+                o.status === 'confirmed' && 
+                o.driver_response === 'accepted' && 
+                !o.instructions_sent_at &&
+                (o.driver_id || o.external_driver_id)
 
               return (
                 <tr key={o.id} className="hover:bg-gray-700/20 transition">
@@ -599,7 +853,6 @@ export default function OrdersTab({
                   <td className="px-4 py-3">
                     <DriverResponseBadge order={o} />
                   </td>
-                  {/* ⏱️ New column: Waiting time indicator */}
                   <td className={`px-4 py-3 text-[10px] ${waitingColor}`}>
                     {o.status === 'pending' && !o.driver_response ? (
                       <span title="წუთები ლოდინში">
@@ -621,6 +874,29 @@ export default function OrdersTab({
                       >
                         🧾
                       </button>
+                      
+                      {/* 📋 Instructions Button - only for confirmed orders waiting for instructions */}
+                      {canSendInstructions && (
+                        <button 
+                          onClick={() => handleOpenInstructions(o)}
+                          className="p-1.5 text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 rounded-md transition"
+                          title="გაგზავნა ინსტრუქცია"
+                        >
+                          <InstructionsIcon />
+                        </button>
+                      )}
+                      
+                      {/* 🔔 En-route reminder - if instructions sent but driver hasn't started */}
+                      {o.instructions_sent_at && !o.en_route_at && o.driver_response === 'accepted' && (
+                        <button 
+                          onClick={() => sendEnRouteReminder(o)}
+                          className="p-1.5 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-md transition"
+                          title="გაგზავნა შეხსენება: მიდიხარ?"
+                        >
+                          🔔
+                        </button>
+                      )}
+                      
                       {/* ⏰ Reminder button - only for pending orders without response */}
                       {o.status === 'pending' && !o.driver_response && o.driver_id && (
                         <button 
@@ -643,6 +919,101 @@ export default function OrdersTab({
           </tbody>
         </table>
       </div>
+
+      {/* 📋 Instructions Modal */}
+      {showInstructionsModal && instructionsOrder && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowInstructionsModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-white">📋 ინსტრუქციის გაგზავნა</h3>
+                <p className="text-sm text-gray-400">შეკვეთა: <span className="font-mono text-cyan-400">{instructionsOrder.tracking_code}</span></p>
+              </div>
+              <button onClick={() => setShowInstructionsModal(false)} className="p-2 text-gray-400 hover:text-white transition">✕</button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              
+              {/* Order Summary - Full Info for Dispatcher */}
+              <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700 space-y-2">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">📦 შეკვეთის დეტალები</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-gray-500">მარშრუტი:</span><br/><span className="text-white">{instructionsOrder.pickup_address} → {instructionsOrder.delivery_address}</span></div>
+                  <div><span className="text-gray-500">დრო:</span><br/><span className="text-white">{instructionsOrder.scheduled_pickup_date ? new Date(instructionsOrder.scheduled_pickup_date).toLocaleString('ka-GE') : '–'}</span></div>
+                  <div><span className="text-gray-500">ტვირთი:</span><br/><span className="text-white">{instructionsOrder.cargo_description}</span></div>
+                  <div><span className="text-gray-500">ფასი:</span><br/><span className="text-white font-medium">{instructionsOrder.price} {instructionsOrder.currency}</span></div>
+                  <div><span className="text-gray-500">კონტაქტი:</span><br/><span className="text-white">{instructionsOrder.pickup_contact_person || '–'} {instructionsOrder.pickup_phone ? `(${instructionsOrder.pickup_phone})` : ''}</span></div>
+                  <div><span className="text-gray-500">მძღოლი:</span><br/><span className="text-white">{instructionsOrder.drivers?.full_name || instructionsOrder.external_drivers?.full_name || '–'}</span></div>
+                </div>
+                {instructionsOrder.internal_notes && (
+                  <div className="pt-2 border-t border-gray-700">
+                    <span className="text-gray-500 text-xs">📝 შიდა შენიშვნა:</span>
+                    <p className="text-sm text-gray-300 mt-1">{instructionsOrder.internal_notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Instructions Input */}
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-2">
+                  ✍️ დამატებითი ინსტრუქცია მძღოლისთვის (აუცილებელი)
+                </label>
+                <textarea
+                  value={instructionsText}
+                  onChange={(e) => setInstructionsText(e.target.value)}
+                  placeholder="მაგალითად:
+• შესასვლელი: მთავარი კარი, მე-3 სართული
+• პარკინგი: #5, სატვირთოების ზონა
+• კონტაქტი ადგილზე: გიორგი 555 123 456
+• ტვირთი მზადაა, ხელნაწერი ხელმოწერა საჭიროა..."
+                  className="w-full h-32 px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-sm text-white outline-none focus:border-cyan-500 transition placeholder-gray-500 resize-none"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                  💡 მძღოლი მიიღებს ამ ტექსტს + ღილაკს "[🚗 მივდივარ ატვირთვაზე]"
+                </p>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={() => setShowInstructionsModal(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition text-sm"
+              >
+                გაუქმება
+              </button>
+              <button
+                onClick={handleSendInstructions}
+                disabled={sendingInstructions || !instructionsText.trim()}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2
+                  ${sendingInstructions || !instructionsText.trim()
+                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-[0_0_16px_rgba(34,211,238,0.3)]'
+                  }`}
+              >
+                {sendingInstructions ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    იგზავნება...
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                    📤 გაგზავნა ინსტრუქციის
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {showEditModal && editingOrder && (
