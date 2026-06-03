@@ -25,14 +25,55 @@ interface OrdersTabProps {
 }
 
 // ============================================================================
-// 🎖️ DriverResponseBadge Component (განახლებული - ახალი სტატუსებით)
+// 🎖️ DriverResponseBadge Component (განახლებული - სწორი თანმიმდევრობით)
 // ============================================================================
 const DriverResponseBadge = ({ order }: { order: any }) => {
   if (!order.driver_id && !order.external_driver_id) {
     return <span className="text-[9px] text-gray-500">—</span>
   }
 
-  // 🚗 თუ მძღოლი უკვე გზაშია (en_route_at არის)
+  // ✅ უნდა შევამოწმოთ ბოლო ეტაპიდან პირველისკენ!
+  
+  if (order.delivered_at) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-medium">
+        🏁 მიწოდებულია
+      </span>
+    )
+  }
+  
+  if (order.arrived_at) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-medium">
+        📍 ადგილზეა
+      </span>
+    )
+  }
+
+  if (order.border_crossing_at) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-medium">
+        🌍 საზღვარზეა
+      </span>
+    )
+  }
+
+  if (order.in_transit_at) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] font-medium">
+        🛣️ ტრანზიტშია
+      </span>
+    )
+  }
+
+  if (order.loaded_at) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[9px] font-medium">
+        📦 ჩატვირთულია
+      </span>
+    )
+  }
+
   if (order.en_route_at) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] font-medium">
@@ -41,7 +82,6 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
     )
   }
 
-  // 🟡 თუ ინსტრუქცია გაგზავნილია, მაგრამ მძღოლი ჯერ არ დაძრულა
   if (order.instructions_sent_at && order.driver_response === 'accepted') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-medium animate-pulse">
@@ -50,7 +90,6 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
     )
   }
 
-  // ✅ თუ მძღოლმა მიიღო შეკვეთა, მაგრამ ინსტრუქცია ჯერ არ გაგზავნილა
   if (order.driver_response === 'accepted') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-medium">
@@ -59,7 +98,6 @@ const DriverResponseBadge = ({ order }: { order: any }) => {
     )
   }
 
-  // ❌ თუ უარყო
   if (order.driver_response === 'rejected') {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-medium">
