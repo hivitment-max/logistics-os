@@ -21,7 +21,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
   const [manualIssueDate, setManualIssueDate] = useState('')
   const [manualDueDate, setManualDueDate] = useState('')
 
-  //  ტემპლეიტების ჩატვირთვა
+  // ტემპლეიტების ჩატვირთვა
   useEffect(() => {
     if (isOpen) {
       loadTemplates()
@@ -77,12 +77,10 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
     // ✅ client_tax_id
     const clientTaxId = order.client_registration_number || order.client_tax_id || order.client_personal_id || ''
 
-    // ✅ ✅ ✅ მარტივი და სწორი ლოგიკა:
-    
-    // 1. კონტეინერის/მანქანის ნომერი: ვიღებთ vehicle_plate_number-ს პირდაპირ
+    // ✅ კონტეინერის/მანქანის ნომერი
     const containerNumber = order.vehicle_plate_number || ''
     
-    // 2. გადაზიდვის სახეობა: თუ არის მანქანა/მძღოლი მინიჭებული → "სახმელეთო"
+    // ✅ გადაზიდვის სახეობა
     const hasVehicle = order.vehicle_id || order.vehicle_plate_number || order.driver_id
     const transportType = hasVehicle ? 'სახმელეთო' : 'სტანდარტული'
 
@@ -98,11 +96,8 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
       client_tax_id: clientTaxId,
       client_address: order.client_address || '',
       client_email: order.client_email || '',
-      
-      // ✅ მარტივი და სწორი ველები:
-      container_number: containerNumber,      // AA-123-BB ან ცარიელი
-      transport_type: transportType,          // "სახმელეთო" თუ მანქანაა მინიჭებული
-      
+      container_number: containerNumber,
+      transport_type: transportType,
       loading_place: order.pickup_address || '',
       destination: order.delivery_address || '',
       line_items: [{ description: order.cargo_description || 'სატრანსპორტო მომსახურება', price: subtotal }]
@@ -110,11 +105,18 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
     setStep('preview')
   }
 
-  // 💾 შენახვა Supabase-ში
+  // 💾 შენახვა Supabase-ში - FIXED VERSION (user_id დამატებულია)
   const handleSave = async () => {
     if (!previewData || !selectedTemplate) return
     setLoading(true)
     try {
+      // 1. ⬅️ FIX: მივიღოთ მიმდინარე მომხმარებლის მონაცემები
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        throw new Error('მომხმარებელი არ არის ავტორიზებული. გთხოვთ, თავიდან შეხვიდეთ სისტემაში.')
+      }
+
+      // 2. შევქმნათ payload დამატებული user_id-ით
       const payload = {
         order_id: order.id,
         template_id: selectedTemplate.id,
@@ -130,6 +132,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
         total_amount: previewData.total_amount,
         currency: 'GEL',
         status: 'draft',
+        user_id: user.id, // ⬅️ FIX: მომხმარებლის ID
         client_snapshot: JSON.stringify({ 
           name: previewData.client_name, 
           tax_id: previewData.client_tax_id, 
@@ -139,12 +142,13 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
         updated_at: new Date().toISOString()
       }
 
+      // 3. ჩავწეროთ ბაზაში
       const { error } = await supabase.from('invoices').insert([payload])
       if (error) throw error
 
-      //  აუდიტის ლოგი
+      // 4. აუდიტის ლოგი
       await supabase.from('audit_logs').insert({
-        user_email: (await supabase.auth.getUser()).data.user?.email || 'system',
+        user_email: user.email || 'system',
         action: 'create',
         table_name: 'invoices',
         record_id: payload.invoice_number,
@@ -157,7 +161,8 @@ export default function CreateInvoiceModal({ isOpen, onClose, order, onSuccess }
         onClose()
       }, 1500)
     } catch (e: any) {
-      alert('შეცდომა შენახვისას: ' + e.message)
+      console.error('Invoice save error:', e)
+      alert('შეცდომა შენახვისას: ' + (e.message || 'უცნობი შეცდომა'))
     } finally {
       setLoading(false)
     }

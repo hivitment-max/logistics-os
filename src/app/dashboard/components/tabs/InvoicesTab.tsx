@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import LoadingTruck from '@/app/dashboard/components/ui/LoadingTruck'
+import InvoiceViewModal from '../modals/InvoiceViewModal'
 
 // ============================================================================
 // 📋 TypeScript Interface
@@ -11,9 +12,14 @@ interface Invoice {
   id: string
   invoice_number: string
   order_id: string | null
+  template_id: string | null
   tracking_code: string | null
   client_name: string
   client_email: string | null
+  client_tax_id: string | null
+  client_address: string | null
+  subtotal: number
+  vat_amount: number
   total_amount: number
   currency: string
   status: 'draft' | 'sent' | 'viewed' | 'partial_paid' | 'paid' | 'overdue' | 'cancelled'
@@ -32,13 +38,29 @@ export default function InvoicesTab() {
   const [invoiceFilter, setInvoiceFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
+  const [showViewModal, setShowViewModal] = useState(false)
 
-  // 🔄 დატვირთვა კომპონენტის ინიციალიზაციისას
+  // 🔄 Realtime subscription - ავტომატური განახლება
   useEffect(() => {
     fetchInvoices()
+
+    const channel = supabase
+      .channel('invoices_realtime')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'invoices' },
+        () => {
+          console.log('🔄 [INVOICES] ცვლილება დაფიქსირდა, განახლება...')
+          fetchInvoices()
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // 📡 რეალური მონაცემების წამოღება Supabase-დან
+  // 📡 ინვოისების ჩატვირთვა Supabase-დან
   const fetchInvoices = async () => {
     setLoading(true)
     try {
@@ -49,44 +71,88 @@ export default function InvoicesTab() {
         .limit(100)
 
       if (error) {
-        console.warn('Invoices fetch error (using demo):', error.message)
-        const demo = generateDemoInvoices()
-        setInvoices(demo)
-      } else if (data && data.length > 0) {
-        setInvoices(data as Invoice[])
+        console.error('Invoices fetch error:', error.message)
+        setInvoices([])
       } else {
-        // ცარიელი ბაზა → დემო მონაცემები
-        const demo = generateDemoInvoices()
-        setInvoices(demo)
+        setInvoices((data as Invoice[]) || [])
       }
     } catch (e: any) {
       console.error('Failed to fetch invoices:', e)
-      const demo = generateDemoInvoices()
-      setInvoices(demo)
+      setInvoices([])
     } finally {
       setLoading(false)
     }
   }
 
-  // 🎭 დემო მონაცემები დეველოპმენტისთვის
-  const generateDemoInvoices = (): Invoice[] => [
-    { id: '1', invoice_number: 'INV-2026-008', order_id: 'ord_101', tracking_code: 'TRK-2026-001', client_name: 'შპს სოლე ტრანსი', client_email: 'info@soletrans.ge', total_amount: 800, currency: 'GEL', status: 'sent', issue_date: '2026-01-31', due_date: '2026-02-14', created_at: '2026-01-31T10:00:00Z', updated_at: '2026-01-31T10:00:00Z' },
-    { id: '2', invoice_number: 'INV-2026-007', order_id: 'ord_102', tracking_code: 'TRK-2026-002', client_name: 'კერძო პირი - გიორგი', client_email: 'giorgi@email.com', total_amount: 350, currency: 'GEL', status: 'paid', issue_date: '2026-01-28', due_date: '2026-02-11', created_at: '2026-01-28T14:00:00Z', updated_at: '2026-01-29T09:00:00Z' },
-    { id: '3', invoice_number: 'INV-2026-006', order_id: 'ord_103', tracking_code: 'TRK-2026-003', client_name: 'შპს ტრანს-ლოჯისტიკ', client_email: 'office@translog.ge', total_amount: 1200, currency: 'GEL', status: 'draft', issue_date: '2026-01-25', due_date: '2026-02-08', created_at: '2026-01-25T11:00:00Z', updated_at: '2026-01-25T11:00:00Z' },
-    { id: '4', invoice_number: 'INV-2026-005', order_id: 'ord_104', tracking_code: 'TRK-2026-004', client_name: 'შპს გლობალ შიპინგი', client_email: 'finance@globalship.ge', total_amount: 550, currency: 'GEL', status: 'overdue', issue_date: '2026-01-10', due_date: '2026-01-24', created_at: '2026-01-10T08:00:00Z', updated_at: '2026-01-10T08:00:00Z' },
-  ]
+  // 👁️ ინვოისის ნახვა
+  const handleViewInvoice = (invoiceId: string) => {
+    setSelectedInvoiceId(invoiceId)
+    setShowViewModal(true)
+  }
 
-  // 🔍 ფილტრაცია
-  const filteredInvoices = invoices.filter(i => {
-    const matchesFilter = invoiceFilter === 'all' || i.status === invoiceFilter
-    const matchesSearch = search === '' || 
-      i.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      i.client_name.toLowerCase().includes(search.toLowerCase()) ||
-      i.tracking_code?.toLowerCase().includes(search.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
+  // 🗑️ ინვოისის წაშლა (უსაფრთხოების წესებით)
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId)
+    if (!invoice) return
 
-  // ✅ სტატუსის განახლება + აუდიტის ლოგი
+    // ფინანსური ჩანაწერები არ იშლება
+    if (invoice.status === 'paid' || invoice.status === 'partial_paid') {
+      alert(`⚠️ ინვოისი #${invoice.invoice_number} არ შეიძლება წაიშალოს!\n\nსტატუსი: "${invoice.status}" - ეს ფინანსური ჩანაწერია.`)
+      return
+    }
+
+    // გაფრთხილება სტატუსის მიხედვით
+    let warningMessage = ''
+    if (invoice.status === 'sent' || invoice.status === 'viewed') {
+      warningMessage = `\n\n⚠️ ყურადღება: ეს ინვოისი უკვე გაგზავნილია კლიენტთან (${invoice.client_name})!`
+    } else if (invoice.status === 'overdue') {
+      warningMessage = `\n\n⚠️ ყურადღება: ეს ინვოისი ვადაგასულია!`
+    }
+
+    const confirmed = confirm(
+      `🗑️ ინვოისის წაშლა\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `ნომერი: #${invoice.invoice_number}\n` +
+      `კლიენტი: ${invoice.client_name}\n` +
+      `თანხა: ${formatCurrency(invoice.total_amount, invoice.currency)}\n` +
+      `სტატუსი: ${invoice.status}\n` +
+      warningMessage +
+      `\n\n❗ ეს მოქმედება შეუქცევადია!\n\n` +
+      `დარწმუნებული ხართ?`
+    )
+
+    if (!confirmed) return
+
+    setActionLoading(invoiceId)
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceId)
+
+      if (deleteError) throw deleteError
+
+      // აუდიტის ლოგი
+      await supabase.from('audit_logs').insert({
+        user_email: (await supabase.auth.getUser()).data.user?.email || 'system',
+        action: 'delete',
+        table_name: 'invoices',
+        record_id: invoiceId,
+        details: `წაიშალა ინვოისი #${invoice.invoice_number} (კლიენტი: ${invoice.client_name}, თანხა: ${invoice.total_amount} ${invoice.currency})`
+      })
+
+      await fetchInvoices()
+
+    } catch (e: any) {
+      console.error('Failed to delete invoice:', e)
+      alert('შეცდომა წაშლისას: ' + e.message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  // ✅ სტატუსის განახლება
   const handleStatusChange = async (invoiceId: string, newStatus: string) => {
     const invoice = invoices.find(inv => inv.id === invoiceId)
     if (!invoice) return
@@ -94,28 +160,22 @@ export default function InvoicesTab() {
     setActionLoading(invoiceId)
     
     try {
-      // 1. განახლება ბაზაში
       const { error: updateError } = await supabase
         .from('invoices')
-        .update({ status: newStatus })
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', invoiceId)
       
       if (updateError) throw updateError
 
-      // 2. აუდიტის ლოგის ჩაწერა
-      const { error: auditError } = await supabase
-        .from('audit_logs')
-        .insert({
-          user_email: (await supabase.auth.getUser()).data.user?.email || 'system',
-          action: 'update',
-          table_name: 'invoices',
-          record_id: invoiceId,
-          details: `ინვოისი #${invoice.invoice_number} სტატუსი შეიცვალა: ${invoice.status} → ${newStatus}`
-        })
-      
-      if (auditError) console.warn('Audit log failed:', auditError.message)
+      // აუდიტის ლოგი
+      await supabase.from('audit_logs').insert({
+        user_email: (await supabase.auth.getUser()).data.user?.email || 'system',
+        action: 'update',
+        table_name: 'invoices',
+        record_id: invoiceId,
+        details: `ინვოისი #${invoice.invoice_number} სტატუსი: ${invoice.status} → ${newStatus}`
+      })
 
-      // 3. განახლება UI-ში
       await fetchInvoices()
       
     } catch (e: any) {
@@ -156,25 +216,26 @@ export default function InvoicesTab() {
     return `${symbols[currency] || currency} ${amount.toLocaleString('ka-GE', { minimumFractionDigits: 2 })}`
   }
 
-  // 🎨 სტატუსის ბეჯი
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid': return <span className="bg-green-500/20 text-green-400 border-green-500/30 px-2 py-0.5 rounded text-[10px] border">✅ გადახდილი</span>
-      case 'sent': return <span className="bg-blue-500/20 text-blue-400 border-blue-500/30 px-2 py-0.5 rounded text-[10px] border">📤 გაგზავნილი</span>
-      case 'viewed': return <span className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30 px-2 py-0.5 rounded text-[10px] border">👁️ ნანახი</span>
-      case 'partial_paid': return <span className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 px-2 py-0.5 rounded text-[10px] border">🔄 ნაწილობრივ</span>
-      case 'draft': return <span className="bg-gray-500/20 text-gray-400 border-gray-500/30 px-2 py-0.5 rounded text-[10px] border">📝 დრაფტი</span>
-      case 'overdue': return <span className="bg-red-500/20 text-red-400 border-red-500/30 px-2 py-0.5 rounded text-[10px] border">⚠️ ვადაგასული</span>
-      case 'cancelled': return <span className="bg-red-500/20 text-red-400 border-red-500/30 px-2 py-0.5 rounded text-[10px] border">❌ გაუქმებული</span>
-      default: return <span className="bg-gray-500/20 text-gray-400 border-gray-500/30 px-2 py-0.5 rounded text-[10px] border">{status}</span>
-    }
+  // 🔍 ფილტრაცია
+  const filteredInvoices = invoices.filter(i => {
+    const matchesFilter = invoiceFilter === 'all' || i.status === invoiceFilter
+    const matchesSearch = search === '' || 
+      i.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+      i.client_name.toLowerCase().includes(search.toLowerCase()) ||
+      i.tracking_code?.toLowerCase().includes(search.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
+
+  // 🗑️ წაშლის უფლების შემოწმება
+  const canDeleteInvoice = (status: string) => {
+    return status !== 'paid' && status !== 'partial_paid'
   }
 
   if (loading) return <LoadingTruck message="ინვოისები იტვირთება..." size="md" />
 
   return (
     <div className="space-y-4">
-      {/* ── HEADER: ტიტული, ძებნა, ფილტრი, ექსპორტი ── */}
+      {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <h2 className="text-lg font-bold text-gray-100">🧾 ინვოისები</h2>
         
@@ -234,30 +295,17 @@ export default function InvoicesTab() {
             <tbody className="divide-y divide-gray-700/30">
               {filteredInvoices.map(i => (
                 <tr key={i.id} className="hover:bg-gray-700/20 transition">
-                  {/* ინვოისის ნომერი */}
                   <td className="px-4 py-3 font-mono font-bold text-emerald-400">{i.invoice_number}</td>
-                  
-                  {/* შეკვეთის კოდი */}
-                  <td className="px-4 py-3 text-gray-300 font-mono">
-                    {i.tracking_code || '–'}
-                  </td>
-                  
-                  {/* კლიენტის სახელი */}
+                  <td className="px-4 py-3 text-gray-300 font-mono">{i.tracking_code || '–'}</td>
                   <td className="px-4 py-3 text-gray-200 truncate max-w-[150px]" title={i.client_name}>
                     {i.client_name}
                   </td>
-                  
-                  {/* თანხა */}
                   <td className="px-4 py-3 text-right font-bold font-mono">
                     {formatCurrency(i.total_amount, i.currency)}
                   </td>
-                  
-                  {/* თარიღი */}
                   <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                     {new Date(i.issue_date).toLocaleDateString('ka-GE')}
                   </td>
-                  
-                  {/* სტატუსი */}
                   <td className="px-4 py-3 text-center">
                     <select 
                       value={i.status} 
@@ -279,26 +327,33 @@ export default function InvoicesTab() {
                       <option value="cancelled">გაუქმებული</option>
                     </select>
                   </td>
-                  
-                  {/* მოქმედებები */}
-                  <td className="px-4 py-3 text-right flex justify-end gap-1">
-                    <button 
-                      className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-md transition" 
-                      title="ნახვა/დაბეჭდვა"
-                    >
-                      🖨️
-                    </button>
-                    <button 
-                      className="p-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-md transition" 
-                      title="Email-ით გაგზავნა"
-                    >
-                      📧
-                    </button>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button 
+                        onClick={() => handleViewInvoice(i.id)}
+                        disabled={actionLoading === i.id}
+                        className="p-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 disabled:opacity-50 rounded-md transition" 
+                        title="ნახვა/დაბეჭდვა"
+                      >
+                        🖨️
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteInvoice(i.id)}
+                        disabled={actionLoading === i.id || !canDeleteInvoice(i.status)}
+                        className={`p-1.5 rounded-md transition ${
+                          canDeleteInvoice(i.status)
+                            ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
+                            : 'text-gray-600 bg-gray-500/5 cursor-not-allowed'
+                        } disabled:opacity-50`}
+                        title={canDeleteInvoice(i.status) ? 'წაშლა' : '🔒 ფინანსური ჩანაწერი - წაშლა აკრძალულია'}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               
-              {/* ცარიელი მდგომარეობა */}
               {filteredInvoices.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
@@ -319,9 +374,19 @@ export default function InvoicesTab() {
 
       {/* ℹ️ ინფო ბლოკი */}
       <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4 text-[10px] text-gray-400">
-        <strong>📌 შენიშვნა:</strong> ინვოისების მონაცემები ინახება Supabase-ში. 
-        სტატუსის ცვლილება აფიქსირებს აუდიტის ლოგში და ავტომატურად ანახლებს ინტერფეისს.
+        <strong>📌 შენიშვნა:</strong> ყველა ცვლილება (სტატუსი, წაშლა) ავტომატურად ფიქსირდება აუდიტის ლოგში.
+        <span className="text-red-400 ml-1">🔒 გადახდილი ინვოისების წაშლა აკრძალულია.</span>
       </div>
+
+      {/* 👁️ ინვოისის ნახვის მოდალი */}
+      <InvoiceViewModal 
+        isOpen={showViewModal} 
+        onClose={() => {
+          setShowViewModal(false)
+          setSelectedInvoiceId(null)
+        }} 
+        invoiceId={selectedInvoiceId} 
+      />
     </div>
   )
 }
