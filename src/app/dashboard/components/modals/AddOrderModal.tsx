@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 // ============================================================================
 // 🧩 Helper Components
@@ -135,7 +136,7 @@ const validateStep = (step: number, form: any): string[] => {
 }
 
 // ============================================================================
-// 📦 ADD ORDER MODAL - FINAL VERSION (Beautiful Compact Preview)
+// 📦 ADD ORDER MODAL - WITH DUAL CLIENT SAVE
 // ============================================================================
 
 interface AddOrderModalProps {
@@ -177,7 +178,140 @@ export default function AddOrderModal({
     if (currentStep > 1) { setCurrentStep(currentStep - 1); setErrors([]) }
   }
 
-  const handleSubmit = () => { onSubmit(); setCurrentStep(1) }
+  // 🆕 კლიენტის ავტომატური შენახვა - ორივე ცხრილში (ძველი + ახალი)
+  const upsertClient = async (): Promise<string | null> => {
+    try {
+      if (orderForm.client_id) {
+        return orderForm.client_id
+      }
+
+      const isPrivate = orderForm.client_type === 'private'
+      const legacyTable = isPrivate ? 'private_clients' : 'companies'
+      
+      const legacyData = isPrivate 
+        ? {
+            full_name: orderForm.client_name,
+            personal_id: orderForm.client_personal_id || '',
+            phone: orderForm.client_phone || null,
+            email: orderForm.client_email || null,
+            address: orderForm.client_address || null,
+            is_active: true,
+          }
+        : {
+            name: orderForm.client_name,
+            registration_number: orderForm.client_registration_number || '',
+            vat_number: orderForm.client_vat || null,
+            phone: orderForm.client_phone || null,
+            email: orderForm.client_email || null,
+            legal_address: orderForm.client_address || null,
+            contact_person: orderForm.pickup_contact || null,
+            is_active: true,
+          }
+      
+      const clientData = {
+        type: isPrivate ? 'individual' : 'company',
+        name: orderForm.client_name,
+        email: orderForm.client_email || null,
+        phone: orderForm.client_phone || null,
+        address: orderForm.client_address || null,
+        personal_id: orderForm.client_personal_id || null,
+        registration_number: orderForm.client_registration_number || null,
+        vat_number: orderForm.client_vat || null,
+        is_active: true,
+      }
+
+      let existingLegacyClient = null
+      
+      if (orderForm.client_email) {
+        const { data } = await supabase
+          .from(legacyTable)
+          .select('id')
+          .eq('email', orderForm.client_email)
+          .maybeSingle()
+        existingLegacyClient = data
+      }
+      
+      if (!existingLegacyClient && orderForm.client_phone) {
+        const { data } = await supabase
+          .from(legacyTable)
+          .select('id')
+          .eq('phone', orderForm.client_phone)
+          .maybeSingle()
+        existingLegacyClient = data
+      }
+
+      let legacyClientId: string | null = null
+
+      if (existingLegacyClient) {
+        const { error } = await supabase
+          .from(legacyTable)
+          .update(legacyData)
+          .eq('id', existingLegacyClient.id)
+        
+        if (error) throw error
+        console.log(`✅ ${isPrivate ? 'კერძო პირი' : 'კომპანია'} განახლდა ${legacyTable}-ში:`, existingLegacyClient.id)
+        legacyClientId = existingLegacyClient.id
+      } else {
+        const { data, error } = await supabase
+          .from(legacyTable)
+          .insert([legacyData])
+          .select('id')
+          .single()
+        
+        if (error) throw error
+        console.log(`✅ ახალი ${isPrivate ? 'კერძო პირი' : 'კომპანია'} შეიქმნა ${legacyTable}-ში:`, data.id)
+        legacyClientId = data.id
+      }
+
+      try {
+        let existingClient = null
+        
+        if (orderForm.client_email) {
+          const { data } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('email', orderForm.client_email)
+            .maybeSingle()
+          existingClient = data
+        }
+        
+        if (!existingClient && orderForm.client_phone) {
+          const { data } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('phone', orderForm.client_phone)
+            .maybeSingle()
+          existingClient = data
+        }
+
+        if (existingClient) {
+          await supabase.from('clients').update(clientData).eq('id', existingClient.id)
+          console.log('✅ clients ცხრილი განახლდა:', existingClient.id)
+        } else {
+          await supabase.from('clients').insert([clientData])
+          console.log('✅ ახალი კლიენტი შეიქმნა clients-ში')
+        }
+      } catch (clientsError: any) {
+        console.warn('⚠️ clients ცხრილის შეცდომა (არაკრიტიკული):', clientsError.message)
+      }
+
+      return legacyClientId
+    } catch (e: any) {
+      console.error('❌ კლიენტის შენახვის შეცდომა:', e)
+      return null
+    }
+  }
+
+  const handleSubmit = async () => {
+    const clientId = await upsertClient()
+    
+    if (clientId && !orderForm.client_id) {
+      setOrderForm({ ...orderForm, client_id: clientId })
+    }
+    
+    onSubmit()
+    setCurrentStep(1)
+  }
 
   // ============================================================================
   // RENDER STEPS
@@ -235,7 +369,6 @@ export default function AddOrderModal({
               <FormField label="📦 შეფუთვა" options={[{ value: 'box', label: '📦 ყუთი' }, { value: 'pallet', label: '🪵 პალიტი' }, { value: 'bag', label: '🛍️ ტომარა' }, { value: 'bulk', label: '🌾 ნაყარი' }]} value={orderForm.packaging_type} onChange={(e: any) => updateField('packaging_type', e.target.value)} />
               <FormField label="🔄 დაბრუნებადი ტარა?" checkbox value={orderForm.returnable_packaging} onChange={(e: any) => updateField('returnable_packaging', e.target.checked)} />
               
-              {/* ✅ ახალი ველები: გადაზიდვის სახეობა და კონტეინერის ნომერი */}
               <div className="md:col-span-3 pt-3 border-t border-gray-700/30 mt-2">
                 <p className="text-[10px] font-semibold text-gray-400 mb-2 uppercase tracking-wide">🚛 გადაზიდვის დეტალები</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -300,14 +433,40 @@ export default function AddOrderModal({
             </div>
             {!showNewClientForm ? (
               <>
-                <FormField label="🔍 აირჩიე არსებული დამკვეთი" options={(activeClientTab === 'private' ? clients : companies).map((c: any) => ({ value: c.id, label: `${activeClientTab === 'private' ? c.full_name : c.name} (${activeClientTab === 'private' ? c.personal_id : c.registration_number})` }))} value={orderForm.client_id} onChange={(e: any) => {
-                  const selectedId = e.target.value; updateField('client_id', selectedId)
-                  if (selectedId) {
-                    const source = activeClientTab === 'private' ? clients : companies
-                    const sel = source.find((c: any) => c.id === selectedId)
-                    if (sel) { updateField('client_name', sel.full_name || sel.name); updateField('client_email', sel.email); updateField('client_phone', sel.phone); updateField('client_address', sel.address || sel.legal_address) }
-                  }
-                }} />
+                {/* ✅ ✅ ✅ FIX: ერთი setOrderForm call - ყველა ველი ერთად! */}
+                <FormField 
+                  label="🔍 აირჩიე არსებული დამკვეთი" 
+                  options={(activeClientTab === 'private' ? clients : companies).map((c: any) => ({ 
+                    value: c.id, 
+                    label: `${activeClientTab === 'private' ? c.full_name : c.name} (${activeClientTab === 'private' ? c.personal_id : c.registration_number})` 
+                  }))} 
+                  value={orderForm.client_id} 
+                  onChange={(e: any) => {
+                    const selectedId = e.target.value
+                    if (selectedId) {
+                      const source = activeClientTab === 'private' ? clients : companies
+                      const sel = source.find((c: any) => c.id === selectedId)
+                      if (sel) {
+                        // ⬅️ ერთდროული განახლება - stale closure bug-ის გამოსწორება
+                        setOrderForm({
+                          ...orderForm,
+                          client_id: selectedId,
+                          client_name: sel.full_name || sel.name || '',
+                          client_email: sel.email || '',
+                          client_phone: sel.phone || '',
+                          client_address: sel.address || sel.legal_address || '',
+                          client_personal_id: sel.personal_id || '',
+                          client_registration_number: sel.registration_number || '',
+                          client_vat: sel.vat_number || '',
+                        })
+                        setErrors([])
+                        console.log('✅ კლიენტი არჩეულია:', sel)
+                      }
+                    } else {
+                      setOrderForm({ ...orderForm, client_id: '' })
+                    }
+                  }} 
+                />
                 <button type="button" onClick={() => setShowNewClientForm(true)} className="text-xs text-purple-400 hover:text-purple-300 underline">➕ ახალი დამკვეთის დამატება</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-purple-500/5 rounded-xl border border-purple-500/20">
                   <FormField label="სახელი / კომპანია" required value={orderForm.client_name} onChange={(e: any) => updateField('client_name', e.target.value)} />
@@ -354,7 +513,6 @@ export default function AddOrderModal({
           </div>
         )
 
-      // ✅ CASE 6: COMPACT & BEAUTIFUL REVIEW PREVIEW
       case 6:
         return (
           <div className="max-w-3xl mx-auto">
@@ -363,7 +521,6 @@ export default function AddOrderModal({
             
             <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-2">
               
-              {/* მარშრუტი */}
               <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
                 <h4 className="text-xs font-bold text-red-400 mb-3 flex items-center gap-2">📍 მარშრუტი</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -382,7 +539,6 @@ export default function AddOrderModal({
                 </div>
               </div>
 
-              {/* ტვირთი */}
               <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-4">
                 <h4 className="text-xs font-bold text-yellow-400 mb-3 flex items-center gap-2">📦 ტვირთი</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
@@ -393,7 +549,6 @@ export default function AddOrderModal({
                 </div>
               </div>
 
-              {/* ფინანსები */}
               <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                 <h4 className="text-xs font-bold text-blue-400 mb-3 flex items-center gap-2">💰 ფინანსები</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
@@ -404,7 +559,6 @@ export default function AddOrderModal({
                 </div>
               </div>
 
-              {/* დამკვეთი */}
               <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4">
                 <h4 className="text-xs font-bold text-purple-400 mb-3 flex items-center gap-2">👤 დამკვეთი</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -415,7 +569,6 @@ export default function AddOrderModal({
                 </div>
               </div>
 
-              {/* დამატებითი */}
               {(orderForm.special_requirements || orderForm.needs_tail_lift || orderForm.needs_straps || orderForm.transport_type || orderForm.container_number) && (
                 <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                   <h4 className="text-xs font-bold text-green-400 mb-3 flex items-center gap-2">📝 დამატებითი</h4>
@@ -431,7 +584,6 @@ export default function AddOrderModal({
                 </div>
               )}
 
-              {/* პრიორიტეტი */}
               <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-xl p-4">
                 <h4 className="text-xs font-bold text-emerald-400 mb-3 flex items-center gap-2">🔥 პრიორიტეტი & სტატუსი</h4>
                 <div className="grid grid-cols-3 gap-3 text-xs">
@@ -450,15 +602,10 @@ export default function AddOrderModal({
     }
   }
 
-  // ============================================================================
-  // RENDER - FINAL STRUCTURE (100% Working Scroll)
-  // ============================================================================
-
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-[#1a202c] border border-gray-700 rounded-2xl w-full max-w-4xl my-8 flex flex-col shadow-2xl shadow-black/50 relative" onClick={e => e.stopPropagation()}>
         
-        {/* 🔝 Header */}
         <div className="px-6 py-4 border-b border-gray-700 bg-[#151b26] sticky top-0 z-10 rounded-t-2xl">
           <div className="flex justify-between items-center mb-4">
             <div>
@@ -467,7 +614,6 @@ export default function AddOrderModal({
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-white text-xl transition p-1 hover:bg-gray-700 rounded-lg">&times;</button>
           </div>
-          {/* Progress Bar */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1">
             {STEPS.map((step, i) => {
               const isCompleted = currentStep > step.id
@@ -488,7 +634,6 @@ export default function AddOrderModal({
           </div>
         </div>
 
-        {/* 📜 Content */}
         <div className="p-6">
           {errors.length > 0 && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
@@ -499,7 +644,6 @@ export default function AddOrderModal({
           {renderStepContent()}
         </div>
 
-        {/* 🔽 Footer */}
         <div className="px-6 py-4 border-t border-gray-700 bg-[#151b26] sticky bottom-0 rounded-b-2xl">
           <div className="flex justify-between items-center">
             <button type="button" onClick={handleBack} disabled={currentStep === 1} className={`px-5 py-2.5 rounded-lg text-xs font-medium transition flex items-center gap-2 ${currentStep === 1 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}>← უკან</button>
