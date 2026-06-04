@@ -56,6 +56,51 @@ interface Driver {
 }
 
 // ============================================================================
+// 🎨 HELPER FUNCTIONS (ყველაზე ზემოთ - რომ ყველამ გამოიყენოს)
+// ============================================================================
+
+const formatCurrency = (amount: number, currency: string) => {
+  const symbols: Record<string, string> = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' }
+  return `${amount.toLocaleString('ka-GE', { maximumFractionDigits: 2 })} ${symbols[currency] || currency}`
+}
+
+const getStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    pending: '🕒 ლოდინში',
+    approved: '✅ დამტკიცებული',
+    paid: '💰 გადახდილი',
+    overdue: '⚠️ გადავადებული',
+    cancelled: '❌ გაუქმებული'
+  }
+  return labels[status] || status
+}
+
+const getStatusBadge = (status: string) => {
+  const styles: Record<string, string> = {
+    paid: 'bg-green-500/20 text-green-400 border-green-500/30',
+    approved: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    overdue: 'bg-red-500/20 text-red-400 border-red-500/30',
+    cancelled: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  }
+  return (
+    <span className={`${styles[status] || styles.pending} px-2 py-0.5 rounded text-[10px] border font-medium`}>
+      {getStatusLabel(status)}
+    </span>
+  )
+}
+
+const getPaymentMethodLabel = (method: string) => {
+  const labels: Record<string, string> = {
+    cash: '💵 ნაღდი',
+    bank_transfer: '🏦 ბანკი',
+    card: '💳 ბარათი',
+    other: '📦 სხვა'
+  }
+  return labels[method] || method
+}
+
+// ============================================================================
 // 🧩 MAIN COMPONENT
 // ============================================================================
 
@@ -110,16 +155,34 @@ export default function PayrollTab() {
     await Promise.all([fetchPayrollData(), fetchDrivers()])
   }
 
+  // 🔧 FIX: Resilient fetchDrivers with fallback
   const fetchDrivers = async () => {
     try {
-      const { data } = await supabase
+      // ჯერ ვცადოთ is_active ფილტრით
+      let { data, error } = await supabase
         .from('drivers')
         .select('id, full_name, phone, telegram_chat_id, type')
         .eq('is_active', true)
         .order('full_name')
+      
+      // თუ შეცდომა (is_active არ არსებობს), ვცადოთ ფილტრის გარეშე
+      if (error) {
+        console.warn('⚠️ is_active filter failed, trying without filter:', error.message)
+        const result = await supabase
+          .from('drivers')
+          .select('id, full_name, phone, telegram_chat_id, type')
+          .order('full_name')
+        data = result.data
+        error = result.error
+      }
+      
+      if (error) throw error
+      
+      console.log(`✅ ჩაიტვირთა ${data?.length || 0} მძღოლი`)
       if (data) setDrivers(data as Driver[])
-    } catch (e) {
-      console.error('Drivers fetch error:', e)
+    } catch (e: any) {
+      console.error('❌ Drivers fetch error:', e)
+      alert('მძღოლების ჩატვირთვა ვერ მოხერხდა: ' + e.message)
     }
   }
 
@@ -245,13 +308,9 @@ export default function PayrollTab() {
   // ============================================================================
 
   const filteredRecords = records.filter(record => {
-    // Status filter
     if (filter !== 'all' && record.status !== filter) return false
-    
-    // Driver filter
     if (selectedDriver !== 'all' && record.driver_id !== selectedDriver) return false
     
-    // Search
     if (search) {
       const s = search.toLowerCase()
       const match = 
@@ -262,7 +321,6 @@ export default function PayrollTab() {
       if (!match) return false
     }
 
-    // Date filter
     if (dateRange !== 'all') {
       const recordDate = new Date(record.created_at)
       const now = new Date()
@@ -459,7 +517,6 @@ export default function PayrollTab() {
   const generateDriverReport = async (summary: DriverSummary) => {
     if (!reportRef.current) return
     
-    // შევქმნათ დროებითი HTML ანგარიშისთვის
     const driverRecords = records.filter(r => r.driver_id === summary.driver_id)
     
     const tempDiv = document.createElement('div')
@@ -678,47 +735,6 @@ export default function PayrollTab() {
     } catch (e) {
       console.warn('Audit log failed')
     }
-  }
-
-  const formatCurrency = (amount: number, currency: string) => {
-    const symbols: Record<string, string> = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' }
-    return `${amount.toLocaleString('ka-GE', { maximumFractionDigits: 2 })} ${symbols[currency] || currency}`
-  }
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      pending: '🕒 ლოდინში',
-      approved: '✅ დამტკიცებული',
-      paid: '💰 გადახდილი',
-      overdue: '⚠️ გადავადებული',
-      cancelled: '❌ გაუქმებული'
-    }
-    return labels[status] || status
-  }
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      paid: 'bg-green-500/20 text-green-400 border-green-500/30',
-      approved: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      overdue: 'bg-red-500/20 text-red-400 border-red-500/30',
-      cancelled: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    }
-    return (
-      <span className={`${styles[status] || styles.pending} px-2 py-0.5 rounded text-[10px] border font-medium`}>
-        {getStatusLabel(status)}
-      </span>
-    )
-  }
-
-  const getPaymentMethodLabel = (method: string) => {
-    const labels: Record<string, string> = {
-      cash: '💵 ნაღდი',
-      bank_transfer: '🏦 ბანკი',
-      card: '💳 ბარათი',
-      other: '📦 სხვა'
-    }
-    return labels[method] || method
   }
 
   // ============================================================================
@@ -1579,39 +1595,4 @@ const GenerateFromOrdersModal = ({ drivers, onClose, onGenerate }: any) => {
       </div>
     </div>
   )
-}
-
-// ============================================================================
-// 🎨 HELPER FUNCTIONS (მოდალებისთვის)
-// ============================================================================
-
-const formatCurrency = (amount: number, currency: string) => {
-  const symbols: Record<string, string> = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' }
-  return `${amount.toLocaleString('ka-GE', { maximumFractionDigits: 2 })} ${symbols[currency] || currency}`
-}
-
-const getStatusBadge = (status: string) => {
-  const styles: Record<string, string> = {
-    paid: 'bg-green-500/20 text-green-400 border-green-500/30',
-    approved: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    overdue: 'bg-red-500/20 text-red-400 border-red-500/30',
-    cancelled: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-  }
-  const labels: Record<string, string> = {
-    pending: '🕒 ლოდინში', approved: '✅ დამტკიცებული', paid: '💰 გადახდილი',
-    overdue: '⚠️ გადავადებული', cancelled: '❌ გაუქმებული'
-  }
-  return (
-    <span className={`${styles[status] || styles.pending} px-2 py-0.5 rounded text-[10px] border font-medium`}>
-      {labels[status] || status}
-    </span>
-  )
-}
-
-const getPaymentMethodLabel = (method: string) => {
-  const labels: Record<string, string> = {
-    cash: '💵 ნაღდი', bank_transfer: '🏦 ბანკი', card: '💳 ბარათი', other: '📦 სხვა'
-  }
-  return labels[method] || method
 }
