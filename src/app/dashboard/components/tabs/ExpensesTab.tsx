@@ -54,6 +54,64 @@ interface Vehicle {
 }
 
 // ============================================================================
+// 🎨 HELPER FUNCTIONS (ყველაზე ზემოთ - რომ ყველამ გამოიყენოს)
+// ============================================================================
+
+const formatCurrency = (amount: number, currency: string) => {
+  const symbols: Record<string, string> = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' }
+  return `${amount.toLocaleString('ka-GE', { maximumFractionDigits: 2 })} ${symbols[currency] || currency}`
+}
+
+const getStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    pending: '🕒 ლოდინში', approved: '✅ დამტკიცებული', rejected: '❌ უარყოფილი'
+  }
+  return labels[status] || status
+}
+
+const getStatusBadge = (status: string) => {
+  const styles: Record<string, string> = {
+    approved: 'bg-green-500/20 text-green-400 border-green-500/30',
+    pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
+  }
+  return (
+    <span className={`${styles[status] || styles.pending} px-2 py-0.5 rounded text-[10px] border font-medium`}>
+      {getStatusLabel(status)}
+    </span>
+  )
+}
+
+const getCategoryIcon = (category: string) => {
+  const icons: Record<string, string> = {
+    fuel: '⛽', toll: '🛣️', repair: '🔧', food: '🍔', tire: '🛞',
+    parking: '🅿️', maintenance: '🛠️', insurance: '🛡️', other: '📦'
+  }
+  return icons[category] || '📦'
+}
+
+const getCategoryLabel = (category: string) => {
+  const labels: Record<string, string> = {
+    fuel: 'საწვავი', toll: 'ტოლი', repair: 'შეკეთება', food: 'კვება', tire: 'საბურავი',
+    parking: 'პარკინგი', maintenance: 'ტექ. მომსახურება', insurance: 'დაზღვევა', other: 'სხვა'
+  }
+  return labels[category] || category
+}
+
+const getPaymentMethodLabel = (method: string) => {
+  const labels: Record<string, string> = {
+    cash: '💵 ნაღდი', card: '💳 ბარათი', bank_transfer: '🏦 ბანკი',
+    fuel_card: '⛽ საწვავის ბარათი', other: '📦 სხვა'
+  }
+  return labels[method] || method
+}
+
+// 🔧 Helper: null → undefined href-ისთვის
+const safeUrl = (url: string | null | undefined): string | undefined => {
+  return url || undefined
+}
+
+// ============================================================================
 // 🧩 Main Component
 // ============================================================================
 
@@ -272,14 +330,13 @@ export default function ExpensesTab() {
 
   const handleAddExpense = async (data: any) => {
     try {
-      let receiptUrl = null
       let receiptImageUrl = null
       
       // ჩეკის ატვირთვა
       if (data.receipt_file) {
         const fileExt = data.receipt_file.name.split('.').pop()
         const fileName = `receipt-${Date.now()}.${fileExt}`
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('receipts')
           .upload(fileName, data.receipt_file)
         
@@ -547,55 +604,6 @@ export default function ExpensesTab() {
     } catch (e) { console.warn('Audit log failed') }
   }
 
-  const formatCurrency = (amount: number, currency: string) => {
-    const symbols: Record<string, string> = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' }
-    return `${amount.toLocaleString('ka-GE', { maximumFractionDigits: 2 })} ${symbols[currency] || currency}`
-  }
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      pending: '🕒 ლოდინში', approved: '✅ დამტკიცებული', rejected: '❌ უარყოფილი'
-    }
-    return labels[status] || status
-  }
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      approved: 'bg-green-500/20 text-green-400 border-green-500/30',
-      pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
-    }
-    return (
-      <span className={`${styles[status] || styles.pending} px-2 py-0.5 rounded text-[10px] border font-medium`}>
-        {getStatusLabel(status)}
-      </span>
-    )
-  }
-
-  const getCategoryIcon = (category: string) => {
-    const icons: Record<string, string> = {
-      fuel: '⛽', toll: '🛣️', repair: '🔧', food: '🍔', tire: '🛞', 
-      parking: '🅿️', maintenance: '🛠️', insurance: '🛡️', other: '📦'
-    }
-    return icons[category] || '📦'
-  }
-
-  const getCategoryLabel = (category: string) => {
-    const labels: Record<string, string> = {
-      fuel: 'საწვავი', toll: 'ტოლი', repair: 'შეკეთება', food: 'კვება', tire: 'საბურავი',
-      parking: 'პარკინგი', maintenance: 'ტექ. მომსახურება', insurance: 'დაზღვევა', other: 'სხვა'
-    }
-    return labels[category] || category
-  }
-
-  const getPaymentMethodLabel = (method: string) => {
-    const labels: Record<string, string> = {
-      cash: '💵 ნაღდი', card: '💳 ბარათი', bank_transfer: '🏦 ბანკი',
-      fuel_card: '⛽ საწვავის ბარათი', other: '📦 სხვა'
-    }
-    return labels[method] || method
-  }
-
   // ============================================================================
   // 🎨 RENDER
   // ============================================================================
@@ -770,7 +778,7 @@ export default function ExpensesTab() {
                   <td className="px-3 py-2.5 text-center">
                     {(expense.receipt_image_url || expense.receipt_url) ? (
                       <a 
-                        href={expense.receipt_image_url || expense.receipt_url} 
+                        href={safeUrl(expense.receipt_image_url || expense.receipt_url)} 
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="text-blue-400 hover:text-blue-300 text-sm"
@@ -1112,7 +1120,7 @@ const ExpenseFormModal = ({ mode, drivers, vehicles, expense, onSave, onClose }:
             />
             {form.receipt_url && (
               <div className="mt-2 text-[10px] text-gray-400">
-                არსებული: <a href={form.receipt_url} target="_blank" className="text-blue-400 underline">ნახვა</a>
+                არსებული: <a href={safeUrl(form.receipt_url)} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">ნახვა</a>
               </div>
             )}
           </div>
@@ -1205,7 +1213,7 @@ const ExpenseDetailsModal = ({ expense, onClose, onEdit, onApprove, onReject }: 
             <div>
               <div className="text-[10px] text-gray-500 uppercase mb-1">📎 ჩეკი</div>
               <a 
-                href={expense.receipt_image_url || expense.receipt_url} 
+                href={safeUrl(expense.receipt_image_url || expense.receipt_url)} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs text-blue-400 hover:bg-blue-500/20 transition"
@@ -1246,53 +1254,4 @@ const ExpenseDetailsModal = ({ expense, onClose, onEdit, onApprove, onReject }: 
       </div>
     </div>
   )
-}
-
-// ============================================================================
-// 🎨 HELPER FUNCTIONS (მოდალებისთვის)
-// ============================================================================
-
-const formatCurrency = (amount: number, currency: string) => {
-  const symbols: Record<string, string> = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' }
-  return `${amount.toLocaleString('ka-GE', { maximumFractionDigits: 2 })} ${symbols[currency] || currency}`
-}
-
-const getStatusBadge = (status: string) => {
-  const styles: Record<string, string> = {
-    approved: 'bg-green-500/20 text-green-400 border-green-500/30',
-    pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
-  }
-  const labels: Record<string, string> = {
-    pending: '🕒 ლოდინში', approved: '✅ დამტკიცებული', rejected: '❌ უარყოფილი'
-  }
-  return (
-    <span className={`${styles[status] || styles.pending} px-2 py-0.5 rounded text-[10px] border font-medium`}>
-      {labels[status] || status}
-    </span>
-  )
-}
-
-const getCategoryIcon = (category: string) => {
-  const icons: Record<string, string> = {
-    fuel: '⛽', toll: '🛣️', repair: '🔧', food: '🍔', tire: '🛞',
-    parking: '🅿️', maintenance: '🛠️', insurance: '🛡️', other: '📦'
-  }
-  return icons[category] || '📦'
-}
-
-const getCategoryLabel = (category: string) => {
-  const labels: Record<string, string> = {
-    fuel: 'საწვავი', toll: 'ტოლი', repair: 'შეკეთება', food: 'კვება', tire: 'საბურავი',
-    parking: 'პარკინგი', maintenance: 'ტექ. მომსახურება', insurance: 'დაზღვევა', other: 'სხვა'
-  }
-  return labels[category] || category
-}
-
-const getPaymentMethodLabel = (method: string) => {
-  const labels: Record<string, string> = {
-    cash: '💵 ნაღდი', card: '💳 ბარათი', bank_transfer: '🏦 ბანკი',
-    fuel_card: '⛽ საწვავის ბარათი', other: '📦 სხვა'
-  }
-  return labels[method] || method
 }
