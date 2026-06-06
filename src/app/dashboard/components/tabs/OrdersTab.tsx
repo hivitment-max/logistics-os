@@ -451,12 +451,6 @@ export default function OrdersTab({
     loadColumnSettings()
   }, [])
 
-  // 🆕 Helper: სვეტის ხილვადობის შემოწმება
-  const isColumnVisible = useCallback((columnId: string) => {
-    const col = visibleColumns.find(c => c.id === columnId)
-    return col ? col.visible : true
-  }, [visibleColumns])
-
   // 🆕 Helper: ხილველი სვეტების რიგი
   const getVisibleColumns = useCallback(() => {
     return visibleColumns.filter(c => c.visible)
@@ -625,9 +619,10 @@ export default function OrdersTab({
     setShowEditModal(true)
   }
 
+  // ✅ გამოსწორებული - tracking_code აღარ არის ორჯერ
   const handleEditSave = (updatedData: any) => {
     const payload = mapFormToDatabase(updatedData)
-    onEdit({ id: editingOrder?.id, tracking_code: editingOrder?.tracking_code, ...payload })
+    onEdit({ id: editingOrder?.id, ...payload })
     setShowEditModal(false)
     setEditingOrder(null)
   }
