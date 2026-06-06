@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico', // ✅ ხატულის მხარდაჭერა
   },
+  // ❌ themeColor აქ აღარ არის - გადატანილია viewport-ში
+}
+
+// ✅ ახალი viewport export
+export const viewport: Viewport = {
   themeColor: '#080812', // ✅ ბრაუზერის ზედა პანელიც მუქი იქნება
 }
 

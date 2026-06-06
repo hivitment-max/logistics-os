@@ -4,9 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 // ============================================================================
-// 🎨 UI კომპონენტები (გადატანილია გარეთ - პერფორმანსისთვის!)
+// 🎨 UI კომპონენტები
 // ============================================================================
-
 interface InputProps {
   label: string
   type?: string
@@ -82,10 +81,35 @@ export const Select = ({ label, value, onChange, options, disabled }: SelectProp
 )
 
 // ============================================================================
+// 📋 შეკვეთების სვეტების კონფიგურაცია
+// ============================================================================
+export interface OrderColumnConfig {
+  id: string
+  label: string
+  icon: string
+  visible: boolean
+  required: boolean
+  description: string
+}
+
+export const DEFAULT_ORDER_COLUMNS: OrderColumnConfig[] = [
+  { id: 'checkbox', label: 'მონიშვნა', icon: '☑️', visible: true, required: true, description: 'Checkbox მასობრივი მოქმედებებისთვის' },
+  { id: 'tracking', label: 'Tracking კოდი', icon: '🔢', visible: true, required: true, description: 'შეკვეთის უნიკალური კოდი და თარიღი' },
+  { id: 'route', label: 'მარშრუტი', icon: '🗺️', visible: true, required: false, description: 'აღების და მიწოდების მისამართები' },
+  { id: 'cargo', label: 'ტვირთი', icon: '📦', visible: true, required: false, description: 'ტვირთის აღწერა და წონა' },
+  { id: 'driver', label: 'მძღოლი / მანქანა', icon: '🚚', visible: true, required: false, description: 'მძღოლის სახელი და მანქანის ნომერი' },
+  { id: 'price', label: 'ფასი', icon: '💰', visible: true, required: false, description: 'შეკვეთის ღირებულება და ვალუტა' },
+  { id: 'status', label: 'სტატუსი', icon: '📊', visible: true, required: true, description: 'შეკვეთის მიმდინარე სტატუსი' },
+  { id: 'response', label: 'მძღოლის პასუხი', icon: '💬', visible: true, required: false, description: 'მძღოლის რეაქცია შეკვეთაზე' },
+  { id: 'actions', label: 'მოქმედება', icon: '⚙️', visible: true, required: true, description: 'რედაქტირება, წაშლა და სხვა' },
+]
+
+// ============================================================================
 // ⚙️ სექციების კონფიგურაცია
 // ============================================================================
 const SECTIONS = [
   { id: 'company', icon: '🏢', title: 'კომპანიის პროფილი' },
+  { id: 'orders_display', icon: '📋', title: 'შეკვეთების სვეტები' },
   { id: 'security', icon: '🔐', title: 'უსაფრთხოება & წვდომა' },
   { id: 'localization', icon: '🌍', title: 'ლოკალიზაცია & ფორმატები' },
   { id: 'integrations', icon: '🔌', title: 'ინტეგრაციები & API' },
@@ -113,6 +137,7 @@ interface Settings {
   audit_retention_days: number
   enable_auto_backup: boolean
   cleanup_inactive_users_days: number
+  order_columns?: OrderColumnConfig[]
   extra_config: Record<string, any>
 }
 
@@ -137,6 +162,7 @@ const getDefaultSettings = (): Settings => ({
   audit_retention_days: 90,
   enable_auto_backup: false,
   cleanup_inactive_users_days: 180,
+  order_columns: DEFAULT_ORDER_COLUMNS,
   extra_config: {}
 })
 
@@ -150,7 +176,6 @@ export default function SettingsTab() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 🔄 დატვირთვა Supabase-დან
   useEffect(() => {
     loadSettings()
   }, [])
@@ -160,7 +185,13 @@ export default function SettingsTab() {
     try {
       const { data, error } = await supabase.from('settings').select('*').single()
       if (error) throw error
-      if (data) setSettings(data as Settings)
+      if (data) {
+        const loadedSettings = data as Settings
+        if (!loadedSettings.order_columns || loadedSettings.order_columns.length === 0) {
+          loadedSettings.order_columns = DEFAULT_ORDER_COLUMNS
+        }
+        setSettings(loadedSettings)
+      }
     } catch (err) {
       console.error('Failed to load settings:', err)
       setSettings(getDefaultSettings())
@@ -169,7 +200,6 @@ export default function SettingsTab() {
     }
   }
 
-  // ✅ ოპტიმიზირებული handleChange - მხოლოდ კონკრეტული ველის განახლება
   const handleChange = useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings(prev => {
       if (!prev) return prev
@@ -178,52 +208,91 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // 💾 შენახვა Supabase-ში (გამოსწორებული ვერსია)
+  // 🆕 სვეტის ხილვადობის შეცვლა
+  const handleColumnToggle = useCallback((columnId: string, visible: boolean) => {
+    setSettings(prev => {
+      if (!prev) return prev
+      const updatedColumns = (prev.order_columns || DEFAULT_ORDER_COLUMNS).map(col =>
+        col.id === columnId ? { ...col, visible } : col
+      )
+      return { ...prev, order_columns: updatedColumns }
+    })
+  }, [])
+
+  // 🆕 სვეტის რიგის შეცვლა (ზემოთ/ქვემოთ)
+  const handleColumnMove = useCallback((columnId: string, direction: 'up' | 'down') => {
+    setSettings(prev => {
+      if (!prev) return prev
+      const columns = [...(prev.order_columns || DEFAULT_ORDER_COLUMNS)]
+      const index = columns.findIndex(c => c.id === columnId)
+      if (index === -1) return prev
+      
+      if (direction === 'up' && index > 0) {
+        [columns[index - 1], columns[index]] = [columns[index], columns[index - 1]]
+      } else if (direction === 'down' && index < columns.length - 1) {
+        [columns[index], columns[index + 1]] = [columns[index + 1], columns[index]]
+      }
+      
+      return { ...prev, order_columns: columns }
+    })
+  }, [])
+
+  // 🆕 ყველა სვეტის ჩართვა/გამორთვა
+  const handleToggleAll = useCallback((visible: boolean) => {
+    setSettings(prev => {
+      if (!prev) return prev
+      const updatedColumns = (prev.order_columns || DEFAULT_ORDER_COLUMNS).map(col =>
+        col.required ? col : { ...col, visible }
+      )
+      return { ...prev, order_columns: updatedColumns }
+    })
+  }, [])
+
+  // 🆕 სვეტების რესეტი default-ზე
+  const handleResetColumns = useCallback(() => {
+    setSettings(prev => {
+      if (!prev) return prev
+      return { ...prev, order_columns: DEFAULT_ORDER_COLUMNS }
+    })
+  }, [])
+
+  // ✅ გამოსწორებული handleSave - audit_logs-ის ხელით ჩაწერის გარეშე
+  // Trigger ავტომატურად ჩაწერს audit_logs-ში!
   const handleSave = useCallback(async () => {
     if (!settings) return
     setIsSaving(true)
     setSaveStatus('idle')
     
     try {
-      // მივიღოთ სწორი ID
+      // მივიღოთ არსებული settings ID (თუ არსებობს)
       const { data: existing } = await supabase.from('settings').select('id').single()
       const settingsId = existing?.id
       
+      // შევინახოთ პარამეტრები
       const { error } = await supabase
         .from('settings')
-        .upsert({ id: settingsId, ...settings, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+        .upsert({ 
+          id: settingsId, 
+          ...settings, 
+          updated_at: new Date().toISOString() 
+        }, { onConflict: 'id' })
       
       if (error) throw error
       
+      // ✅ Trigger ავტომატურად ჩაწერს audit_logs-ში!
+      // ხელით ჩაწერა აღარ გვჭირდება
+      
       setSaveStatus('success')
-      
-      // 📜 აუდიტის ლოგი (გამოსწორებული: await + error შემოწმება)
-      const user = await supabase.auth.getUser()
-      const { error: auditError } = await supabase
-        .from('audit_logs')
-        .insert({
-          user_email: user.data.user?.email || 'system',
-          action: 'update',
-          table_name: 'settings',
-          record_id: settingsId,
-          details: `პარამეტრები განახლდა: ${activeSection}`
-        })
-      
-      if (auditError) {
-        console.warn('Audit log failed:', auditError.message)
-        // არ ვაბლოკირებთ მთავარ ოპერაციას
-      }
-      
       setTimeout(() => setSaveStatus('idle'), 3000)
     } catch (err: any) {
       console.error('Failed to save settings:', err)
       setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 3000)
     } finally {
       setIsSaving(false)
     }
-  }, [settings, activeSection])
+  }, [settings])
 
-  // 📑 სექციების რენდერი
   const renderContent = useCallback(() => {
     if (!settings) return null
     
@@ -238,119 +307,208 @@ export default function SettingsTab() {
             <Input label="VAT / საგადასახადო კოდი" value={settings.vat_id} onChange={(v) => handleChange('vat_id', v)} disabled={loading || isSaving} />
           </div>
         )
+
+      // 🆕 შეკვეთების სვეტების განყოფილება
+      case 'orders_display':
+        const columns = settings.order_columns || DEFAULT_ORDER_COLUMNS
+        const visibleCount = columns.filter(c => c.visible).length
+        
+        return (
+          <div className="space-y-4">
+            {/* ზედა ინფო პანელი */}
+            <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-blue-300 flex items-center gap-2">
+                    📋 შეკვეთების ცხრილის მორგება
+                  </h3>
+                  <p className="text-[10px] text-blue-400/70 mt-1">
+                    აირჩიეთ რომელი სვეტები გამოჩნდეს შეკვეთების ტაბში. ჩართული/გამორთული სვეტები დაუყოვნებლივ აისახება ინტერფეისში.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-blue-300">{visibleCount}</div>
+                  <div className="text-[9px] text-blue-400/70">ჩართული</div>
+                </div>
+              </div>
+            </div>
+
+            {/* სწრაფი მოქმედებები */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleToggleAll(true)}
+                className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-medium hover:bg-emerald-500/20 transition"
+              >
+                ✅ ყველას ჩართვა
+              </button>
+              <button
+                onClick={() => handleToggleAll(false)}
+                className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-lg text-[10px] font-medium hover:bg-rose-500/20 transition"
+              >
+                ❌ ყველას გამორთვა
+              </button>
+              <button
+                onClick={handleResetColumns}
+                className="px-3 py-1.5 bg-gray-500/10 border border-gray-500/30 text-gray-300 rounded-lg text-[10px] font-medium hover:bg-gray-500/20 transition"
+              >
+                🔄 ნაგულისხმევზე დაბრუნება
+              </button>
+            </div>
+
+            {/* სვეტების სია */}
+            <div className="space-y-2">
+              {columns.map((col, index) => (
+                <div
+                  key={col.id}
+                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    col.visible 
+                      ? 'bg-blue-500/5 border-blue-500/30' 
+                      : 'bg-gray-900/30 border-gray-800 opacity-70'
+                  }`}
+                >
+                  {/* რიგის ნომერი */}
+                  <div className="text-[10px] text-gray-600 font-mono w-5 text-center">
+                    {index + 1}
+                  </div>
+
+                  {/* იკონი */}
+                  <div className="text-xl w-8 text-center">{col.icon}</div>
+
+                  {/* ინფორმაცია */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-200">{col.label}</span>
+                      {col.required && (
+                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold">
+                          სავალდებულო
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{col.description}</p>
+                  </div>
+
+                  {/* რიგის ცვლილების ღილაკები */}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => handleColumnMove(col.id, 'up')}
+                      disabled={index === 0}
+                      className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      title="ზემოთ"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <polyline points="18 15 12 9 6 15"/>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleColumnMove(col.id, 'down')}
+                      disabled={index === columns.length - 1}
+                      className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      title="ქვემოთ"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => !col.required && handleColumnToggle(col.id, !col.visible)}
+                    disabled={col.required}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
+                      col.required 
+                        ? 'bg-blue-600 cursor-not-allowed' 
+                        : col.visible ? 'bg-emerald-600' : 'bg-gray-700'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                      col.visible ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Preview */}
+            <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                👁️ წინასწარი ნახვა - სვეტების თანმიმდევრობა
+              </h4>
+              <div className="flex items-center gap-1 overflow-x-auto pb-2">
+                {columns.filter(c => c.visible).map((col, i) => (
+                  <div key={col.id} className="flex items-center gap-1">
+                    <div className="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-[9px] text-gray-300 whitespace-nowrap">
+                      {col.icon} {col.label}
+                    </div>
+                    {i < columns.filter(c => c.visible).length - 1 && (
+                      <span className="text-gray-700">→</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ინფო */}
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[10px] text-amber-300">
+              💡 <strong>მითითება:</strong> სავალდებულო სვეტები (მონიშვნა, Tracking, სტატუსი, მოქმედება) ყოველთვის ჩართულია ფუნქციონალურობისთვის. დანარჩენი სვეტების ჩართვა/გამორთვა შეგიძლიათ.
+            </div>
+          </div>
+        )
+
       case 'security':
         return (
           <div className="space-y-4">
-            <Select 
-              label="სესიის ავტომატური გასვლა" 
-              value={settings.session_timeout_hours.toString()} 
-              onChange={(v) => handleChange('session_timeout_hours', parseInt(v))}
-              options={[{value:'4', label:'4 საათი'}, {value:'12', label:'12 საათი'}, {value:'24', label:'24 საათი'}, {value:'168', label:'7 დღე'}]} 
-              disabled={loading || isSaving}
-            />
-            <Select 
-              label="პაროლის მინიმალური სიგრძე" 
-              value={settings.password_min_length.toString()} 
-              onChange={(v) => handleChange('password_min_length', parseInt(v))}
-              options={[{value:'6', label:'6 სიმბოლო'}, {value:'8', label:'8 სიმბოლო'}, {value:'12', label:'12 სიმბოლო'}]} 
-              disabled={loading || isSaving}
-            />
-            <Toggle 
-              label="ორ-ფაქტორიანი აუთენტიკაცია (2FA)" 
-              description="მოითხოვს კოდს SMS/Email-ით შესვლისას"
-              checked={settings.enable_2fa} 
-              onChange={(v) => handleChange('enable_2fa', v)} 
-              disabled={loading || isSaving}
-            />
+            <Select label="სესიის ავტომატური გასვლა" value={settings.session_timeout_hours.toString()} onChange={(v) => handleChange('session_timeout_hours', parseInt(v))}
+              options={[{value:'4', label:'4 საათი'}, {value:'12', label:'12 საათი'}, {value:'24', label:'24 საათი'}, {value:'168', label:'7 დღე'}]} disabled={loading || isSaving} />
+            <Select label="პაროლის მინიმალური სიგრძე" value={settings.password_min_length.toString()} onChange={(v) => handleChange('password_min_length', parseInt(v))}
+              options={[{value:'6', label:'6 სიმბოლო'}, {value:'8', label:'8 სიმბოლო'}, {value:'12', label:'12 სიმბოლო'}]} disabled={loading || isSaving} />
+            <Toggle label="ორ-ფაქტორიანი აუთენტიკაცია (2FA)" description="მოითხოვს კოდს SMS/Email-ით შესვლისას"
+              checked={settings.enable_2fa} onChange={(v) => handleChange('enable_2fa', v)} disabled={loading || isSaving} />
             <Input label="IP Whitelist" value={settings.ip_whitelist?.join(', ') || ''} onChange={(v) => handleChange('ip_whitelist', v.split(',').map(s => s.trim()).filter(Boolean))} hint="მხოლოდ მითითებული IP-ებიდან იქნება წვდომა" disabled={loading || isSaving} />
           </div>
         )
       case 'localization':
         return (
           <div className="space-y-4">
-            <Select 
-              label="ინტერფეისის ენა" 
-              value={settings.language} 
-              onChange={(v) => handleChange('language', v)}
-              options={[{value:'ka', label:'🇬🇪 ქართული'}, {value:'en', label:'🇬🇧 English'}, {value:'ru', label:'🇷🇺 Русский'}]} 
-              disabled={loading || isSaving}
-            />
-            <Select 
-              label="თარიღის ფორმატი" 
-              value={settings.date_format} 
-              onChange={(v) => handleChange('date_format', v)}
-              options={[{value:'DD/MM/YYYY', label:'31/01/2024'}, {value:'MM/DD/YYYY', label:'01/31/2024'}, {value:'YYYY-MM-DD', label:'2024-01-31'}]} 
-              disabled={loading || isSaving}
-            />
-            <Select 
-              label="დროის ფორმატი" 
-              value={settings.time_format} 
-              onChange={(v) => handleChange('time_format', v)}
-              options={[{value:'24h', label:'24-საათიანი (14:30)'}, {value:'12h', label:'12-საათიანი (2:30 PM)'}]} 
-              disabled={loading || isSaving}
-            />
-            <Select 
-              label="ნაგულისხმევი ვალუტა" 
-              value={settings.default_currency} 
-              onChange={(v) => handleChange('default_currency', v)}
-              options={[{value:'GEL', label:'₾ GEL'}, {value:'USD', label:'$ USD'}, {value:'EUR', label:'€ EUR'}]} 
-              disabled={loading || isSaving}
-            />
+            <Select label="ინტერფეისის ენა" value={settings.language} onChange={(v) => handleChange('language', v)}
+              options={[{value:'ka', label:'🇬🇪 ქართული'}, {value:'en', label:'🇬🇧 English'}, {value:'ru', label:'🇷🇺 Русский'}]} disabled={loading || isSaving} />
+            <Select label="თარიღის ფორმატი" value={settings.date_format} onChange={(v) => handleChange('date_format', v)}
+              options={[{value:'DD/MM/YYYY', label:'31/01/2024'}, {value:'MM/DD/YYYY', label:'01/31/2024'}, {value:'YYYY-MM-DD', label:'2024-01-31'}]} disabled={loading || isSaving} />
+            <Select label="დროის ფორმატი" value={settings.time_format} onChange={(v) => handleChange('time_format', v)}
+              options={[{value:'24h', label:'24-საათიანი (14:30)'}, {value:'12h', label:'12-საათიანი (2:30 PM)'}]} disabled={loading || isSaving} />
+            <Select label="ნაგულისხმევი ვალუტა" value={settings.default_currency} onChange={(v) => handleChange('default_currency', v)}
+              options={[{value:'GEL', label:'₾ GEL'}, {value:'USD', label:'$ USD'}, {value:'EUR', label:'€ EUR'}]} disabled={loading || isSaving} />
           </div>
         )
       case 'integrations':
         return (
           <div className="space-y-4">
             <Input label="Webhook URL" value={settings.webhook_url} onChange={(v) => handleChange('webhook_url', v)} hint="გარე სისტემებთან სინქრონიზაციისთვის" disabled={loading || isSaving} />
-            <Toggle 
-              label="Email ალერტები" 
-              description="ავტომატური ემაილი ახალი შეკვეთების/შეცდომების შესახებ"
-              checked={settings.enable_email_alerts} 
-              onChange={(v) => handleChange('enable_email_alerts', v)} 
-              disabled={loading || isSaving}
-            />
-            <Toggle 
-              label="SMS ალერტები" 
-              description="მძღოლებისთვის სტატუსის შეცვლის SMS (გამოიყენებს გარე პროვაიდერს)"
-              checked={settings.enable_sms_alerts} 
-              onChange={(v) => handleChange('enable_sms_alerts', v)} 
-              disabled={loading || isSaving}
-            />
+            <Toggle label="Email ალერტები" description="ავტომატური ემაილი ახალი შეკვეთების/შეცდომების შესახებ"
+              checked={settings.enable_email_alerts} onChange={(v) => handleChange('enable_email_alerts', v)} disabled={loading || isSaving} />
+            <Toggle label="SMS ალერტები" description="მძღოლებისთვის სტატუსის შეცვლის SMS"
+              checked={settings.enable_sms_alerts} onChange={(v) => handleChange('enable_sms_alerts', v)} disabled={loading || isSaving} />
           </div>
         )
       case 'data':
         return (
           <div className="space-y-4">
-            <Select 
-              label="აუდიტის ლოგების შენახვის ვადა" 
-              value={settings.audit_retention_days.toString()} 
-              onChange={(v) => handleChange('audit_retention_days', parseInt(v))}
-              options={[{value:'30', label:'30 დღე'}, {value:'90', label:'90 დღე'}, {value:'180', label:'6 თვე'}, {value:'365', label:'1 წელი'}, {value:'0', label:'უსასრულო'}]} 
-              disabled={loading || isSaving}
-            />
-            <Toggle 
-              label="ავტომატური ბექაპი" 
-              description="ყოველდღიური სნეფშოტი Supabase Storage-ში"
-              checked={settings.enable_auto_backup} 
-              onChange={(v) => handleChange('enable_auto_backup', v)} 
-              disabled={loading || isSaving}
-            />
-            <Select 
-              label="არააქტიური მომხმარებლების გასუფთავება" 
-              value={settings.cleanup_inactive_users_days.toString()} 
-              onChange={(v) => handleChange('cleanup_inactive_users_days', parseInt(v))}
-              options={[{value:'0', label:'არასდროს'}, {value:'90', label:'3 თვის შემდეგ'}, {value:'180', label:'6 თვის შემდეგ'}]} 
-              disabled={loading || isSaving}
-            />
+            <Select label="აუდიტის ლოგების შენახვის ვადა" value={settings.audit_retention_days.toString()} onChange={(v) => handleChange('audit_retention_days', parseInt(v))}
+              options={[{value:'30', label:'30 დღე'}, {value:'90', label:'90 დღე'}, {value:'180', label:'6 თვე'}, {value:'365', label:'1 წელი'}, {value:'0', label:'უსასრულო'}]} disabled={loading || isSaving} />
+            <Toggle label="ავტომატური ბექაპი" description="ყოველდღიური სნეფშოტი Supabase Storage-ში"
+              checked={settings.enable_auto_backup} onChange={(v) => handleChange('enable_auto_backup', v)} disabled={loading || isSaving} />
+            <Select label="არააქტიური მომხმარებლების გასუფთავება" value={settings.cleanup_inactive_users_days.toString()} onChange={(v) => handleChange('cleanup_inactive_users_days', parseInt(v))}
+              options={[{value:'0', label:'არასდროს'}, {value:'90', label:'3 თვის შემდეგ'}, {value:'180', label:'6 თვის შემდეგ'}]} disabled={loading || isSaving} />
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-[10px] text-yellow-300">
-              ⚠️ ყურადღება: აუდიტის ლოგების წაშლა შეუქცევადია. დარწმუნდით, რომ გაქვთ ექსპორტირებული არქივი.
+              ⚠️ ყურადღება: აუდიტის ლოგების წაშლა შეუქცევადია.
             </div>
           </div>
         )
       default:
         return null
     }
-  }, [settings, activeSection, loading, isSaving, handleChange])
+  }, [settings, activeSection, loading, isSaving, handleChange, handleColumnToggle, handleColumnMove, handleToggleAll, handleResetColumns])
 
   if (loading) {
     return (
@@ -413,7 +571,6 @@ export default function SettingsTab() {
           </div>
         </div>
 
-        {/* სექციის ფორმა */}
         <div className="max-w-2xl">
           {renderContent()}
         </div>
