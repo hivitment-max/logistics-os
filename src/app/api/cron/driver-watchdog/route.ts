@@ -12,7 +12,14 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_P
 if (!BOT_TOKEN) console.error('🚨 Bot Token Missing')
 if (!SUPABASE_KEY) console.error('🚨 Supabase Key Missing')
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+// ✅ გამოსწორებული: Server-side კლიენტი auth კონფიგურაციით
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    autoRefreshToken: false,  // ⚠️ სერვერზე არ გვჭირდება ავტომატური refresh
+    persistSession: false,     // ⚠️ სერვერზე არ გვაქვს localStorage
+    detectSessionInUrl: false, // ⚠️ სერვერზე არ გვაქვს URL session
+  }
+})
 
 // ⚙️ კონფიგურაცია (წუთებში)
 const REMINDER_THRESHOLD_MINUTES = 5  // 5 წუთში შეხსენება

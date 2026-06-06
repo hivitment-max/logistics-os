@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 🔒 Singleton - ერთი instance მთელი აპლიკაციისთვის
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+// 🔒 ეს კლიენტი მხოლოდ ბრაუზერისთვისაა (Client Components)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: false, // ⚠️ აუცილებელია Next.js-ში უსასრულო ციკლის შესაჩერებლად
   },
 })

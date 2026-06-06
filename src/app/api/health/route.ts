@@ -1,10 +1,18 @@
+// src/app/api/health/route.ts
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// გამოვიყენოთ სერვერული კლიენტი (ანუ env-დან)
+// ✅ გამოსწორებული: Server-side კლიენტი auth კონფიგურაციით
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,  // ⚠️ სერვერზე არ გვჭირდება ავტომატური refresh
+      persistSession: false,     // ⚠️ სერვერზე არ გვაქვს localStorage
+      detectSessionInUrl: false, // ⚠️ სერვერზე არ გვაქვს URL session
+    }
+  }
 )
 
 export async function GET() {

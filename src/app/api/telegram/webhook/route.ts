@@ -12,8 +12,13 @@ const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 if (!BOT_TOKEN) console.error('🚨 CRITICAL: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is MISSING in .env!')
 if (!SUPABASE_KEY) console.error('🚨 CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is MISSING in .env!')
 
+// ✅ გამოსწორებული: სრული auth კონფიგურაცია
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false }
+  auth: { 
+    autoRefreshToken: false,  // ⚠️ სერვერზე არ გვჭირდება ავტომატური refresh
+    persistSession: false,     // ⚠️ სერვერზე არ გვაქვს localStorage
+    detectSessionInUrl: false  // ⚠️ სერვერზე არ გვაქვს URL session
+  }
 })
 
 // ============================================================================
@@ -35,25 +40,18 @@ interface StageConfig {
 }
 
 const STAGES: Record<StageKey, StageConfig> = {
-  // ============================================================================
-  // 🎯 PHASE 1: მხოლოდ მიღება/უარყოფა (შემდეგი ეტაპი ჩერდება)
-  // ============================================================================
   initial: {
     nextAction: 'acc',
-    nextStage: null, // ⬅️ Phase 1: ჩერდება აქ (ადმინი მართავს შემდეგ ნაბიჯს)
+    nextStage: null,
     buttonText: '✅ მივიღე',
     dbField: 'driver_confirmed_at',
     orderStatus: 'confirmed',
     trackingEventType: 'accepted',
     dashboardTitle: '✅ მძღოლმა მიიღო შეკვეთა',
     dashboardMessage: (name, code) => `👨‍✈️ <b>${name}</b>-მა მიიღო შეკვეთა <code>${code}</code>`,
-    replyText: '✅ <b>შეკვეთა დადასტურებულია!</b>\n\n⏳ დაელოდეთ დეტალურ ინსტრუქციას.', // ⬅️ შენი ტექსტი
-    shouldRemoveButtons: true // ⬅️ Phase 1: ღილაკები ქრება დადასტურების შემდეგ
+    replyText: '✅ <b>შეკვეთა დადასტურებულია!</b>\n\n⏳ დაელოდეთ დეტალურ ინსტრუქციას.',
+    shouldRemoveButtons: true
   },
-
-  // ============================================================================
-  // 🔮 მომავალი ეტაპები (მზადაა ფაზა 2-ისთვის - უცვლელია)
-  // ============================================================================
   accepted: {
     nextAction: 'en_route',
     nextStage: 'en_route',
@@ -61,8 +59,8 @@ const STAGES: Record<StageKey, StageConfig> = {
     dbField: 'en_route_at',
     trackingEventType: 'en_route_pickup',
     dashboardTitle: '🚗 მძღოლი მიემართება ატვირთვას',
-    dashboardMessage: (name, code) => `👨‍✈️ <b>${name}</b> მიდის ატვირთვის ადგილას (<code>${code}</code>)`,
-    replyText: '🚗 <b>გზაში ხარ ატვირთვისკენ!</b>\nდეშბორდზე დაფიქსირდა.',
+    dashboardMessage: (name, code) => `👨‍✈️ <b>${name}</b> მიდის ატვითვის ადგილას (<code>${code}</code>)`,
+    replyText: '🚗 <b>გზაში ხარ ატვითვისკენ!</b>\nდეშბორდზე დაფიქსირდა.',
     shouldRemoveButtons: false
   },
   en_route: {
@@ -242,15 +240,13 @@ async function logDashboardNotification(orderId: string | null, driverId: string
 }
 
 // ============================================================================
-// 🎮 ჰენდლერი: Callback Query (ღილაკების დამუშავება) - DEBUG VERSION
+// 🎮 ჰენდლერი: Callback Query
 // ============================================================================
 async function handleCallbackQuery(callback: any) {
   const callbackQueryId = callback.id
   const driverChatId = callback.from.id.toString()
   const data = callback.data
 
-  // 🐛 DEBUG: დავბეჭდოთ ყველაფერი
-  console.log('🔍 [DEBUG] Full callback object:', JSON.stringify(callback, null, 2))
   console.log(`🎮 [CALLBACK] Raw data: "${data}"`)
   console.log(`🎮 [CALLBACK] driverChatId: "${driverChatId}"`)
 
@@ -260,7 +256,6 @@ async function handleCallbackQuery(callback: any) {
 
   console.log(`🔍 [DEBUG] Parsed: action="${action}", orderId="${orderId}"`)
 
-  // ✅ ვალიდაცია
   const VALID_ACTIONS = ['acc', 'rej', 'en_route', 'loaded', 'in_transit', 'border', 'arrived', 'delivered']
   
   if (!orderId) {
@@ -289,16 +284,6 @@ async function handleCallbackQuery(callback: any) {
   const trackingCode = order!.tracking_code
   const originalText = callback.message?.text || `🚛 შეკვეთა ${trackingCode}`
 
-  // 🐛 DEBUG: დავბეჭდოთ order-ის სტატუსები
-  console.log(`🔍 [DEBUG] Order ${orderId} fields:`, {
-    driver_response: order.driver_response,
-    en_route_at: order.en_route_at,
-    loaded_at: order.loaded_at,
-    driver_type: order.driver_type,
-    driver_id: order.driver_id,
-    external_driver_id: order.external_driver_id
-  })
-
   let currentStage: StageKey = 'initial'
   if (order!.driver_response === 'accepted') currentStage = 'accepted'
   if (order!.en_route_at) currentStage = 'en_route'
@@ -320,7 +305,6 @@ async function handleCallbackQuery(callback: any) {
   }
 
   try {
-    // 1️⃣ ბაზის განახლება
     const dbUpdate: Record<string, any> = {
       [stageConfig.dbField]: new Date().toISOString()
     }
@@ -340,7 +324,7 @@ async function handleCallbackQuery(callback: any) {
       .from('orders')
       .update(dbUpdate)
       .eq('id', orderId)
-      .select()  // ⬅️ დავაბრუნოთ განახლებული მონაცემები დებაგინგისთვის
+      .select()
 
     if (updateErr) {
       console.error('❌ [DB] Update error:', updateErr)
@@ -349,7 +333,6 @@ async function handleCallbackQuery(callback: any) {
     
     console.log(`✅ [DB] Update success:`, updateData)
 
-    // 2️⃣ ლოგირება
     await logTrackingEvent(orderId, driver!.id, stageConfig.trackingEventType, {
       action,
       stage: currentStage,
@@ -366,7 +349,6 @@ async function handleCallbackQuery(callback: any) {
       { action, stage: currentStage }
     )
 
-    // 3️⃣ ტელეგრამის პასუხი + ღილაკების განახლება
     const newMessageText = `${originalText}\n\n🔄 ${stageConfig.replyText}`
     
     let newKeyboard: any = undefined
@@ -490,7 +472,7 @@ async function handleStartCommand(message: any) {
 }
 
 // ============================================================================
-// 📥 POST Handler - მთავარი entry point
+// 📥 POST Handler
 // ============================================================================
 export async function POST(request: NextRequest) {
   try {
@@ -502,12 +484,10 @@ export async function POST(request: NextRequest) {
       message_text: body.message?.text
     }).slice(0, 200))
 
-    // 1️⃣ Callback Query (ღილაკების დამუშავება)
     if (body.callback_query) {
       return await handleCallbackQuery(body.callback_query)
     }
 
-    // 2️⃣ Message Commands (/start, /sos, etc.)
     if (body.message?.text) {
       const text = body.message.text.trim()
       
@@ -532,7 +512,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ============================================================================
-// 🔍 GET Handler - Webhook სტატუსის შესამოწმებლად
+// 🔍 GET Handler
 // ============================================================================
 export async function GET() {
   if (!BOT_TOKEN) {
