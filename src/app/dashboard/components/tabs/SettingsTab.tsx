@@ -90,7 +90,7 @@ export interface OrderColumnConfig {
   visible: boolean
   required: boolean
   description: string
-  fixed?: 'left' | 'right'  // 🆕 ფიქსირებული პოზიცია
+  fixed?: 'left' | 'right'
 }
 
 export const DEFAULT_ORDER_COLUMNS: OrderColumnConfig[] = [
@@ -105,17 +105,12 @@ export const DEFAULT_ORDER_COLUMNS: OrderColumnConfig[] = [
   { id: 'actions', label: 'მოქმედება', icon: '⚙️', visible: true, required: true, fixed: 'right', description: 'რედაქტირება, წაშლა და სხვა' },
 ]
 
-// 🆕 Helper: ძველი მონაცემების migration ახალ fixed property-ზე
 const migrateColumns = (columns: OrderColumnConfig[]): OrderColumnConfig[] => {
   return columns.map(col => {
-    // თუ უკვე აქვს fixed, არაფერს ვცვლით
     if (col.fixed) return col
-    
-    // checkbox და tracking → fixed: 'left'
     if (col.id === 'checkbox' || col.id === 'tracking') {
       return { ...col, fixed: 'left' as const }
     }
-    // actions → fixed: 'right'
     if (col.id === 'actions') {
       return { ...col, fixed: 'right' as const }
     }
@@ -209,7 +204,6 @@ export default function SettingsTab() {
         if (!loadedSettings.order_columns || loadedSettings.order_columns.length === 0) {
           loadedSettings.order_columns = DEFAULT_ORDER_COLUMNS
         } else {
-          // 🆕 Migration: ძველ მონაცემებს დავამატოთ fixed property
           loadedSettings.order_columns = migrateColumns(loadedSettings.order_columns)
         }
         setSettings(loadedSettings)
@@ -230,12 +224,10 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // 🆕 სვეტის ხილვადობის შეცვლა - ფიქსირებულს ვერ გამორთავ
   const handleColumnToggle = useCallback((columnId: string, visible: boolean) => {
     setSettings(prev => {
       if (!prev) return prev
       const updatedColumns = (prev.order_columns || DEFAULT_ORDER_COLUMNS).map(col => {
-        // 🆕 ფიქსირებულ სვეტს ვერ გამორთავ
         if (col.id === columnId && col.fixed) return col
         return col.id === columnId ? { ...col, visible } : col
       })
@@ -243,7 +235,7 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // 🆕 სვეტის რიგის შეცვლა - ფიქსირებულს ვერ გადაადგილებ
+  // ✅ გამოსწორებული - temp ცვლადით
   const handleColumnMove = useCallback((columnId: string, direction: 'up' | 'down') => {
     setSettings(prev => {
       if (!prev) return prev
@@ -251,23 +243,24 @@ export default function SettingsTab() {
       const index = columns.findIndex(c => c.id === columnId)
       if (index === -1) return prev
       
-      // 🆕 ფიქსირებული სვეტი ვერ გადაადგილდება
       if (columns[index].fixed) return prev
       
       if (direction === 'up' && index > 0) {
-        // 🆕 ფიქსირებულ სვეტს ვერ გადავაჭრით
         if (columns[index - 1].fixed) return prev
-        [columns[index - 1], columns[index]] = [columns[index], columns[index - 1]]
+        const temp = columns[index - 1]
+        columns[index - 1] = columns[index]
+        columns[index] = temp
       } else if (direction === 'down' && index < columns.length - 1) {
         if (columns[index + 1].fixed) return prev
-        [columns[index], columns[index + 1]] = [columns[index + 1], columns[index]]
+        const temp = columns[index + 1]
+        columns[index + 1] = columns[index]
+        columns[index] = temp
       }
       
       return { ...prev, order_columns: columns }
     })
   }, [])
 
-  // 🆕 ყველა სვეტის ჩართვა/გამორთვა - ფიქსირებულები რჩება ჩართული
   const handleToggleAll = useCallback((visible: boolean) => {
     setSettings(prev => {
       if (!prev) return prev
@@ -278,7 +271,6 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // 🆕 სვეტების რესეტი default-ზე
   const handleResetColumns = useCallback(() => {
     setSettings(prev => {
       if (!prev) return prev
@@ -331,7 +323,6 @@ export default function SettingsTab() {
           </div>
         )
 
-      // 🆕 შეკვეთების სვეტების განყოფილება - FIXED COLUMNS-ით
       case 'orders_display':
         const columns = settings.order_columns || DEFAULT_ORDER_COLUMNS
         const visibleCount = columns.filter(c => c.visible).length
@@ -341,7 +332,6 @@ export default function SettingsTab() {
         
         return (
           <div className="space-y-4">
-            {/* ზედა ინფო პანელი */}
             <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
               <div className="flex items-start justify-between">
                 <div>
@@ -359,7 +349,6 @@ export default function SettingsTab() {
               </div>
             </div>
 
-            {/* 🆕 სტრუქტურის ვიზუალიზაცია */}
             <div className="p-3 bg-gray-900/50 border border-gray-800 rounded-xl">
               <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
                 📐 ცხრილის სტრუქტურა
@@ -396,7 +385,6 @@ export default function SettingsTab() {
               </div>
             </div>
 
-            {/* სწრაფი მოქმედებები */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleToggleAll(true)}
@@ -418,7 +406,6 @@ export default function SettingsTab() {
               </button>
             </div>
 
-            {/* სვეტების სია */}
             <div className="space-y-2">
               {columns.map((col, index) => {
                 const isFixed = !!col.fixed
@@ -435,15 +422,12 @@ export default function SettingsTab() {
                           : 'bg-gray-900/30 border-gray-800 opacity-70'
                     }`}
                   >
-                    {/* რიგის ნომერი */}
                     <div className="text-[10px] text-gray-600 font-mono w-5 text-center">
                       {index + 1}
                     </div>
 
-                    {/* იკონი */}
                     <div className="text-xl w-8 text-center">{col.icon}</div>
 
-                    {/* ინფორმაცია */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-semibold text-gray-200">{col.label}</span>
@@ -461,7 +445,6 @@ export default function SettingsTab() {
                       <p className="text-[10px] text-gray-500 mt-0.5">{col.description}</p>
                     </div>
 
-                    {/* რიგის ცვლილების ღილაკები - ფიქსირებულს არ აქვს */}
                     {!isFixed ? (
                       <div className="flex items-center gap-0.5">
                         <button
@@ -489,7 +472,6 @@ export default function SettingsTab() {
                       <div className="w-[26px]" />
                     )}
 
-                    {/* Toggle - ფიქსირებულს ვერ გამორთავ */}
                     <button
                       type="button"
                       onClick={() => !isFixed && !col.required && handleColumnToggle(col.id, !col.visible)}
@@ -509,7 +491,6 @@ export default function SettingsTab() {
               })}
             </div>
 
-            {/* ინფო */}
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[10px] text-amber-300">
               💡 <strong>მითითება:</strong> 🔒 ფიქსირებული სვეტები (Tracking მარცხნივ, მოქმედება მარჯვნივ) ყოველთვის ჩართულია და ვერ გადაადგილდება. დანარჩენი სვეტები თანაბრად ნაწილდება მათ შორის.
             </div>
