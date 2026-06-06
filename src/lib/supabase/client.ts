@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 🔒 Singleton pattern - ერთი instance მთელი აპლიკაციისთვის
+// 🔒 Singleton - ერთი instance მთელი აპლიკაციისთვის
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
