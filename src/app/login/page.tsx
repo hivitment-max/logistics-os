@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('')
   const router = useRouter()
 
-  // 🔐 LOGIN ფუნქცია - ✅ განახლებული ლოადერის ლოგიკით
+  // 🔐 LOGIN ფუნქცია
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -38,22 +38,17 @@ export default function LoginPage() {
       localStorage.setItem('userRole', userRole)
       console.log('🎭 [Login] Role saved:', userRole)
 
-      // ✅ რედირექტი პანელზე
       await router.push('/dashboard')
       await router.refresh()
-      
-      // ❗ აქ აღარ ვაპირებთ setLoading(false)-ს, რადგან რედირექტი ხდება
-      // თუ რაიმე მიზეზით რედირექტი ვერ მოხდა, კომპონენტი მაინც გადაიტვირთება
       
     } catch (err: any) {
       console.error('❌ [Login] Error:', err.message)
       setError(err.message || 'Login failed')
-      setLoading(false) // ❗ მხოლოდ შეცდომის შემთხვევაში ვრთავთ ლოადერს
+      setLoading(false)
     }
-    // ❗ finally ბლოკი წაშლილია - აღარ ვრთავთ loading-ს ავტომატურად
   }
 
-  // 📝 REGISTER ფუნქცია - ✅ განახლებული: ავტომატური 'client' როლი
+  // 📝 REGISTER ფუნქცია
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -67,11 +62,10 @@ export default function LoginPage() {
     }
 
     try {
-      // ✅ ავტომატურად ვუნიშნავთ როლს 'client' - რათა მოხვდეს სწორ პანელში
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { role: 'client' } } // ❗ შეიცვალა: 'user' → 'client'
+        options: { data: { role: 'client' } }
       })
 
       if (error) throw error
@@ -91,7 +85,7 @@ export default function LoginPage() {
     }
   }
 
-  // 🚛 თუ იტვირთება, ვაჩვენებთ ანიმაციას
+  // 🚛 Loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
@@ -104,8 +98,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* მარცხენა მხარე - ბრენდინგი (უცვლელი) */}
+    <div className="min-h-screen flex text-gray-900">
+      {/* მარცხენა მხარე - ბრენდინგი */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 opacity-10 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
@@ -163,7 +157,8 @@ export default function LoginPage() {
       </div>
 
       {/* მარჯვენა მხარე - ფორმა */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+      {/* ✅ FIX: დამატებულია text-gray-900 - რომ ტექსტი მუქი იყოს */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 text-gray-900">
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl mb-4">
@@ -204,22 +199,24 @@ export default function LoginPage() {
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                  {/* ✅ FIX: დამატებულია text-gray-900 და placeholder-gray-400 */}
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
+                    className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
                     placeholder="you@company.com"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                  {/* ✅ FIX: დამატებულია text-gray-900 */}
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
+                    className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
                     placeholder="••••••••"
                     required
                   />
@@ -237,16 +234,17 @@ export default function LoginPage() {
               </form>
             )}
 
-            {/* REGISTER FORM - ✅ განახლებული: ავტომატური 'client' როლი */}
+            {/* REGISTER FORM */}
             {activeTab === 'register' && (
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                  {/* ✅ FIX: დამატებულია text-gray-900 და placeholder-gray-400 */}
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
+                    className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
                     placeholder="you@company.com"
                     required
                   />
@@ -257,7 +255,7 @@ export default function LoginPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
+                    className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
                     placeholder="••••••••"
                     required
                   />
@@ -268,13 +266,12 @@ export default function LoginPage() {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
+                    className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
                     placeholder="••••••••"
                     required
                   />
                 </div>
                 
-                {/* ✅ ინფო ბლოგი: განახლებული ტექსტი */}
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-xs flex items-start gap-2">
                   <span>ℹ️</span>
                   <span>ახალი ანგარიში ავტომატურად მიიღებს <strong>"client"</strong> როლს და მოხვდება კლიენტის პანელში.</span>

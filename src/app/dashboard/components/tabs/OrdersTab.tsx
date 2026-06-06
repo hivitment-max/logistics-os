@@ -451,11 +451,6 @@ export default function OrdersTab({
     loadColumnSettings()
   }, [])
 
-  // 🆕 Helper: ხილველი სვეტების რიგი
-  const getVisibleColumns = useCallback(() => {
-    return visibleColumns.filter(c => c.visible)
-  }, [visibleColumns])
-
   // ════════════════════════════════════════════════════════════
   // 📌 ALL FUNCTIONS
   // ════════════════════════════════════════════════════════════
@@ -799,19 +794,42 @@ export default function OrdersTab({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedOrders, exportToCSV])
 
-  // 🆕 დინამიური სვეტების ზომები
-  const COLUMN_WIDTHS: Record<string, string> = {
+  // 🆕 ფიქსირებული + დინამიური სვეტები
+  const FIXED_LEFT_WIDTHS: Record<string, string> = {
     checkbox: '40px',
     tracking: '110px',
-    route: '160px',
-    cargo: '130px',
-    driver: '150px',
-    price: '80px',
-    status: '140px',
-    response: '120px',
+  }
+  const FIXED_RIGHT_WIDTHS: Record<string, string> = {
     actions: '140px',
   }
-  const COL = getVisibleColumns().map(c => COLUMN_WIDTHS[c.id] || '100px').join(' ')
+
+  const getFixedLeftColumns = useCallback(() => 
+    visibleColumns.filter(c => c.fixed === 'left' && c.visible), 
+  [visibleColumns])
+
+  const getFixedRightColumns = useCallback(() => 
+    visibleColumns.filter(c => c.fixed === 'right' && c.visible), 
+  [visibleColumns])
+
+  const getMiddleColumns = useCallback(() => 
+    visibleColumns.filter(c => !c.fixed && c.visible), 
+  [visibleColumns])
+
+  // 🆕 COL: ფიქსირებული მარცხნივ + 1fr შუაში + ფიქსირებული მარჯვნივ
+  const COL = useMemo(() => {
+    return [
+      ...getFixedLeftColumns().map(c => FIXED_LEFT_WIDTHS[c.id] || '100px'),
+      ...getMiddleColumns().map(() => '1fr'),
+      ...getFixedRightColumns().map(c => FIXED_RIGHT_WIDTHS[c.id] || '100px'),
+    ].join(' ')
+  }, [getFixedLeftColumns, getMiddleColumns, getFixedRightColumns])
+
+  // 🆕 რენდერის რიგი: მარცხენა → შუა → მარჯვენა
+  const getOrderedColumns = useCallback(() => [
+    ...getFixedLeftColumns(),
+    ...getMiddleColumns(),
+    ...getFixedRightColumns(),
+  ], [getFixedLeftColumns, getMiddleColumns, getFixedRightColumns])
 
   // ════════════════════════════════════════════════════════════
   // 🚨 EARLY RETURN - ყველა hook-ის შემდეგ!
@@ -906,9 +924,9 @@ export default function OrdersTab({
         </div>
       )}
 
-      {/* 🆕 TABLE HEADER - Dynamic Columns */}
+      {/* 🆕 TABLE HEADER - Fixed + Dynamic + Fixed */}
       <div className="grid px-4 py-3 border-b border-gray-800 bg-gray-800/50" style={{ gridTemplateColumns: COL }}>
-        {getVisibleColumns().map(col => {
+        {getOrderedColumns().map(col => {
           switch (col.id) {
             case 'checkbox':
               return (
@@ -943,7 +961,7 @@ export default function OrdersTab({
         })}
       </div>
 
-      {/* 🆕 TABLE BODY - Dynamic Columns */}
+      {/* 🆕 TABLE BODY - Fixed + Dynamic + Fixed */}
       <div className="divide-y divide-gray-800/50 max-h-[calc(100vh-500px)] overflow-y-auto">
         {sortedOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -963,7 +981,7 @@ export default function OrdersTab({
 
             return (
               <div key={o.id} className={`grid px-4 py-2.5 transition-colors group ${isSelected ? 'bg-violet-500/10 hover:bg-violet-500/15' : 'hover:bg-gray-800/30'}`} style={{ gridTemplateColumns: COL }}>
-                {getVisibleColumns().map(col => {
+                {getOrderedColumns().map(col => {
                   switch (col.id) {
                     case 'checkbox':
                       return (

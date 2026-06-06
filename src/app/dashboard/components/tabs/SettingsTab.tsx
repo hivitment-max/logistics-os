@@ -90,19 +90,38 @@ export interface OrderColumnConfig {
   visible: boolean
   required: boolean
   description: string
+  fixed?: 'left' | 'right'  // 🆕 ფიქსირებული პოზიცია
 }
 
 export const DEFAULT_ORDER_COLUMNS: OrderColumnConfig[] = [
-  { id: 'checkbox', label: 'მონიშვნა', icon: '☑️', visible: true, required: true, description: 'Checkbox მასობრივი მოქმედებებისთვის' },
-  { id: 'tracking', label: 'Tracking კოდი', icon: '🔢', visible: true, required: true, description: 'შეკვეთის უნიკალური კოდი და თარიღი' },
+  { id: 'checkbox', label: 'მონიშვნა', icon: '☑️', visible: true, required: true, fixed: 'left', description: 'Checkbox მასობრივი მოქმედებებისთვის' },
+  { id: 'tracking', label: 'Tracking კოდი', icon: '🔢', visible: true, required: true, fixed: 'left', description: 'შეკვეთის უნიკალური კოდი და თარიღი' },
   { id: 'route', label: 'მარშრუტი', icon: '🗺️', visible: true, required: false, description: 'აღების და მიწოდების მისამართები' },
   { id: 'cargo', label: 'ტვირთი', icon: '📦', visible: true, required: false, description: 'ტვირთის აღწერა და წონა' },
   { id: 'driver', label: 'მძღოლი / მანქანა', icon: '🚚', visible: true, required: false, description: 'მძღოლის სახელი და მანქანის ნომერი' },
   { id: 'price', label: 'ფასი', icon: '💰', visible: true, required: false, description: 'შეკვეთის ღირებულება და ვალუტა' },
   { id: 'status', label: 'სტატუსი', icon: '📊', visible: true, required: true, description: 'შეკვეთის მიმდინარე სტატუსი' },
   { id: 'response', label: 'მძღოლის პასუხი', icon: '💬', visible: true, required: false, description: 'მძღოლის რეაქცია შეკვეთაზე' },
-  { id: 'actions', label: 'მოქმედება', icon: '⚙️', visible: true, required: true, description: 'რედაქტირება, წაშლა და სხვა' },
+  { id: 'actions', label: 'მოქმედება', icon: '⚙️', visible: true, required: true, fixed: 'right', description: 'რედაქტირება, წაშლა და სხვა' },
 ]
+
+// 🆕 Helper: ძველი მონაცემების migration ახალ fixed property-ზე
+const migrateColumns = (columns: OrderColumnConfig[]): OrderColumnConfig[] => {
+  return columns.map(col => {
+    // თუ უკვე აქვს fixed, არაფერს ვცვლით
+    if (col.fixed) return col
+    
+    // checkbox და tracking → fixed: 'left'
+    if (col.id === 'checkbox' || col.id === 'tracking') {
+      return { ...col, fixed: 'left' as const }
+    }
+    // actions → fixed: 'right'
+    if (col.id === 'actions') {
+      return { ...col, fixed: 'right' as const }
+    }
+    return col
+  })
+}
 
 // ============================================================================
 // ⚙️ სექციების კონფიგურაცია
@@ -189,6 +208,9 @@ export default function SettingsTab() {
         const loadedSettings = data as Settings
         if (!loadedSettings.order_columns || loadedSettings.order_columns.length === 0) {
           loadedSettings.order_columns = DEFAULT_ORDER_COLUMNS
+        } else {
+          // 🆕 Migration: ძველ მონაცემებს დავამატოთ fixed property
+          loadedSettings.order_columns = migrateColumns(loadedSettings.order_columns)
         }
         setSettings(loadedSettings)
       }
@@ -208,18 +230,20 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // 🆕 სვეტის ხილვადობის შეცვლა
+  // 🆕 სვეტის ხილვადობის შეცვლა - ფიქსირებულს ვერ გამორთავ
   const handleColumnToggle = useCallback((columnId: string, visible: boolean) => {
     setSettings(prev => {
       if (!prev) return prev
-      const updatedColumns = (prev.order_columns || DEFAULT_ORDER_COLUMNS).map(col =>
-        col.id === columnId ? { ...col, visible } : col
-      )
+      const updatedColumns = (prev.order_columns || DEFAULT_ORDER_COLUMNS).map(col => {
+        // 🆕 ფიქსირებულ სვეტს ვერ გამორთავ
+        if (col.id === columnId && col.fixed) return col
+        return col.id === columnId ? { ...col, visible } : col
+      })
       return { ...prev, order_columns: updatedColumns }
     })
   }, [])
 
-  // 🆕 სვეტის რიგის შეცვლა (ზემოთ/ქვემოთ)
+  // 🆕 სვეტის რიგის შეცვლა - ფიქსირებულს ვერ გადაადგილებ
   const handleColumnMove = useCallback((columnId: string, direction: 'up' | 'down') => {
     setSettings(prev => {
       if (!prev) return prev
@@ -227,9 +251,15 @@ export default function SettingsTab() {
       const index = columns.findIndex(c => c.id === columnId)
       if (index === -1) return prev
       
+      // 🆕 ფიქსირებული სვეტი ვერ გადაადგილდება
+      if (columns[index].fixed) return prev
+      
       if (direction === 'up' && index > 0) {
+        // 🆕 ფიქსირებულ სვეტს ვერ გადავაჭრით
+        if (columns[index - 1].fixed) return prev
         [columns[index - 1], columns[index]] = [columns[index], columns[index - 1]]
       } else if (direction === 'down' && index < columns.length - 1) {
+        if (columns[index + 1].fixed) return prev
         [columns[index], columns[index + 1]] = [columns[index + 1], columns[index]]
       }
       
@@ -237,12 +267,12 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // 🆕 ყველა სვეტის ჩართვა/გამორთვა
+  // 🆕 ყველა სვეტის ჩართვა/გამორთვა - ფიქსირებულები რჩება ჩართული
   const handleToggleAll = useCallback((visible: boolean) => {
     setSettings(prev => {
       if (!prev) return prev
       const updatedColumns = (prev.order_columns || DEFAULT_ORDER_COLUMNS).map(col =>
-        col.required ? col : { ...col, visible }
+        col.required || col.fixed ? { ...col, visible: true } : { ...col, visible }
       )
       return { ...prev, order_columns: updatedColumns }
     })
@@ -256,19 +286,15 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // ✅ გამოსწორებული handleSave - audit_logs-ის ხელით ჩაწერის გარეშე
-  // Trigger ავტომატურად ჩაწერს audit_logs-ში!
   const handleSave = useCallback(async () => {
     if (!settings) return
     setIsSaving(true)
     setSaveStatus('idle')
     
     try {
-      // მივიღოთ არსებული settings ID (თუ არსებობს)
       const { data: existing } = await supabase.from('settings').select('id').single()
       const settingsId = existing?.id
       
-      // შევინახოთ პარამეტრები
       const { error } = await supabase
         .from('settings')
         .upsert({ 
@@ -278,9 +304,6 @@ export default function SettingsTab() {
         }, { onConflict: 'id' })
       
       if (error) throw error
-      
-      // ✅ Trigger ავტომატურად ჩაწერს audit_logs-ში!
-      // ხელით ჩაწერა აღარ გვჭირდება
       
       setSaveStatus('success')
       setTimeout(() => setSaveStatus('idle'), 3000)
@@ -308,10 +331,13 @@ export default function SettingsTab() {
           </div>
         )
 
-      // 🆕 შეკვეთების სვეტების განყოფილება
+      // 🆕 შეკვეთების სვეტების განყოფილება - FIXED COLUMNS-ით
       case 'orders_display':
         const columns = settings.order_columns || DEFAULT_ORDER_COLUMNS
         const visibleCount = columns.filter(c => c.visible).length
+        const fixedLeftCols = columns.filter(c => c.fixed === 'left')
+        const fixedRightCols = columns.filter(c => c.fixed === 'right')
+        const middleCols = columns.filter(c => !c.fixed)
         
         return (
           <div className="space-y-4">
@@ -323,13 +349,50 @@ export default function SettingsTab() {
                     📋 შეკვეთების ცხრილის მორგება
                   </h3>
                   <p className="text-[10px] text-blue-400/70 mt-1">
-                    აირჩიეთ რომელი სვეტები გამოჩნდეს შეკვეთების ტაბში. ჩართული/გამორთული სვეტები დაუყოვნებლივ აისახება ინტერფეისში.
+                    აირჩიეთ რომელი სვეტები გამოჩნდეს. 🔒 ფიქსირებული სვეტები ყოველთვის კიდეებში რჩება.
                   </p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-300">{visibleCount}</div>
                   <div className="text-[9px] text-blue-400/70">ჩართული</div>
                 </div>
+              </div>
+            </div>
+
+            {/* 🆕 სტრუქტურის ვიზუალიზაცია */}
+            <div className="p-3 bg-gray-900/50 border border-gray-800 rounded-xl">
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                📐 ცხრილის სტრუქტურა
+              </h4>
+              <div className="flex items-stretch gap-1 h-10">
+                <div className="flex items-center gap-1 px-2 bg-violet-500/20 border border-violet-500/40 rounded text-[9px] text-violet-300 whitespace-nowrap">
+                  🔒 მარცხენა ({fixedLeftCols.length})
+                </div>
+                <div className="flex-1 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded text-[9px] text-blue-300">
+                  ⚡ დინამიური ({middleCols.filter(c => c.visible).length})
+                </div>
+                <div className="flex items-center gap-1 px-2 bg-rose-500/20 border border-rose-500/40 rounded text-[9px] text-rose-300 whitespace-nowrap">
+                  🔒 მარჯვენა ({fixedRightCols.length})
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-1 overflow-x-auto">
+                {fixedLeftCols.map(col => (
+                  <div key={col.id} className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/30 rounded text-[8px] text-violet-300 whitespace-nowrap">
+                    {col.icon} {col.label}
+                  </div>
+                ))}
+                <span className="text-gray-600 text-[9px]">│</span>
+                {middleCols.filter(c => c.visible).map(col => (
+                  <div key={col.id} className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 rounded text-[8px] text-blue-300 whitespace-nowrap">
+                    {col.icon} {col.label}
+                  </div>
+                ))}
+                <span className="text-gray-600 text-[9px]">│</span>
+                {fixedRightCols.map(col => (
+                  <div key={col.id} className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 rounded text-[8px] text-rose-300 whitespace-nowrap">
+                    {col.icon} {col.label}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -357,101 +420,98 @@ export default function SettingsTab() {
 
             {/* სვეტების სია */}
             <div className="space-y-2">
-              {columns.map((col, index) => (
-                <div
-                  key={col.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    col.visible 
-                      ? 'bg-blue-500/5 border-blue-500/30' 
-                      : 'bg-gray-900/30 border-gray-800 opacity-70'
-                  }`}
-                >
-                  {/* რიგის ნომერი */}
-                  <div className="text-[10px] text-gray-600 font-mono w-5 text-center">
-                    {index + 1}
-                  </div>
-
-                  {/* იკონი */}
-                  <div className="text-xl w-8 text-center">{col.icon}</div>
-
-                  {/* ინფორმაცია */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-gray-200">{col.label}</span>
-                      {col.required && (
-                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold">
-                          სავალდებულო
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-0.5">{col.description}</p>
-                  </div>
-
-                  {/* რიგის ცვლილების ღილაკები */}
-                  <div className="flex items-center gap-0.5">
-                    <button
-                      onClick={() => handleColumnMove(col.id, 'up')}
-                      disabled={index === 0}
-                      className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                      title="ზემოთ"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <polyline points="18 15 12 9 6 15"/>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleColumnMove(col.id, 'down')}
-                      disabled={index === columns.length - 1}
-                      className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                      title="ქვემოთ"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => !col.required && handleColumnToggle(col.id, !col.visible)}
-                    disabled={col.required}
-                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
-                      col.required 
-                        ? 'bg-blue-600 cursor-not-allowed' 
-                        : col.visible ? 'bg-emerald-600' : 'bg-gray-700'
+              {columns.map((col, index) => {
+                const isFixed = !!col.fixed
+                const fixedPosition = col.fixed === 'left' ? '🔒 მარცხენა კიდე' : col.fixed === 'right' ? '🔒 მარჯვენა კიდე' : null
+                
+                return (
+                  <div
+                    key={col.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                      isFixed
+                        ? 'bg-gradient-to-r from-violet-500/10 to-rose-500/10 border-violet-500/30'
+                        : col.visible 
+                          ? 'bg-blue-500/5 border-blue-500/30' 
+                          : 'bg-gray-900/30 border-gray-800 opacity-70'
                     }`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-                      col.visible ? 'translate-x-4' : 'translate-x-0'
-                    }`} />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Preview */}
-            <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                👁️ წინასწარი ნახვა - სვეტების თანმიმდევრობა
-              </h4>
-              <div className="flex items-center gap-1 overflow-x-auto pb-2">
-                {columns.filter(c => c.visible).map((col, i) => (
-                  <div key={col.id} className="flex items-center gap-1">
-                    <div className="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-[9px] text-gray-300 whitespace-nowrap">
-                      {col.icon} {col.label}
+                    {/* რიგის ნომერი */}
+                    <div className="text-[10px] text-gray-600 font-mono w-5 text-center">
+                      {index + 1}
                     </div>
-                    {i < columns.filter(c => c.visible).length - 1 && (
-                      <span className="text-gray-700">→</span>
+
+                    {/* იკონი */}
+                    <div className="text-xl w-8 text-center">{col.icon}</div>
+
+                    {/* ინფორმაცია */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-gray-200">{col.label}</span>
+                        {col.required && !isFixed && (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold">
+                            სავალდებულო
+                          </span>
+                        )}
+                        {fixedPosition && (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 font-semibold">
+                            {fixedPosition}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{col.description}</p>
+                    </div>
+
+                    {/* რიგის ცვლილების ღილაკები - ფიქსირებულს არ აქვს */}
+                    {!isFixed ? (
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => handleColumnMove(col.id, 'up')}
+                          disabled={index === 0 || columns[index - 1]?.fixed}
+                          className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          title="ზემოთ"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <polyline points="18 15 12 9 6 15"/>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleColumnMove(col.id, 'down')}
+                          disabled={index === columns.length - 1 || columns[index + 1]?.fixed}
+                          className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          title="ქვემოთ"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <polyline points="6 9 12 15 18 9"/>
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-[26px]" />
                     )}
+
+                    {/* Toggle - ფიქსირებულს ვერ გამორთავ */}
+                    <button
+                      type="button"
+                      onClick={() => !isFixed && !col.required && handleColumnToggle(col.id, !col.visible)}
+                      disabled={isFixed || col.required}
+                      className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
+                        isFixed || col.required
+                          ? 'bg-blue-600 cursor-not-allowed' 
+                          : col.visible ? 'bg-emerald-600' : 'bg-gray-700'
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                        col.visible || isFixed ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </button>
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
 
             {/* ინფო */}
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[10px] text-amber-300">
-              💡 <strong>მითითება:</strong> სავალდებულო სვეტები (მონიშვნა, Tracking, სტატუსი, მოქმედება) ყოველთვის ჩართულია ფუნქციონალურობისთვის. დანარჩენი სვეტების ჩართვა/გამორთვა შეგიძლიათ.
+              💡 <strong>მითითება:</strong> 🔒 ფიქსირებული სვეტები (Tracking მარცხნივ, მოქმედება მარჯვნივ) ყოველთვის ჩართულია და ვერ გადაადგილდება. დანარჩენი სვეტები თანაბრად ნაწილდება მათ შორის.
             </div>
           </div>
         )
@@ -523,7 +583,6 @@ export default function SettingsTab() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)]">
-      {/* 📂 მარცხენა ნავიგაცია */}
       <div className="w-full lg:w-52 bg-gray-800/60 border border-gray-700 rounded-xl p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto shrink-0">
         {SECTIONS.map(section => (
           <button
@@ -541,7 +600,6 @@ export default function SettingsTab() {
         ))}
       </div>
 
-      {/* 📝 ძირითადი კონტენტი */}
       <div className="flex-1 bg-gray-800/60 border border-gray-700 rounded-xl p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
