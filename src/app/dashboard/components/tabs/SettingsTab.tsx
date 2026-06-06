@@ -235,7 +235,7 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // ✅ გამოსწორებული - temp ცვლადით
+  // ✅ გამოსწორებული - temp ცვლადით (არა destructuring)
   const handleColumnMove = useCallback((columnId: string, direction: 'up' | 'down') => {
     setSettings(prev => {
       if (!prev) return prev
@@ -445,11 +445,12 @@ export default function SettingsTab() {
                       <p className="text-[10px] text-gray-500 mt-0.5">{col.description}</p>
                     </div>
 
+                    {/* ✅ გამოსწორებული - !! ოპერატორით boolean-ად გადაყვანა */}
                     {!isFixed ? (
                       <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => handleColumnMove(col.id, 'up')}
-                          disabled={index === 0 || columns[index - 1]?.fixed}
+                          disabled={index === 0 || !!columns[index - 1]?.fixed}
                           className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
                           title="ზემოთ"
                         >
@@ -459,7 +460,7 @@ export default function SettingsTab() {
                         </button>
                         <button
                           onClick={() => handleColumnMove(col.id, 'down')}
-                          disabled={index === columns.length - 1 || columns[index + 1]?.fixed}
+                          disabled={index === columns.length - 1 || !!columns[index + 1]?.fixed}
                           className="p-1 text-gray-500 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition"
                           title="ქვემოთ"
                         >
