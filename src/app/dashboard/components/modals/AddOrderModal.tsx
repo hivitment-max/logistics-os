@@ -1,7 +1,76 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { calculateAIPrice } from '@/app/actions/calculateAIPrice'
+
+// ============================================================================
+// 🗺️ GEOCODING & DISTANCE CALCULATION
+// ============================================================================
+
+interface Coordinates {
+  lat: number
+  lon: number
+}
+
+const geocodeAddress = async (address: string): Promise<Coordinates | null> => {
+  if (!address || address.trim().length < 5) return null
+  
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
+      {
+        headers: {
+          'User-Agent': 'LogisticsOS/1.0'
+        }
+      }
+    )
+    
+    if (!response.ok) return null
+    
+    const data = await response.json()
+    if (data.length === 0) return null
+    
+    return {
+      lat: parseFloat(data[0].lat),
+      lon: parseFloat(data[0].lon)
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error)
+    return null
+  }
+}
+
+const haversineDistance = (coord1: Coordinates, coord2: Coordinates): number => {
+  const R = 6371
+  const dLat = (coord2.lat - coord1.lat) * Math.PI / 180
+  const dLon = (coord2.lon - coord1.lon) * Math.PI / 180
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  const distance = R * c
+  
+  return Math.round(distance)
+}
+
+const calculateDistanceBetweenAddresses = async (
+  pickupAddress: string,
+  deliveryAddress: string
+): Promise<number | null> => {
+  if (!pickupAddress || !deliveryAddress) return null
+  
+  const [pickupCoords, deliveryCoords] = await Promise.all([
+    geocodeAddress(pickupAddress),
+    geocodeAddress(deliveryAddress)
+  ])
+  
+  if (!pickupCoords || !deliveryCoords) return null
+  
+  return haversineDistance(pickupCoords, deliveryCoords)
+}
 
 // ============================================================================
 // 🧩 Helper Components
@@ -136,7 +205,7 @@ const validateStep = (step: number, form: any): string[] => {
 }
 
 // ============================================================================
-// 📦 ADD ORDER MODAL - WITH DUAL CLIENT SAVE
+// 📦 ADD ORDER MODAL - WITH AUTO DISTANCE CALCULATION
 // ============================================================================
 
 interface AddOrderModalProps {
@@ -156,6 +225,10 @@ export default function AddOrderModal({
   const [activeClientTab, setActiveClientTab] = useState<'private' | 'company'>('private')
   const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
+  
+  const [aiSuggestion, setAiSuggestion] = useState<any>(null)
+  const [isCalculatingPrice, setIsCalculatingPrice] = useState(false)
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false)
 
   if (!isOpen) return null
 
@@ -166,6 +239,33 @@ export default function AddOrderModal({
     setOrderForm({ ...orderForm, [field]: value })
     setErrors([])
   }
+
+  useEffect(() => {
+    const calculateDistance = async () => {
+      const pickup = orderForm.pickup_address
+      const delivery = orderForm.delivery_address
+      
+      if (!pickup || !delivery || pickup.length < 5 || delivery.length < 5) {
+        return
+      }
+      
+      setIsCalculatingDistance(true)
+      
+      try {
+        const distance = await calculateDistanceBetweenAddresses(pickup, delivery)
+        if (distance && distance > 0) {
+          updateField('distance_km', distance.toString())
+        }
+      } catch (error) {
+        console.error('Distance calculation error:', error)
+      } finally {
+        setIsCalculatingDistance(false)
+      }
+    }
+    
+    const timer = setTimeout(calculateDistance, 1000)
+    return () => clearTimeout(timer)
+  }, [orderForm.pickup_address, orderForm.delivery_address])
 
   const handleNext = () => {
     const stepErrors = validateStep(currentStep, orderForm)
@@ -178,13 +278,47 @@ export default function AddOrderModal({
     if (currentStep > 1) { setCurrentStep(currentStep - 1); setErrors([]) }
   }
 
-  // 🆕 კლიენტის ავტომატური შენახვა - ორივე ცხრილში (ძველი + ახალი)
-  const upsertClient = async (): Promise<string | null> => {
+  const handleGetAIPrice = async () => {
+    setIsCalculatingPrice(true)
+    setAiSuggestion(null)
+    
     try {
-      if (orderForm.client_id) {
-        return orderForm.client_id
+      const orderData = {
+        distance_km: parseFloat(orderForm.distance_km || '0') || 50,
+        weight_kg: parseFloat(orderForm.cargo_weight_kg || '0') || 100,
+        volume_m3: parseFloat(orderForm.cargo_volume_m3 || '0') || 1,
+        cargo_type: orderForm.cargo_type || 'standard',
+        urgency: orderForm.priority === 'high' ? 'express' : orderForm.priority === 'urgent' ? 'urgent' : 'standard',
+        requires_special_handling: orderForm.needs_tail_lift || orderForm.needs_straps || orderForm.cargo_type === 'fragile',
       }
+      
+      const result = await calculateAIPrice(orderData)
+      setAiSuggestion(result)
+    } catch (err: any) {
+      console.error('AI pricing error:', err)
+      setAiSuggestion({
+        suggested_price: 0,
+        confidence: 0,
+        source: 'error',
+        explanation: `შეცდომა: ${err.message}`,
+        local_baseline: 0,
+        error: err.message
+      })
+    } finally {
+      setIsCalculatingPrice(false)
+    }
+  }
 
+  const handleUseAIPrice = () => {
+    if (aiSuggestion?.suggested_price) {
+      updateField('price', aiSuggestion.suggested_price.toString())
+    }
+  }
+
+  // 🔧 FIX: კლიენტის შენახვა - orders.client_id არის FK auth.users-ზე, ამიტომ არ ვიყენებთ client_id-ს
+  // კლიენტის მონაცემები შეინახება ცალკე ცხრილებში, ხოლო orders-ში ჩაიწერება პირდაპირი ველები (client_name, client_phone და ა.შ.)
+  const upsertClient = async (): Promise<void> => {
+    try {
       const isPrivate = orderForm.client_type === 'private'
       const legacyTable = isPrivate ? 'private_clients' : 'companies'
       
@@ -220,97 +354,64 @@ export default function AddOrderModal({
         is_active: true,
       }
 
+      // ვეძებთ legacy ცხრილში
       let existingLegacyClient = null
-      
       if (orderForm.client_email) {
-        const { data } = await supabase
-          .from(legacyTable)
-          .select('id')
-          .eq('email', orderForm.client_email)
-          .maybeSingle()
+        const { data } = await supabase.from(legacyTable).select('id').eq('email', orderForm.client_email).maybeSingle()
         existingLegacyClient = data
       }
-      
       if (!existingLegacyClient && orderForm.client_phone) {
-        const { data } = await supabase
-          .from(legacyTable)
-          .select('id')
-          .eq('phone', orderForm.client_phone)
-          .maybeSingle()
+        const { data } = await supabase.from(legacyTable).select('id').eq('phone', orderForm.client_phone).maybeSingle()
         existingLegacyClient = data
       }
-
-      let legacyClientId: string | null = null
 
       if (existingLegacyClient) {
-        const { error } = await supabase
-          .from(legacyTable)
-          .update(legacyData)
-          .eq('id', existingLegacyClient.id)
-        
-        if (error) throw error
-        console.log(`✅ ${isPrivate ? 'კერძო პირი' : 'კომპანია'} განახლდა ${legacyTable}-ში:`, existingLegacyClient.id)
-        legacyClientId = existingLegacyClient.id
+        await supabase.from(legacyTable).update(legacyData).eq('id', existingLegacyClient.id)
+        console.log(`✅ ${isPrivate ? 'კერძო პირი' : 'კომპანია'} განახლდა ${legacyTable}-ში`)
       } else {
-        const { data, error } = await supabase
-          .from(legacyTable)
-          .insert([legacyData])
-          .select('id')
-          .single()
-        
-        if (error) throw error
-        console.log(`✅ ახალი ${isPrivate ? 'კერძო პირი' : 'კომპანია'} შეიქმნა ${legacyTable}-ში:`, data.id)
-        legacyClientId = data.id
+        await supabase.from(legacyTable).insert([legacyData])
+        console.log(`✅ ახალი ${isPrivate ? 'კერძო პირი' : 'კომპანია'} შეიქმნა ${legacyTable}-ში`)
       }
 
+      // ვეძებთ clients ცხრილში
       try {
         let existingClient = null
-        
         if (orderForm.client_email) {
-          const { data } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('email', orderForm.client_email)
-            .maybeSingle()
+          const { data } = await supabase.from('clients').select('id').eq('email', orderForm.client_email).maybeSingle()
           existingClient = data
         }
-        
         if (!existingClient && orderForm.client_phone) {
-          const { data } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('phone', orderForm.client_phone)
-            .maybeSingle()
+          const { data } = await supabase.from('clients').select('id').eq('phone', orderForm.client_phone).maybeSingle()
           existingClient = data
         }
 
         if (existingClient) {
           await supabase.from('clients').update(clientData).eq('id', existingClient.id)
-          console.log('✅ clients ცხრილი განახლდა:', existingClient.id)
         } else {
           await supabase.from('clients').insert([clientData])
-          console.log('✅ ახალი კლიენტი შეიქმნა clients-ში')
         }
       } catch (clientsError: any) {
         console.warn('⚠️ clients ცხრილის შეცდომა (არაკრიტიკული):', clientsError.message)
       }
 
-      return legacyClientId
+      // 🔥 მთავარი ცვლილება: არ ვაბრუნებთ ID-ს, რადგან orders.client_id არის FK auth.users-ზე
+      return
+      
     } catch (e: any) {
       console.error('❌ კლიენტის შენახვის შეცდომა:', e)
-      return null
     }
   }
 
   const handleSubmit = async () => {
-    const clientId = await upsertClient()
+    // ვინახავთ კლიენტს ცალკე ცხრილებში (მაგრამ orders-ში client_id არ იქნება)
+    await upsertClient()
     
-    if (clientId && !orderForm.client_id) {
-      setOrderForm({ ...orderForm, client_id: clientId })
-    }
+    // 🔥 client_id აღარ ყენდება - orders ცხრილში კლიენტის ინფორმაცია ჩაიწერება პირდაპირი ველებით
+    // (client_name, client_phone, client_email და ა.შ.) - რაც useOrders ჰუკში ხდება
     
     onSubmit()
     setCurrentStep(1)
+    setAiSuggestion(null)
   }
 
   // ============================================================================
@@ -345,6 +446,21 @@ export default function AddOrderModal({
                 <FormField label="📞 ტელეფონი" hint="+995..." value={orderForm.delivery_phone} onChange={(e: any) => updateField('delivery_phone', e.target.value)} />
               </div>
             </div>
+            
+            {isCalculatingDistance && (
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-xs text-blue-400">მანძილის გამოთვლა...</span>
+              </div>
+            )}
+            
+            {orderForm.distance_km && !isCalculatingDistance && (
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <p className="text-xs text-green-400 flex items-center gap-2">
+                  ✅ მანძილი ავტომატურად გამოითვალა: <strong>{orderForm.distance_km} კმ</strong>
+                </p>
+              </div>
+            )}
           </div>
         )
 
@@ -401,6 +517,82 @@ export default function AddOrderModal({
         return (
           <div className="space-y-5">
             <SectionTitle title="💰 ფინანსები" icon="💰" />
+            
+            {orderForm.distance_km && (
+              <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-blue-400 flex items-center gap-2">🗺️ გამოთვლილი მანძილი</h4>
+                    <p className="text-[9px] text-gray-500 mt-0.5">ავტომატურად გამოითვალა მისამართებიდან</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-blue-400">{orderForm.distance_km}</span>
+                    <span className="text-sm text-gray-400 ml-1">კმ</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-purple-400 flex items-center gap-2">🤖 AI ფასების რეკომენდაცია</h4>
+                  <p className="text-[9px] text-gray-500 mt-0.5">AI გამოთვლის ოპტიმალურ ფასს ბაზრის პირობების გათვალისწინებით</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGetAIPrice}
+                  disabled={isCalculatingPrice || !orderForm.distance_km}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-purple-500/20"
+                >
+                  {isCalculatingPrice ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      ითვლება...
+                    </>
+                  ) : (
+                    <>🤖 AI რეკომენდაცია</>
+                  )}
+                </button>
+              </div>
+
+              {!orderForm.distance_km && (
+                <p className="text-[10px] text-amber-400">⚠️ ჯერ შეავსეთ მისამართები ნაბიჯი 1-ში მანძილის ავტომატური გამოთვლისთვის</p>
+              )}
+
+              {aiSuggestion && (
+                <div className={`p-3 rounded-lg border ${aiSuggestion.error ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
+                  {!aiSuggestion.error ? (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-green-400">{aiSuggestion.suggested_price} ₾</span>
+                          <span className="text-[9px] px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">
+                            {Math.round(aiSuggestion.confidence * 100)}% confidence
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleUseAIPrice}
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-bold transition"
+                        >
+                          ✅ ამ ფასის გამოყენება
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-gray-300 mb-2">{aiSuggestion.explanation}</p>
+                      <div className="flex items-center gap-2 text-[9px] text-gray-500">
+                        <span>წყარო: <code className="bg-gray-800 px-1.5 py-0.5 rounded">{aiSuggestion.source}</code></span>
+                        <span>•</span>
+                        <span>ლოკალური ბაზისი: {aiSuggestion.local_baseline} ₾</span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-red-400">{aiSuggestion.explanation}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <FormField label="💰 ფასი" type="number" required hint="მაგ: 250" value={orderForm.price} onChange={(e: any) => updateField('price', e.target.value)} />
               <FormField label="💵 ვალუტა" required options={[{ value: 'GEL', label: '🇬🇪 GEL' }, { value: 'USD', label: '🇺🇸 USD' }, { value: 'EUR', label: '🇪🇺 EUR' }, { value: 'RUB', label: '🇷🇺 RUB' }]} value={orderForm.currency} onChange={(e: any) => updateField('currency', e.target.value)} />
@@ -433,7 +625,6 @@ export default function AddOrderModal({
             </div>
             {!showNewClientForm ? (
               <>
-                {/* ✅ ✅ ✅ FIX: ერთი setOrderForm call - ყველა ველი ერთად! */}
                 <FormField 
                   label="🔍 აირჩიე არსებული დამკვეთი" 
                   options={(activeClientTab === 'private' ? clients : companies).map((c: any) => ({ 
@@ -447,7 +638,6 @@ export default function AddOrderModal({
                       const source = activeClientTab === 'private' ? clients : companies
                       const sel = source.find((c: any) => c.id === selectedId)
                       if (sel) {
-                        // ⬅️ ერთდროული განახლება - stale closure bug-ის გამოსწორება
                         setOrderForm({
                           ...orderForm,
                           client_id: selectedId,
@@ -537,6 +727,12 @@ export default function AddOrderModal({
                     <p className="text-gray-400">{orderForm.delivery_contact} {orderForm.delivery_phone && `• ${orderForm.delivery_phone}`}</p>
                   </div>
                 </div>
+                {orderForm.distance_km && (
+                  <div className="mt-3 pt-3 border-t border-red-500/20">
+                    <p className="text-gray-500 text-[10px]">🗺️ მანძილი (ავტომატურად გამოთვლილი)</p>
+                    <p className="text-white font-bold text-lg">{orderForm.distance_km} კმ</p>
+                  </div>
+                )}
               </div>
 
               <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-4">

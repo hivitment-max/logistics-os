@@ -33,6 +33,7 @@ import AuditTab from '../tabs/AuditTab'
 import SettingsTab from '../tabs/SettingsTab'
 import DispatchTab from '../tabs/DispatchTab'
 import NotificationsTab from '../tabs/NotificationsTab'
+import AITab from '../tabs/AITab' // 🤖 ახალი იმპორტი
 
 // ✅ მოდალების იმპორტები
 import AddVehicleModal from '../modals/vehicle/AddVehicleModal'
@@ -225,7 +226,12 @@ export default function AdminDashboard() {
       { id: 'expenses', icon: '🛣️', label: 'ხარჯები' },
       { id: 'invoice_templates', icon: '🎨', label: 'შაბლონები' }
     ]},
-    { category: 'სისტემა', items: [{ id: 'audit', icon: '📜', label: 'აუდიტი' }, { id: 'api', icon: '🔌', label: 'API' }, { id: 'settings', icon: '⚙️', label: 'პარამეტრები' }]},
+    { category: 'სისტემა', items: [
+      { id: 'audit', icon: '📜', label: 'აუდიტი' }, 
+      { id: 'api', icon: '🔌', label: 'API' }, 
+      { id: 'ai', icon: '🤖', label: 'AI აგენტი' }, // 🤖 ახალი ტაბი
+      { id: 'settings', icon: '⚙️', label: 'პარამეტრები' }
+    ]},
     { category: 'შეტყობინებები', items: [{ id: 'notifications', icon: '📢', label: 'შეტყობინებები' }]},
   ]
 
@@ -336,6 +342,7 @@ export default function AdminDashboard() {
     if (activeTab === 'tracking') return <TrackingTab />
     if (activeTab === 'audit') return <AuditTab />
     if (activeTab === 'settings') return <SettingsTab />
+    if (activeTab === 'ai') return <AITab /> // 🤖 ახალი ტაბი
     
     if (activeTab === 'notifications') {
       return <NotificationsTab showNotification={showNotification} />
