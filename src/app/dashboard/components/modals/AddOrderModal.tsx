@@ -77,7 +77,7 @@ const calculateDistanceBetweenAddresses = async (
 // ============================================================================
 
 const FormField = ({ 
-  label, hint, required, type = 'text', value, onChange, options, textarea, checkbox, radio, file, className = ''
+  label, hint, required, type = 'text', value, onChange, options, textarea, checkbox, radio, file, className = '', suffix = ''
 }: any) => {
   if (checkbox) {
     return (
@@ -134,7 +134,21 @@ const FormField = ({
           {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       ) : (
-        <input type={type} value={value || ''} onChange={onChange} placeholder={hint} required={required} className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600 rounded-lg text-xs text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition placeholder-gray-500" />
+        <div className="relative">
+          <input 
+            type={type} 
+            value={value || ''} 
+            onChange={onChange} 
+            placeholder={hint} 
+            required={required} 
+            className={`w-full ${suffix ? 'pr-12' : ''} px-3 py-2.5 bg-gray-800/60 border border-gray-600 rounded-lg text-xs text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition placeholder-gray-500`} 
+          />
+          {suffix && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-gray-400 pointer-events-none">
+              {suffix}
+            </span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -229,6 +243,9 @@ export default function AddOrderModal({
   const [aiSuggestion, setAiSuggestion] = useState<any>(null)
   const [isCalculatingPrice, setIsCalculatingPrice] = useState(false)
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false)
+  
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isOpen) return null
 
@@ -283,7 +300,6 @@ export default function AddOrderModal({
     setAiSuggestion(null)
     
     try {
-      // 🔧 FIX: TypeScript-ის ტიპების მითითება
       const urgencyValue = orderForm.priority === 'high' ? 'express' : orderForm.priority === 'urgent' ? 'urgent' : 'standard'
       
       const orderData = {
@@ -318,7 +334,6 @@ export default function AddOrderModal({
     }
   }
 
-  // 🔧 FIX: კლიენტის შენახვა - orders.client_id არის FK auth.users-ზე
   const upsertClient = async (): Promise<void> => {
     try {
       const isPrivate = orderForm.client_type === 'private'
@@ -402,10 +417,73 @@ export default function AddOrderModal({
   }
 
   const handleSubmit = async () => {
-    await upsertClient()
-    onSubmit()
+    setIsSubmitting(true)
+    
+    try {
+      await upsertClient()
+      onSubmit()
+      setShowSuccessPopup(true)
+    } catch (error) {
+      console.error('შეკვეთის შექმნის შეცდომა:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleNewOrder = () => {
+    setShowSuccessPopup(false)
     setCurrentStep(1)
     setAiSuggestion(null)
+    setErrors([])
+    setOrderForm({
+      ...orderForm,
+      pickup_address: '',
+      delivery_address: '',
+      pickup_date: '',
+      pickup_time: '',
+      delivery_date: '',
+      delivery_time: '',
+      pickup_contact: '',
+      delivery_contact: '',
+      pickup_phone: '',
+      delivery_phone: '',
+      cargo_description: '',
+      cargo_type: 'standard',
+      cargo_weight_kg: '',
+      cargo_volume_m3: '',
+      cargo_units: '',
+      cargo_length_m: '',
+      cargo_width_m: '',
+      cargo_height_m: '',
+      packaging_type: '',
+      returnable_packaging: false,
+      transport_type: '',
+      container_number: '',
+      distance_km: '',
+      price: '',
+      currency: 'GEL',
+      payment_terms: '',
+      invoice_needed: false,
+      road_fee: '',
+      outside_city_fee: '',
+      waiting_fee_per_hour: '',
+      extra_fees: '',
+      client_type: 'private',
+      client_id: '',
+      client_name: '',
+      client_phone: '',
+      client_email: '',
+      client_address: '',
+      client_personal_id: '',
+      client_registration_number: '',
+      client_vat: '',
+      internal_notes: '',
+      special_requirements: '',
+      needs_tail_lift: false,
+      needs_straps: false,
+      needs_bricklaying: false,
+      needs_two_cargo_handlers: false,
+    })
   }
 
   // ============================================================================
@@ -460,131 +538,230 @@ export default function AddOrderModal({
 
       case 2:
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <SectionTitle title="📦 ტვირთი" icon="📦" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField label="📦 აღწერა" hint="რას გადავზიდავთ?" required textarea className="md:col-span-2" value={orderForm.cargo_description} onChange={(e: any) => updateField('cargo_description', e.target.value)} />
-              <FormField label="🏷️ ტიპი" options={[{ value: 'standard', label: '📦 სტანდარტული' }, { value: 'fragile', label: '💎 მყიფე' }, { value: 'adr', label: '⚠️ ADR' }, { value: 'refrigerated', label: '❄️ მაცივარი' }, { value: 'bulk', label: '🌾 ნაყარი' }]} value={orderForm.cargo_type} onChange={(e: any) => updateField('cargo_type', e.target.value)} />
-              <FormField label="⚖️ წონა (კგ)" type="number" hint="მაგ: 500" value={orderForm.cargo_weight_kg} onChange={(e: any) => updateField('cargo_weight_kg', e.target.value)} />
-              <FormField label="📐 მოცულობა (m³)" type="number" hint="მაგ: 12.5" value={orderForm.cargo_volume_m3} onChange={(e: any) => updateField('cargo_volume_m3', e.target.value)} />
-              <FormField label="🔢 ერთეულები" type="number" hint="რაოდენობა" value={orderForm.cargo_units} onChange={(e: any) => updateField('cargo_units', e.target.value)} />
-              <div className="md:col-span-3">
-                <p className="text-[10px] font-semibold text-gray-400 mb-2 uppercase tracking-wide">📏 განზომილებები (სურვილისამებრ)</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField label="სიგრძე (მ)" type="number" value={orderForm.cargo_length_m} onChange={(e: any) => updateField('cargo_length_m', e.target.value)} />
-                  <FormField label="სიგანე (მ)" type="number" value={orderForm.cargo_width_m} onChange={(e: any) => updateField('cargo_width_m', e.target.value)} />
-                  <FormField label="სიმაღლე (მ)" type="number" value={orderForm.cargo_height_m} onChange={(e: any) => updateField('cargo_height_m', e.target.value)} />
-                </div>
-              </div>
-              <FormField label="📦 შეფუთვა" options={[{ value: 'box', label: '📦 ყუთი' }, { value: 'pallet', label: '🪵 პალიტი' }, { value: 'bag', label: '🛍️ ტომარა' }, { value: 'bulk', label: '🌾 ნაყარი' }]} value={orderForm.packaging_type} onChange={(e: any) => updateField('packaging_type', e.target.value)} />
-              <FormField label="🔄 დაბრუნებადი ტარა?" checkbox value={orderForm.returnable_packaging} onChange={(e: any) => updateField('returnable_packaging', e.target.checked)} />
+
+            <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 space-y-4">
+              <h4 className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1 h-3 bg-yellow-400 rounded-full"></span>
+                ძირითადი ინფორმაცია
+              </h4>
               
-              <div className="md:col-span-3 pt-3 border-t border-gray-700/30 mt-2">
-                <p className="text-[10px] font-semibold text-gray-400 mb-2 uppercase tracking-wide">🚛 გადაზიდვის დეტალები</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 🎯 FIX: items-stretch + flex flex-col + flex-1 textarea */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+                <div className="md:col-span-2 flex flex-col">
+                  <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wide">
+                    📦 აღწერა <span className="text-red-500">*</span>
+                  </label>
+                  <textarea 
+                    value={orderForm.cargo_description || ''} 
+                    onChange={(e: any) => updateField('cargo_description', e.target.value)} 
+                    placeholder="რას გადავზიდავთ? (მაგ: ელექტრონიკა, ავეჯი, საკვები...)"
+                    className="flex-1 w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600 rounded-lg text-xs text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition resize-none placeholder-gray-500"
+                  />
+                </div>
+                
+                <div className="flex flex-col justify-between">
                   <FormField 
-                    label="გადაზიდვის სახეობა" 
+                    label="🏷️ ტიპი" 
                     options={[
-                      { value: 'road_ftl', label: '🚛 სახმელეთო / FTL' },
-                      { value: 'road_ltl', label: '🚚 სახმელეთო / LTL' },
-                      { value: 'sea', label: '🚢 საზღვაო' },
-                      { value: 'air', label: '✈️ ავია' },
-                      { value: 'rail', label: '🚆 რკინიგზა' },
-                      { value: 'multimodal', label: '🔄 მულტიმოდალური' },
+                      { value: 'standard', label: '📦 სტანდარტული' }, 
+                      { value: 'fragile', label: '💎 მყიფე' }, 
+                      { value: 'adr', label: '⚠️ ADR' }, 
+                      { value: 'refrigerated', label: '❄️ მაცივარი' }, 
+                      { value: 'bulk', label: '🌾 ნაყარი' }
                     ]} 
-                    value={orderForm.transport_type} 
-                    onChange={(e: any) => updateField('transport_type', e.target.value)} 
+                    value={orderForm.cargo_type} 
+                    onChange={(e: any) => updateField('cargo_type', e.target.value)} 
                   />
                   <FormField 
-                    label="კონტეინერის/ტრეილერის ნომერი" 
-                    hint="მაგ: AN008BL-AN004B, MSCU1234567"
-                    value={orderForm.container_number} 
-                    onChange={(e: any) => updateField('container_number', e.target.value)} 
+                    label="📦 შეფუთვა" 
+                    options={[
+                      { value: 'box', label: '📦 ყუთი' }, 
+                      { value: 'pallet', label: '🪵 პალიტი' }, 
+                      { value: 'bag', label: '🛍️ ტომარა' }, 
+                      { value: 'bulk', label: '🌾 ნაყარი' }
+                    ]} 
+                    value={orderForm.packaging_type} 
+                    onChange={(e: any) => updateField('packaging_type', e.target.value)} 
+                  />
+                  <FormField 
+                    label="🔄 დაბრუნებადი ტარა?" 
+                    checkbox 
+                    value={orderForm.returnable_packaging} 
+                    onChange={(e: any) => updateField('returnable_packaging', e.target.checked)} 
                   />
                 </div>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 space-y-3">
+                <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1 h-3 bg-blue-400 rounded-full"></span>
+                  ფიზიკური პარამეტრები
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <FormField 
+                    label="⚖️ წონა" 
+                    type="number" 
+                    hint="500" 
+                    suffix="კგ"
+                    value={orderForm.cargo_weight_kg} 
+                    onChange={(e: any) => updateField('cargo_weight_kg', e.target.value)} 
+                  />
+                  <FormField 
+                    label="📐 მოცულობა" 
+                    type="number" 
+                    hint="12.5" 
+                    suffix="m³"
+                    value={orderForm.cargo_volume_m3} 
+                    onChange={(e: any) => updateField('cargo_volume_m3', e.target.value)} 
+                  />
+                  <FormField 
+                    label="🔢 ერთეულები" 
+                    type="number" 
+                    hint="10" 
+                    suffix="ცალი"
+                    value={orderForm.cargo_units} 
+                    onChange={(e: any) => updateField('cargo_units', e.target.value)} 
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 space-y-3">
+                <h4 className="text-[10px] font-bold text-green-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1 h-3 bg-green-400 rounded-full"></span>
+                  განზომილებები <span className="text-gray-500 normal-case">(სურვილისამებრ)</span>
+                </h4>
+                
+                <div className="flex items-end gap-1">
+                  <div className="flex-1">
+                    <FormField 
+                      label="↔️ სიგრძე" 
+                      type="number" 
+                      hint="0" 
+                      value={orderForm.cargo_length_m} 
+                      onChange={(e: any) => updateField('cargo_length_m', e.target.value)} 
+                    />
+                  </div>
+                  <span className="text-gray-500 text-lg font-bold pb-2.5">×</span>
+                  <div className="flex-1">
+                    <FormField 
+                      label="↕️ სიგანე" 
+                      type="number" 
+                      hint="0" 
+                      value={orderForm.cargo_width_m} 
+                      onChange={(e: any) => updateField('cargo_width_m', e.target.value)} 
+                    />
+                  </div>
+                  <span className="text-gray-500 text-lg font-bold pb-2.5">×</span>
+                  <div className="flex-1">
+                    <FormField 
+                      label="↕️ სიმაღლე" 
+                      type="number" 
+                      hint="0" 
+                      value={orderForm.cargo_height_m} 
+                      onChange={(e: any) => updateField('cargo_height_m', e.target.value)} 
+                    />
+                  </div>
+                  <span className="text-[10px] font-semibold text-gray-400 pb-3 whitespace-nowrap">მ</span>
+                </div>
+                
+                {orderForm.cargo_length_m && orderForm.cargo_width_m && orderForm.cargo_height_m && (
+                  <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded text-[10px] text-blue-300">
+                    📊 გამოთვლილი მოცულობა: <strong>{(parseFloat(orderForm.cargo_length_m) * parseFloat(orderForm.cargo_width_m) * parseFloat(orderForm.cargo_height_m)).toFixed(2)} m³</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         )
 
       case 3:
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <SectionTitle title="💰 ფინანსები" icon="💰" />
             
-            {orderForm.distance_km && (
-              <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {orderForm.distance_km && (
+                <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-blue-400 flex items-center gap-2">🗺️ გამოთვლილი მანძილი</h4>
+                      <p className="text-[9px] text-gray-500 mt-0.5">ავტომატურად გამოითვალა მისამართებიდან</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-blue-400">{orderForm.distance_km}</span>
+                      <span className="text-sm text-gray-400 ml-1">კმ</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-blue-400 flex items-center gap-2">🗺️ გამოთვლილი მანძილი</h4>
-                    <p className="text-[9px] text-gray-500 mt-0.5">ავტომატურად გამოითვალა მისამართებიდან</p>
+                    <h4 className="text-xs font-bold text-purple-400 flex items-center gap-2">🤖 AI ფასების რეკომენდაცია</h4>
+                    <p className="text-[9px] text-gray-500 mt-0.5">AI გამოთვლის ოპტიმალურ ფასს</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold text-blue-400">{orderForm.distance_km}</span>
-                    <span className="text-sm text-gray-400 ml-1">კმ</span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGetAIPrice}
+                    disabled={isCalculatingPrice || !orderForm.distance_km}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-purple-500/20"
+                  >
+                    {isCalculatingPrice ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        ითვლება...
+                      </>
+                    ) : (
+                      <>🤖 AI</>
+                    )}
+                  </button>
                 </div>
-              </div>
-            )}
-            
-            <div className="p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-purple-400 flex items-center gap-2">🤖 AI ფასების რეკომენდაცია</h4>
-                  <p className="text-[9px] text-gray-500 mt-0.5">AI გამოთვლის ოპტიმალურ ფასს ბაზრის პირობების გათვალისწინებით</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGetAIPrice}
-                  disabled={isCalculatingPrice || !orderForm.distance_km}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-purple-500/20"
-                >
-                  {isCalculatingPrice ? (
-                    <>
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      ითვლება...
-                    </>
-                  ) : (
-                    <>🤖 AI რეკომენდაცია</>
-                  )}
-                </button>
-              </div>
 
-              {!orderForm.distance_km && (
-                <p className="text-[10px] text-amber-400">⚠️ ჯერ შეავსეთ მისამართები ნაბიჯი 1-ში მანძილის ავტომატური გამოთვლისთვის</p>
-              )}
+                {!orderForm.distance_km && (
+                  <p className="text-[10px] text-amber-400">⚠️ ჯერ შეავსეთ მისამართები ნაბიჯი 1-ში</p>
+                )}
 
-              {aiSuggestion && (
-                <div className={`p-3 rounded-lg border ${aiSuggestion.error ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
-                  {!aiSuggestion.error ? (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl font-bold text-green-400">{aiSuggestion.suggested_price} ₾</span>
-                          <span className="text-[9px] px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">
-                            {Math.round(aiSuggestion.confidence * 100)}% confidence
-                          </span>
+                {aiSuggestion && (
+                  <div className={`p-3 rounded-lg border ${aiSuggestion.error ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
+                    {!aiSuggestion.error ? (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-green-400">{aiSuggestion.suggested_price} ₾</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">
+                              {Math.round(aiSuggestion.confidence * 100)}%
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleUseAIPrice}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-bold transition"
+                          >
+                            ✅
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleUseAIPrice}
-                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-bold transition"
-                        >
-                          ✅ ამ ფასის გამოყენება
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-gray-300 mb-2">{aiSuggestion.explanation}</p>
-                      <div className="flex items-center gap-2 text-[9px] text-gray-500">
-                        <span>წყარო: <code className="bg-gray-800 px-1.5 py-0.5 rounded">{aiSuggestion.source}</code></span>
-                        <span>•</span>
-                        <span>ლოკალური ბაზისი: {aiSuggestion.local_baseline} ₾</span>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-xs text-red-400">{aiSuggestion.explanation}</p>
-                  )}
-                </div>
-              )}
+                        <p className="text-[10px] text-gray-300 mb-2">{aiSuggestion.explanation}</p>
+                        <div className="flex items-center gap-2 text-[9px] text-gray-500">
+                          <span>წყარო: <code className="bg-gray-800 px-1.5 py-0.5 rounded">{aiSuggestion.source}</code></span>
+                          <span>•</span>
+                          <span>ბაზისი: {aiSuggestion.local_baseline} ₾</span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-red-400">{aiSuggestion.explanation}</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -607,70 +784,127 @@ export default function AddOrderModal({
 
       case 4:
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <SectionTitle title="👤 დამკვეთი" icon="👤" />
-            <div className="flex bg-gray-800/50 p-1 rounded-lg w-fit">
-              {(['private', 'company'] as const).map(tab => (
-                <button key={tab} type="button" onClick={() => { setActiveClientTab(tab); updateField('client_type', tab) }}
-                  className={`px-5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide transition ${activeClientTab === tab ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'text-gray-400 hover:text-gray-200'}`}>
-                  {tab === 'private' ? '👤 კერძო პირი' : '🏢 კომპანია'}
-                </button>
-              ))}
-            </div>
-            {!showNewClientForm ? (
-              <>
-                <FormField 
-                  label="🔍 აირჩიე არსებული დამკვეთი" 
-                  options={(activeClientTab === 'private' ? clients : companies).map((c: any) => ({ 
-                    value: c.id, 
-                    label: `${activeClientTab === 'private' ? c.full_name : c.name} (${activeClientTab === 'private' ? c.personal_id : c.registration_number})` 
-                  }))} 
-                  value={orderForm.client_id} 
-                  onChange={(e: any) => {
-                    const selectedId = e.target.value
-                    if (selectedId) {
-                      const source = activeClientTab === 'private' ? clients : companies
-                      const sel = source.find((c: any) => c.id === selectedId)
-                      if (sel) {
-                        setOrderForm({
-                          ...orderForm,
-                          client_id: selectedId,
-                          client_name: sel.full_name || sel.name || '',
-                          client_email: sel.email || '',
-                          client_phone: sel.phone || '',
-                          client_address: sel.address || sel.legal_address || '',
-                          client_personal_id: sel.personal_id || '',
-                          client_registration_number: sel.registration_number || '',
-                          client_vat: sel.vat_number || '',
-                        })
-                        setErrors([])
-                        console.log('✅ კლიენტი არჩეულია:', sel)
+            
+            <div className="p-3 bg-gray-800/40 rounded-xl border border-gray-700/40">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                
+                <div className="flex bg-gray-900/50 p-1 rounded-lg shrink-0">
+                  {(['private', 'company'] as const).map(tab => (
+                    <button 
+                      key={tab} 
+                      type="button" 
+                      onClick={() => { 
+                        setActiveClientTab(tab)
+                        updateField('client_type', tab)
+                        updateField('client_id', '')
+                        setShowNewClientForm(false)
+                      }}
+                      className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition whitespace-nowrap ${
+                        activeClientTab === tab 
+                          ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' 
+                          : 'text-gray-400 hover:text-gray-200'
+                      }`}
+                    >
+                      {tab === 'private' ? '👤 კერძო პირი' : '🏢 კომპანია'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <select 
+                    value={orderForm.client_id || ''}
+                    onChange={(e: any) => {
+                      const selectedId = e.target.value
+                      if (selectedId) {
+                        const source = activeClientTab === 'private' ? clients : companies
+                        const sel = source.find((c: any) => c.id === selectedId)
+                        if (sel) {
+                          setOrderForm({
+                            ...orderForm,
+                            client_id: selectedId,
+                            client_name: sel.full_name || sel.name || '',
+                            client_email: sel.email || '',
+                            client_phone: sel.phone || '',
+                            client_address: sel.address || sel.legal_address || '',
+                            client_personal_id: sel.personal_id || '',
+                            client_registration_number: sel.registration_number || '',
+                            client_vat: sel.vat_number || '',
+                          })
+                          setErrors([])
+                          setShowNewClientForm(false)
+                        }
+                      } else {
+                        setOrderForm({ ...orderForm, client_id: '' })
                       }
-                    } else {
-                      setOrderForm({ ...orderForm, client_id: '' })
+                    }}
+                    className="w-full px-3 py-2 bg-gray-800/60 border border-gray-600 rounded-lg text-xs text-white outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition"
+                  >
+                    <option value="">🔍 აირჩიე არსებული {activeClientTab === 'private' ? 'კერძო პირი' : 'კომპანია'}...</option>
+                    {(activeClientTab === 'private' ? clients : companies).map((c: any) => (
+                      <option key={c.id} value={c.id}>
+                        {activeClientTab === 'private' ? c.full_name : c.name} 
+                        {activeClientTab === 'private' && c.personal_id ? ` (${c.personal_id})` : ''}
+                        {activeClientTab === 'company' && c.registration_number ? ` (${c.registration_number})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowNewClientForm(!showNewClientForm)
+                    if (!showNewClientForm) {
+                      updateField('client_id', '')
                     }
                   }} 
-                />
-                <button type="button" onClick={() => setShowNewClientForm(true)} className="text-xs text-purple-400 hover:text-purple-300 underline">➕ ახალი დამკვეთის დამატება</button>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-purple-500/5 rounded-xl border border-purple-500/20">
+                  className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition whitespace-nowrap shrink-0 ${
+                    showNewClientForm 
+                      ? 'bg-gray-600 text-white hover:bg-gray-500'
+                      : 'bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/30'
+                  }`}
+                >
+                  {showNewClientForm ? '← არსებული' : '➕ ახალი'}
+                </button>
+              </div>
+            </div>
+
+            {!showNewClientForm ? (
+              <div className="p-4 bg-purple-500/5 rounded-xl border border-purple-500/20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField label="სახელი / კომპანია" required value={orderForm.client_name} onChange={(e: any) => updateField('client_name', e.target.value)} />
                   <FormField label="📞 ტელეფონი" required value={orderForm.client_phone} onChange={(e: any) => updateField('client_phone', e.target.value)} />
                   <FormField label="📧 ელ-ფოსტა" type="email" value={orderForm.client_email} onChange={(e: any) => updateField('client_email', e.target.value)} />
-                  {activeClientTab === 'private' ? <FormField label="🆔 პირადი ნომერი" value={orderForm.client_personal_id} onChange={(e: any) => updateField('client_personal_id', e.target.value)} /> : <FormField label="🆔 საიდ / რეგ. ნომერი" value={orderForm.client_registration_number} onChange={(e: any) => updateField('client_registration_number', e.target.value)} />}
+                  {activeClientTab === 'private' ? (
+                    <FormField label="🆔 პირადი ნომერი" value={orderForm.client_personal_id} onChange={(e: any) => updateField('client_personal_id', e.target.value)} />
+                  ) : (
+                    <FormField label="🆔 საიდ / რეგ. ნომერი" value={orderForm.client_registration_number} onChange={(e: any) => updateField('client_registration_number', e.target.value)} />
+                  )}
                   <FormField label="📍 მისამართი" textarea className="md:col-span-2" value={orderForm.client_address} onChange={(e: any) => updateField('client_address', e.target.value)} />
                 </div>
-              </>
+              </div>
             ) : (
-              <div className="space-y-4 p-4 bg-purple-500/5 rounded-xl border border-purple-500/20">
-                <h4 className="text-xs font-bold text-purple-400">✨ ახალი {activeClientTab === 'private' ? 'კერძო პირი' : 'კომპანია'}</h4>
+              <div className="p-4 bg-purple-500/5 rounded-xl border border-purple-500/20 space-y-4">
+                <h4 className="text-xs font-bold text-purple-400 flex items-center gap-2">
+                  <span className="w-1 h-3 bg-purple-400 rounded-full"></span>
+                  ✨ ახალი {activeClientTab === 'private' ? 'კერძო პირი' : 'კომპანია'}
+                </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField label={activeClientTab === 'private' ? "სახელი და გვარი *" : "კომპანიის სახელი *"} required value={orderForm.client_name} onChange={(e: any) => updateField('client_name', e.target.value)} />
                   <FormField label="📞 ტელეფონი *" required value={orderForm.client_phone} onChange={(e: any) => updateField('client_phone', e.target.value)} />
                   <FormField label="📧 ელ-ფოსტა" type="email" value={orderForm.client_email} onChange={(e: any) => updateField('client_email', e.target.value)} />
-                  {activeClientTab === 'private' ? <FormField label="🆔 პირადი ნომერი *" required value={orderForm.client_personal_id} onChange={(e: any) => updateField('client_personal_id', e.target.value)} /> : <><FormField label="🆔 საიდ *" required value={orderForm.client_registration_number} onChange={(e: any) => updateField('client_registration_number', e.target.value)} /><FormField label="💼 VAT" value={orderForm.client_vat} onChange={(e: any) => updateField('client_vat', e.target.value)} /></>}
+                  {activeClientTab === 'private' ? (
+                    <FormField label="🆔 პირადი ნომერი *" required value={orderForm.client_personal_id} onChange={(e: any) => updateField('client_personal_id', e.target.value)} />
+                  ) : (
+                    <>
+                      <FormField label="🆔 საიდ *" required value={orderForm.client_registration_number} onChange={(e: any) => updateField('client_registration_number', e.target.value)} />
+                      <FormField label="💼 VAT" value={orderForm.client_vat} onChange={(e: any) => updateField('client_vat', e.target.value)} />
+                    </>
+                  )}
                   <FormField label="📍 მისამართი" textarea className="md:col-span-2" value={orderForm.client_address} onChange={(e: any) => updateField('client_address', e.target.value)} />
                 </div>
-                <button type="button" onClick={() => setShowNewClientForm(false)} className="text-xs text-gray-400 hover:text-gray-200 underline">← უკან, არსებულის არჩევა</button>
               </div>
             )}
           </div>
@@ -792,35 +1026,96 @@ export default function AddOrderModal({
     }
   }
 
+  if (showSuccessPopup) {
+    return (
+      <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-[#1a202c] border border-emerald-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-emerald-500/20 animate-in fade-in zoom-in duration-300">
+          <div className="p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-full flex items-center justify-center border-2 border-emerald-500/30">
+              <span className="text-5xl animate-bounce">✅</span>
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2">შეკვეთა წარმატებით შეიქმნა!</h3>
+            <p className="text-sm text-gray-400 mb-6">
+              შეკვეთა #{orderForm.id || 'ახალი'} წარმატებით დაემატა სისტემაში
+            </p>
+            
+            <div className="bg-gray-800/50 rounded-xl p-4 mb-6 text-left space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400">📍 მარშრუტი:</span>
+                <span className="text-white font-medium truncate ml-2 max-w-[200px]">
+                  {orderForm.pickup_address?.split(',')[0]} → {orderForm.delivery_address?.split(',')[0]}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400">💰 ფასი:</span>
+                <span className="text-emerald-400 font-bold">{orderForm.price} {orderForm.currency}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400">👤 დამკვეთი:</span>
+                <span className="text-white font-medium truncate ml-2 max-w-[200px]">{orderForm.client_name}</span>
+              </div>
+              {orderForm.distance_km && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">🗺️ მანძილი:</span>
+                  <span className="text-blue-400 font-medium">{orderForm.distance_km} კმ</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-medium transition"
+              >
+                დახურვა
+              </button>
+              <button
+                type="button"
+                onClick={handleNewOrder}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-emerald-500/20"
+              >
+                ➕ ახალი შეკვეთა
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-[#1a202c] border border-gray-700 rounded-2xl w-full max-w-4xl my-8 flex flex-col shadow-2xl shadow-black/50 relative" onClick={e => e.stopPropagation()}>
         
-        <div className="px-6 py-4 border-b border-gray-700 bg-[#151b26] sticky top-0 z-10 rounded-t-2xl">
-          <div className="flex justify-between items-center mb-4">
-            <div>
+        <div className="px-6 py-3 border-b border-gray-700 bg-[#151b26] sticky top-0 z-10 rounded-t-2xl">
+          <div className="flex items-center gap-4">
+            <div className="shrink-0">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">📦 ახალი შეკვეთა</h3>
               <p className="text-[10px] text-gray-400 mt-0.5">ნაბიჯი {currentStep} / {totalSteps} — {currentStepConfig.title}</p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white text-xl transition p-1 hover:bg-gray-700 rounded-lg">&times;</button>
-          </div>
-          <div className="flex items-center gap-1 overflow-x-auto pb-1">
-            {STEPS.map((step, i) => {
-              const isCompleted = currentStep > step.id
-              const isCurrent = currentStep === step.id
-              const stepColor = isCompleted ? 'emerald' : isCurrent ? step.color : 'gray'
-              return (
-                <div key={step.id} className="flex items-center flex-1 min-w-[60px]">
-                  <div className="flex flex-col items-center relative z-10">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all duration-300 ${COLOR_MAP[stepColor]}`}>
-                      {isCompleted ? '✓' : step.id}
+            
+            <div className="flex-1 flex items-center gap-1 overflow-x-auto">
+              {STEPS.map((step, i) => {
+                const isCompleted = currentStep > step.id
+                const isCurrent = currentStep === step.id
+                const stepColor = isCompleted ? 'emerald' : isCurrent ? step.color : 'gray'
+                return (
+                  <div key={step.id} className="flex items-center flex-1 min-w-[40px]">
+                    <div className="flex flex-col items-center relative z-10">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border-2 transition-all duration-300 ${COLOR_MAP[stepColor]}`}>
+                        {isCompleted ? '✓' : step.id}
+                      </div>
+                      <span className={`text-[7px] mt-0.5 font-medium whitespace-nowrap ${isCurrent ? 'text-white' : 'text-gray-500'}`}>{step.title}</span>
                     </div>
-                    <span className={`text-[8px] mt-1 font-medium hidden md:block whitespace-nowrap ${isCurrent ? 'text-white' : 'text-gray-500'}`}>{step.title}</span>
+                    {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-0.5 rounded-full transition-all duration-500 ${currentStep > step.id ? LINE_COLOR_MAP['emerald'] : 'bg-gray-700'}`} />}
                   </div>
-                  {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-1 rounded-full transition-all duration-500 ${currentStep > step.id ? LINE_COLOR_MAP['emerald'] : 'bg-gray-700'}`} />}
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+            
+            <button onClick={onClose} className="text-gray-400 hover:text-white text-xl transition p-1 hover:bg-gray-700 rounded-lg shrink-0">&times;</button>
           </div>
         </div>
 
@@ -842,7 +1137,21 @@ export default function AddOrderModal({
               {currentStep < totalSteps ? (
                 <button type="button" onClick={handleNext} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold transition shadow-lg shadow-blue-500/20 text-white flex items-center gap-2">შემდეგი →</button>
               ) : (
-                <button type="button" onClick={handleSubmit} className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 rounded-lg text-xs font-bold transition shadow-lg shadow-emerald-500/20 text-white flex items-center gap-2">✅ შეკვეთის შექმნა</button>
+                <button 
+                  type="button" 
+                  onClick={handleSubmit} 
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-bold transition shadow-lg shadow-emerald-500/20 text-white flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      იქმნება...
+                    </>
+                  ) : (
+                    <>✅ შეკვეთის შექმნა</>
+                  )}
+                </button>
               )}
             </div>
           </div>
