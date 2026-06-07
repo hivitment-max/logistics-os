@@ -283,13 +283,16 @@ export default function AddOrderModal({
     setAiSuggestion(null)
     
     try {
+      // 🔧 FIX: TypeScript-ის ტიპების მითითება
+      const urgencyValue = orderForm.priority === 'high' ? 'express' : orderForm.priority === 'urgent' ? 'urgent' : 'standard'
+      
       const orderData = {
         distance_km: parseFloat(orderForm.distance_km || '0') || 50,
         weight_kg: parseFloat(orderForm.cargo_weight_kg || '0') || 100,
         volume_m3: parseFloat(orderForm.cargo_volume_m3 || '0') || 1,
         cargo_type: orderForm.cargo_type || 'standard',
-        urgency: orderForm.priority === 'high' ? 'express' : orderForm.priority === 'urgent' ? 'urgent' : 'standard',
-        requires_special_handling: orderForm.needs_tail_lift || orderForm.needs_straps || orderForm.cargo_type === 'fragile',
+        urgency: urgencyValue as 'standard' | 'express' | 'urgent',
+        requires_special_handling: Boolean(orderForm.needs_tail_lift || orderForm.needs_straps || orderForm.cargo_type === 'fragile'),
       }
       
       const result = await calculateAIPrice(orderData)
@@ -315,8 +318,7 @@ export default function AddOrderModal({
     }
   }
 
-  // 🔧 FIX: კლიენტის შენახვა - orders.client_id არის FK auth.users-ზე, ამიტომ არ ვიყენებთ client_id-ს
-  // კლიენტის მონაცემები შეინახება ცალკე ცხრილებში, ხოლო orders-ში ჩაიწერება პირდაპირი ველები (client_name, client_phone და ა.შ.)
+  // 🔧 FIX: კლიენტის შენახვა - orders.client_id არის FK auth.users-ზე
   const upsertClient = async (): Promise<void> => {
     try {
       const isPrivate = orderForm.client_type === 'private'
@@ -354,7 +356,6 @@ export default function AddOrderModal({
         is_active: true,
       }
 
-      // ვეძებთ legacy ცხრილში
       let existingLegacyClient = null
       if (orderForm.client_email) {
         const { data } = await supabase.from(legacyTable).select('id').eq('email', orderForm.client_email).maybeSingle()
@@ -373,7 +374,6 @@ export default function AddOrderModal({
         console.log(`✅ ახალი ${isPrivate ? 'კერძო პირი' : 'კომპანია'} შეიქმნა ${legacyTable}-ში`)
       }
 
-      // ვეძებთ clients ცხრილში
       try {
         let existingClient = null
         if (orderForm.client_email) {
@@ -394,7 +394,6 @@ export default function AddOrderModal({
         console.warn('⚠️ clients ცხრილის შეცდომა (არაკრიტიკული):', clientsError.message)
       }
 
-      // 🔥 მთავარი ცვლილება: არ ვაბრუნებთ ID-ს, რადგან orders.client_id არის FK auth.users-ზე
       return
       
     } catch (e: any) {
@@ -403,12 +402,7 @@ export default function AddOrderModal({
   }
 
   const handleSubmit = async () => {
-    // ვინახავთ კლიენტს ცალკე ცხრილებში (მაგრამ orders-ში client_id არ იქნება)
     await upsertClient()
-    
-    // 🔥 client_id აღარ ყენდება - orders ცხრილში კლიენტის ინფორმაცია ჩაიწერება პირდაპირი ველებით
-    // (client_name, client_phone, client_email და ა.შ.) - რაც useOrders ჰუკში ხდება
-    
     onSubmit()
     setCurrentStep(1)
     setAiSuggestion(null)
