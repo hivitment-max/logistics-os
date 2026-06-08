@@ -16,8 +16,9 @@ interface AuditLog {
 export default function AuditTab() {
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // all, create, update, delete, login
+  const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchLogs()
@@ -25,33 +26,30 @@ export default function AuditTab() {
 
   const fetchLogs = async () => {
     setLoading(true)
-    // ცდა: წავიღოთ რეალური აუდიტის ლოგები (თუ არსებობს audit_logs ცხრილი)
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100)
+    setError(null)
+    
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
 
-    if (!error && data) {
-      setLogs(data as AuditLog[])
-    } else {
-      // დემო მონაცემები (თუ ცხრილი არ არსებობს)
-      setLogs(generateDemoLogs())
+      if (fetchError) {
+        console.error('❌ Audit logs fetch error:', fetchError)
+        setError(`❌ ${fetchError.message}`)
+        setLogs([])
+      } else {
+        setLogs((data || []) as AuditLog[])
+      }
+    } catch (err: any) {
+      console.error('❌ Unexpected error:', err)
+      setError(`❌ ${err.message}`)
+      setLogs([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
-
-  // დემო ლოგები დეველოპმენტისთვის
-  const generateDemoLogs = (): AuditLog[] => [
-    { id: '1', created_at: new Date().toISOString(), user_email: 'admin@logistics.ge', action: 'login', table_name: 'auth', record_id: null, details: 'ადმინი შევიდა სისტემაში' },
-    { id: '2', created_at: new Date(Date.now() - 3600000).toISOString(), user_email: 'admin@logistics.ge', action: 'create', table_name: 'orders', record_id: 'ord_123', details: 'შეიქმნა ახალი შეკვეთა #TRK-2024-001' },
-    { id: '3', created_at: new Date(Date.now() - 7200000).toISOString(), user_email: 'admin@logistics.ge', action: 'update', table_name: 'orders', record_id: 'ord_122', details: 'შეკვეთის სტატუსი შეიცვალა: pending → in_transit' },
-    { id: '4', created_at: new Date(Date.now() - 10800000).toISOString(), user_email: 'admin@logistics.ge', action: 'create', table_name: 'drivers', record_id: 'drv_456', details: 'დამატებული ახალი მძღოლი: ნიკა გიორგაძე' },
-    { id: '5', created_at: new Date(Date.now() - 14400000).toISOString(), user_email: 'admin@logistics.ge', action: 'update', table_name: 'vehicles', record_id: 'veh_789', details: 'მანქანის სტატუსი: active → maintenance' },
-    { id: '6', created_at: new Date(Date.now() - 18000000).toISOString(), user_email: 'admin@logistics.ge', action: 'delete', table_name: 'private_clients', record_id: 'clt_111', details: 'წაიშალა კლიენტი: გივი ბერიკაშვილი' },
-    { id: '7', created_at: new Date(Date.now() - 21600000).toISOString(), user_email: 'admin@logistics.ge', action: 'create', table_name: 'invoices', record_id: 'inv_2024_001', details: 'გამოწერილი ინვოისი #INV-2024-001' },
-    { id: '8', created_at: new Date(Date.now() - 25200000).toISOString(), user_email: 'admin@logistics.ge', action: 'logout', table_name: 'auth', record_id: null, details: 'ადმინი გავიდა სისტემიდან' },
-  ]
 
   const filteredLogs = logs.filter(log => {
     const matchesFilter = filter === 'all' || log.action === filter
@@ -77,11 +75,16 @@ export default function AuditTab() {
     switch (table) {
       case 'orders': return '📦'
       case 'drivers': return '👨‍✈️'
+      case 'external_drivers': return '🧑‍✈️'
       case 'vehicles': return '🚐'
       case 'invoices': return '🧾'
       case 'private_clients': return '👤'
       case 'companies': return '🏢'
+      case 'clients': return '👥'
       case 'auth': return '🔐'
+      case 'audit_logs': return '📜'
+      case 'tracking_events': return '📍'
+      case 'notifications': return '🔔'
       default: return '📋'
     }
   }
@@ -123,6 +126,13 @@ export default function AuditTab() {
         </div>
       </div>
 
+      {/* ⚠️ Error message */}
+      {error && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">
+          {error}
+        </div>
+      )}
+
       {/* 📊 სტატისტიკა */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
@@ -153,38 +163,40 @@ export default function AuditTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-700/20 transition">
-                  <td className="px-4 py-3 text-[10px] text-gray-400 whitespace-nowrap">
-                    {new Date(log.created_at).toLocaleString('ka-GE')}
-                  </td>
-                  <td className="px-4 py-3 text-[10px] text-white truncate max-w-[120px]">
-                    {log.user_email}
-                  </td>
-                  <td className="px-4 py-3">{getActionBadge(log.action)}</td>
-                  <td className="px-4 py-3 text-[10px] text-gray-300">
-                    <span className="mr-1">{getTableIcon(log.table_name)}</span>
-                    {log.table_name}
-                  </td>
-                  <td className="px-4 py-3 text-[10px] text-gray-400 truncate max-w-[200px]">
-                    {log.details}
+              {filteredLogs.length > 0 ? (
+                filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-700/20 transition">
+                    <td className="px-4 py-3 text-[10px] text-gray-400 whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString('ka-GE')}
+                    </td>
+                    <td className="px-4 py-3 text-[10px] text-white truncate max-w-[120px]">
+                      {log.user_email}
+                    </td>
+                    <td className="px-4 py-3">{getActionBadge(log.action)}</td>
+                    <td className="px-4 py-3 text-[10px] text-gray-300">
+                      <span className="mr-1">{getTableIcon(log.table_name)}</span>
+                      {log.table_name}
+                    </td>
+                    <td className="px-4 py-3 text-[10px] text-gray-400 truncate max-w-[200px]">
+                      {log.details}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 text-xs">
+                    {logs.length === 0 ? '📭 ლოგები არ მოიძებნა' : '🔍 ფილტრის შედეგები ცარიელია'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-        {filteredLogs.length === 0 && (
-          <div className="p-8 text-center text-gray-500 text-xs">
-            {logs.length === 0 ? 'ლოგები არ მოიძებნა' : 'ფილტრის შედეგები ცარიელია'}
-          </div>
-        )}
       </div>
 
       {/* ℹ️ ინფო ბლოკი */}
       <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4 text-[10px] text-gray-400">
-        <strong>📌 შენიშვნა:</strong> აუდიტის ლოგები ავტომატურად იწერება ყველა მნიშვნელოვან მოქმედებაზე. 
-        ლოგების შესანახად საჭიროა <code className="bg-gray-700 px-1 rounded">audit_logs</code> ცხრილი Supabase-ში.
+        <strong>📌 შენიშვნა:</strong> აუდიტის ლოგები ავტომატურად იწერება ყველა მნიშვნელოვან მოქმედებაზე (orders, drivers, vehicles, clients).
       </div>
     </div>
   )

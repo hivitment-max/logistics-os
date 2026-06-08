@@ -73,7 +73,6 @@ interface AIProvider {
   priority: number
   detection_status?: 'idle' | 'detecting' | 'success' | 'error'
   detected_model?: string
-  // 🆕 ტესტისთვის დამატებითი ველები
   is_testing?: boolean
   test_message?: string
 }
@@ -106,10 +105,10 @@ const detectApiType = (endpoint: string, apiKey: string): 'gemini' | 'groq' | 'a
 
 const getDefaultModel = (apiType: string): string => {
   switch (apiType) {
-    case 'gemini': return 'gemini-1.5-flash'
-    case 'groq': return 'llama3-8b-8192'
-    case 'anthropic': return 'claude-3-haiku-20240307'
-    default: return 'gpt-3.5-turbo'
+    case 'gemini': return 'gemini-2.0-flash'
+    case 'groq': return 'llama-3.3-70b-versatile'
+    case 'anthropic': return 'claude-3-5-haiku-20241022'
+    default: return 'gpt-4o-mini'
   }
 }
 
@@ -137,7 +136,16 @@ export default function AITab() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const { data: configData } = await supabase.from('ai_pricing_config').select('*').single()
+      // 1. კონფიგურაციის ჩატვირთვა
+      const { data: configData, error: configErr } = await supabase
+        .from('ai_pricing_config')
+        .select('*')
+        .single()
+      
+      if (configErr) {
+        console.error('❌ Config load error:', configErr)
+      }
+      
       if (configData) {
         setConfig({
           is_active: configData.is_active ?? true,
@@ -148,11 +156,25 @@ export default function AITab() {
         })
       }
 
-      const { data: providersData } = await supabase.from('ai_pricing_providers').select('*').order('priority', { ascending: true })
+      // 2. პროვაიდერების ჩატვირთვა
+      const { data: providersData, error: providersErr } = await supabase
+        .from('ai_pricing_providers')
+        .select('*')
+        .order('priority', { ascending: true })
+      
+      if (providersErr) {
+        console.error('❌ Providers load error:', providersErr)
+        setGlobalMessage({ 
+          success: false, 
+          message: '❌ ai_pricing_providers ცხრილი არ არსებობს! გაუშვი SQL.' 
+        })
+        return
+      }
+      
       if (providersData) {
         setProviders(providersData.map((p: any) => ({
           ...p,
-          detection_status: 'idle',
+          detection_status: p.detection_status || 'idle',
           is_testing: false,
           test_message: '',
         })))
@@ -174,19 +196,57 @@ export default function AITab() {
 
   const handleSave = async () => {
     setSaving(true)
+    setGlobalMessage(null)
+    
     try {
-      const { data: existing } = await supabase.from('ai_pricing_config').select('id').single()
-      const payload = { ...config, updated_at: new Date().toISOString() }
+      // 1. კონფიგურაციის შენახვა
+      const { data: existing, error: selectErr } = await supabase
+        .from('ai_pricing_config')
+        .select('id')
+        .maybeSingle()
+      
+      if (selectErr) {
+        console.error('❌ Config select error:', selectErr)
+        throw new Error(`Config select: ${selectErr.message}`)
+      }
+      
+      const payload = { 
+        is_active: config.is_active,
+        use_local_algorithm: config.use_local_algorithm,
+        local_base_rate_per_km: config.local_base_rate_per_km,
+        fallback_to_local_on_error: config.fallback_to_local_on_error,
+        max_ai_price_deviation_percent: config.max_ai_price_deviation_percent,
+        updated_at: new Date().toISOString() 
+      }
       
       if (existing?.id) {
-        await supabase.from('ai_pricing_config').update(payload).eq('id', existing.id)
+        const { error: updateErr } = await supabase
+          .from('ai_pricing_config')
+          .update(payload)
+          .eq('id', existing.id)
+        
+        if (updateErr) {
+          console.error('❌ Config update error:', updateErr)
+          throw new Error(`Config update: ${updateErr.message}`)
+        }
+        console.log('✅ Config updated')
       } else {
-        await supabase.from('ai_pricing_config').insert(payload)
+        const { error: insertErr } = await supabase
+          .from('ai_pricing_config')
+          .insert(payload)
+        
+        if (insertErr) {
+          console.error('❌ Config insert error:', insertErr)
+          throw new Error(`Config insert: ${insertErr.message}`)
+        }
+        console.log('✅ Config inserted')
       }
 
+      // 2. პროვაიდერების შენახვა
       for (const provider of providers) {
         if (provider.id) {
-          await supabase.from('ai_pricing_providers')
+          const { error: providerErr } = await supabase
+            .from('ai_pricing_providers')
             .update({
               api_key: provider.api_key,
               api_endpoint: provider.api_endpoint,
@@ -195,19 +255,26 @@ export default function AITab() {
               updated_at: new Date().toISOString(),
             })
             .eq('id', provider.id)
+          
+          if (providerErr) {
+            console.error(`❌ Provider ${provider.provider_name} update error:`, providerErr)
+            throw new Error(`${provider.provider_name}: ${providerErr.message}`)
+          }
+          console.log(`✅ Provider ${provider.provider_name} updated`)
         }
       }
 
       setGlobalMessage({ success: true, message: '✅ ყველაფერი წარმატებით შეინახა!' })
       setTimeout(() => setGlobalMessage(null), 3000)
     } catch (err: any) {
+      console.error('❌ Save error:', err)
       setGlobalMessage({ success: false, message: `❌ შეცდომა: ${err.message}` })
     } finally {
       setSaving(false)
     }
   }
 
-  // 🔗 განახლებული ტესტის ფუნქცია: რეალური ჩატის მოთხოვნა
+  // 🔗 ტესტის ფუნქცია
   const handleTestConnection = async (provider: AIProvider) => {
     if (!provider.api_key) {
       setGlobalMessage({ success: false, message: '❌ გთხოვთ, ჯერ შეიყვანოთ API გასაღები.' })
@@ -255,7 +322,6 @@ export default function AITab() {
         answer = data.content?.[0]?.text || "პასუხი ვერ მივიღე"
         
       } else {
-        // OpenAI & Groq
         res = await fetch(`${provider.api_endpoint}/v1/chat/completions`, {
           method: 'POST',
           headers: { 
@@ -282,7 +348,7 @@ export default function AITab() {
     }
   }
 
-  // 🔍 ავტომატური მოდელის პოვნა (უცვლელი)
+  // 🔍 ავტომატური მოდელის პოვნა
   const handleAutoDetectModel = async (provider: AIProvider) => {
     if (!provider.api_key || !provider.api_endpoint) {
       setGlobalMessage({ success: false, message: '❌ შეავსეთ endpoint და გასაღები.' })
@@ -451,7 +517,6 @@ export default function AITab() {
                         {provider.is_testing ? <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>მოწმდება...</> : <>🔗 ტესტი</>}
                       </button>
 
-                      {/* 🆕 აქ გამოდის ტესტის პასუხი */}
                       {provider.test_message && (
                         <span className={`text-[10px] px-2 py-1 rounded border ${provider.test_message.startsWith('✅') ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
                           {provider.test_message}
@@ -500,7 +565,6 @@ export default function AITab() {
                         {provider.is_testing ? <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>მოწმდება...</> : <>🔗 ტესტი</>}
                       </button>
 
-                      {/* 🆕 აქ გამოდის ტესტის პასუხი */}
                       {provider.test_message && (
                         <span className={`text-[10px] px-2 py-1 rounded border ${provider.test_message.startsWith('✅') ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
                           {provider.test_message}
