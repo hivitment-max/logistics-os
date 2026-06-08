@@ -3,26 +3,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 // ============================================================================
-// 🔐 კონფიგურაცია (შენი .env-ის მიხედვით)
+// 🔐 კონფიგურაცია
 // ============================================================================
 const BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-if (!BOT_TOKEN) console.error('🚨 CRITICAL: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is MISSING in .env!')
-if (!SUPABASE_KEY) console.error('🚨 CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is MISSING in .env!')
+// 🆕 SERVICE_ROLE_KEY გამოყენება (სრული წვდომა, RLS-ის გვერდის ავლით)
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY 
+  || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// ✅ გამოსწორებული: სრული auth კონფიგურაცია
+const KEY_TYPE = process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE' : 'ANON'
+
+if (!BOT_TOKEN) console.error('🚨 CRITICAL: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is MISSING!')
+if (!SUPABASE_KEY) console.error('🚨 CRITICAL: SUPABASE_KEY is MISSING!')
+
+console.log(`🔑 [INIT] Using ${KEY_TYPE} key, URL: ${SUPABASE_URL}`)
+
+// ✅ სერვერული Supabase კლიენტი (RLS-ის გვერდის ავლით)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { 
-    autoRefreshToken: false,  // ⚠️ სერვერზე არ გვჭირდება ავტომატური refresh
-    persistSession: false,     // ⚠️ სერვერზე არ გვაქვს localStorage
-    detectSessionInUrl: false  // ⚠️ სერვერზე არ გვაქვს URL session
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false
   }
 })
 
 // ============================================================================
-// 🔄 პროგრესული ღილაკების კონფიგურაცია (State Machine)
+// 🔄 State Machine
 // ============================================================================
 type StageKey = 'initial' | 'accepted' | 'en_route' | 'loaded' | 'in_transit' | 'border_crossed' | 'arrived' | 'delivered'
 
@@ -179,33 +186,125 @@ async function editTelegramMessage(chatId: number, messageId: number, newText: s
   } catch (e) { console.error('❌ Failed to edit message:', e) }
 }
 
+// 🔍 გაფართოებული verifyDriverAndOrder - დეტალური debug logs-ით
 async function verifyDriverAndOrder(chatId: string, orderId: string) {
-  const { data: driver, error: driverErr } = await supabase
+  console.log(`\n🔍 [VERIFY] ========================================`)
+  console.log(`🔍 [VERIFY] START VERIFICATION`)
+  console.log(`🔍 [VERIFY] chatId: "${chatId}" (type: ${typeof chatId})`)
+  console.log(`🔍 [VERIFY] orderId: "${orderId}"`)
+  console.log(`🔍 [VERIFY] Using key type: ${KEY_TYPE}`)
+  
+  // 🆕 1. ჯერ internal drivers-ში მოძებნა
+  console.log(`🔍 [VERIFY] Step 1: Searching in 'drivers' table...`)
+  const { data: internalDriver, error: internalErr } = await supabase
     .from('drivers')
     .select('id, full_name, telegram_chat_id')
     .eq('telegram_chat_id', chatId.toString())
-    .single()
+    .maybeSingle()
 
-  if (driverErr || !driver) {
-    return { error: 'Driver not found or not linked to this Telegram account' }
+  console.log(`🔍 [VERIFY] Internal drivers result:`, {
+    found: !!internalDriver,
+    error: internalErr ? { message: internalErr.message, code: internalErr.code, details: internalErr.details } : null,
+    driver: internalDriver ? { id: internalDriver.id, name: internalDriver.full_name, chatId: internalDriver.telegram_chat_id } : null
+  })
+
+  // 🆕 2. თუ ვერ იპოვა, external drivers-ში მოძებნა
+  let driver = internalDriver
+  let driverType: 'internal' | 'external' = 'internal'
+  
+  if (!internalDriver) {
+    console.log(`🔍 [VERIFY] Step 2: Searching in 'external_drivers' table...`)
+    const { data: externalDriver, error: externalErr } = await supabase
+      .from('external_drivers')
+      .select('id, full_name, telegram_chat_id')
+      .eq('telegram_chat_id', chatId.toString())
+      .maybeSingle()
+
+    console.log(`🔍 [VERIFY] External drivers result:`, {
+      found: !!externalDriver,
+      error: externalErr ? { message: externalErr.message, code: externalErr.code, details: externalErr.details } : null,
+      driver: externalDriver ? { id: externalDriver.id, name: externalDriver.full_name, chatId: externalDriver.telegram_chat_id } : null
+    })
+
+    if (externalDriver) {
+      driver = externalDriver
+      driverType = 'external'
+    }
   }
 
+  // 🆕 3. თუ მაინც ვერ იპოვა, debug-ისთვის ვაჩვენოთ რა chat_id-ები არის ბაზაში
+  if (!driver) {
+    console.log(`🔍 [VERIFY] Step 3: Debug - fetching sample drivers with telegram_chat_id...`)
+    
+    const { data: sampleInternal, error: sampleErr1 } = await supabase
+      .from('drivers')
+      .select('id, full_name, telegram_chat_id')
+      .not('telegram_chat_id', 'is', null)
+      .limit(5)
+    
+    console.log(`🔍 [VERIFY] Sample internal drivers:`, sampleInternal, 'error:', sampleErr1?.message)
+
+    const { data: sampleExternal, error: sampleErr2 } = await supabase
+      .from('external_drivers')
+      .select('id, full_name, telegram_chat_id')
+      .not('telegram_chat_id', 'is', null)
+      .limit(5)
+    
+    console.log(`🔍 [VERIFY] Sample external drivers:`, sampleExternal, 'error:', sampleErr2?.message)
+    
+    console.error(`❌ [VERIFY] Driver NOT FOUND for chatId: ${chatId}`)
+    console.log(`🔍 [VERIFY] ========================================\n`)
+    
+    return { error: `Driver not found or not linked to this Telegram account (chatId: ${chatId})` }
+  }
+  
+  console.log(`✅ [VERIFY] Driver found: ${driver.full_name} (${driver.id}) type=${driverType}`)
+
+  // 🆕 4. შეკვეთის ძებნა
+  console.log(`🔍 [VERIFY] Step 4: Searching order ${orderId}...`)
   const { data: order, error: orderErr } = await supabase
     .from('orders')
     .select('*, drivers:driver_id(id, full_name), external_drivers:external_driver_id(id, full_name), driver_type')
     .eq('id', orderId)
     .single()
 
+  console.log(`🔍 [VERIFY] Order result:`, {
+    found: !!order,
+    error: orderErr ? { message: orderErr.message, code: orderErr.code } : null,
+    order: order ? { 
+      id: order.id, 
+      trackingCode: order.tracking_code, 
+      driverType: order.driver_type,
+      driverId: order.driver_id,
+      externalDriverId: order.external_driver_id,
+      assignedDriverId: order.driver_type === 'internal' ? order.drivers?.id : order.external_drivers?.id
+    } : null
+  })
+
   if (orderErr || !order) {
+    console.error('❌ [VERIFY] Order query error:', orderErr)
+    console.log(`🔍 [VERIFY] ========================================\n`)
     return { error: 'Order not found' }
   }
 
+  // 🆕 5. Driver mismatch-ის შემოწმება
   const assignedDriverId = order.driver_type === 'internal' ? order.drivers?.id : order.external_drivers?.id
+  
+  console.log(`🔍 [VERIFY] Step 5: Checking driver assignment...`)
+  console.log(`🔍 [VERIFY] Assigned driver ID: ${assignedDriverId}`)
+  console.log(`🔍 [VERIFY] Actual driver ID: ${driver.id}`)
+  console.log(`🔍 [VERIFY] Match: ${assignedDriverId === driver.id}`)
+  
   if (assignedDriverId !== driver.id) {
+    console.error(`❌ [VERIFY] Driver mismatch!`)
+    console.log(`🔍 [VERIFY] ========================================\n`)
     return { error: 'This order is not assigned to you' }
   }
 
-  return { driver, order }
+  console.log(`✅ [VERIFY] Order verified: ${order.tracking_code}`)
+  console.log(`🔍 [VERIFY] ========================================\n`)
+  
+  return { driver, order, driverType }
 }
 
 async function logTrackingEvent(orderId: string | null, driverId: string, eventType: string, eventData: any = {}) {
@@ -247,8 +346,10 @@ async function handleCallbackQuery(callback: any) {
   const driverChatId = callback.from.id.toString()
   const data = callback.data
 
+  console.log(`\n🎮 [CALLBACK] ========================================`)
   console.log(`🎮 [CALLBACK] Raw data: "${data}"`)
   console.log(`🎮 [CALLBACK] driverChatId: "${driverChatId}"`)
+  console.log(`🎮 [CALLBACK] callback.from:`, callback.from)
 
   const parts = data?.split(':') || []
   const action = parts[0]
@@ -369,6 +470,7 @@ async function handleCallbackQuery(callback: any) {
     await answerCallback(callbackQueryId, '✅ განახლდა!', false)
 
     console.log(`✅ [SUCCESS] Stage ${currentStage} → ${stageConfig.nextStage || 'END'} for order ${orderId}`)
+    console.log(`🎮 [CALLBACK] ========================================\n`)
     return NextResponse.json({ ok: true })
 
   } catch (error: any) {
@@ -477,12 +579,15 @@ async function handleStartCommand(message: any) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('\n📡 [WEBHOOK] ========================================')
     console.log('📡 [WEBHOOK] Received update:', JSON.stringify({
       update_id: body.update_id,
       has_callback: !!body.callback_query,
       has_message: !!body.message,
-      message_text: body.message?.text
-    }).slice(0, 200))
+      message_text: body.message?.text,
+      callback_data: body.callback_query?.data,
+      callback_from: body.callback_query?.from
+    }).slice(0, 300))
 
     if (body.callback_query) {
       return await handleCallbackQuery(body.callback_query)
