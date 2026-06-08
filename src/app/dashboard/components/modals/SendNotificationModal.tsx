@@ -204,7 +204,7 @@ export default function SendNotificationModal({
             </div>
           </section>
 
-          {/* 📡 გაგზავნის არხები */}
+          {/* 📡 გაგზავნის არხები - ერთ ხაზზე */}
           <section className="p-4 bg-gray-50 rounded-xl border border-gray-200">
             <h3 className="text-sm font-bold text-gray-900 mb-3">📡 გაგზავნის არხები</h3>
             
@@ -214,14 +214,30 @@ export default function SendNotificationModal({
                 <span className="text-sm text-gray-600">მძღოლის მონაცემები იტვირთება...</span>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-3">
                 {channels.map(channel => {
                   const isSelected = selectedChannels.includes(channel.id)
                   const isDisabled = !channel.available
+                  
+                  // 💡 კონტაქტის ინფორმაცია + მინიშნება სად ჩაიწეროს
+                  let contactInfo = ''
+                  let hintLocation = ''
+                  
+                  if (channel.id === 'telegram') {
+                    contactInfo = telegramChatId || ''
+                    hintLocation = 'მძღოლის პროფილში'
+                  } else if (channel.id === 'email') {
+                    contactInfo = order?.client_email || ''
+                    hintLocation = 'დამკვეთის მონაცემებში'
+                  } else if (channel.id === 'sms') {
+                    contactInfo = driverData?.phone || order?.client_phone || ''
+                    hintLocation = 'მძღოლის/დამკვეთის პროფილში'
+                  }
+                  
                   return (
                     <label 
                       key={channel.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                      className={`flex flex-col p-3 rounded-lg border cursor-pointer transition ${
                         isSelected && !isDisabled
                           ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' 
                           : isDisabled
@@ -229,22 +245,46 @@ export default function SendNotificationModal({
                             : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected}
-                        onChange={() => toggleChannel(channel.id)}
-                        disabled={isDisabled}
-                        className="w-4 h-4 accent-blue-600"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{channel.icon}</span>
-                          <span className="font-medium text-gray-900">{channel.name}</span>
-                          {channel.soon && <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">მალე</span>}
+                      <div className="flex items-start gap-2 mb-2">
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={() => toggleChannel(channel.id)}
+                          disabled={isDisabled}
+                          className="w-4 h-4 accent-blue-600 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-lg">{channel.icon}</span>
+                            <span className="font-medium text-gray-900 text-sm">{channel.name}</span>
+                          </div>
+                          {channel.soon && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded mt-1 inline-block">
+                              მალე
+                            </span>
+                          )}
                         </div>
-                        <p className="ml-6 text-xs text-gray-500">{channel.desc}</p>
-                        {!channel.available && !channel.soon && (
-                          <p className="ml-6 text-[10px] text-gray-400 mt-0.5">მიუწვდომელი</p>
+                      </div>
+                      
+                      {/* 📋 კონტაქტის ინფორმაცია ან მინიშნება */}
+                      <div className="ml-6 mt-1">
+                        {channel.available ? (
+                          <div className="flex items-center gap-1 text-[10px] text-green-600 font-medium">
+                            <span>✅</span>
+                            <span className="truncate" title={contactInfo}>
+                              {contactInfo}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                              <span>❌</span>
+                              <span>მონაცემები არ არის</span>
+                            </div>
+                            <div className="text-[9px] text-amber-600 font-medium">
+                              📍 {hintLocation}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </label>
