@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 
 interface LoadingTruckProps {
   message?: string
@@ -12,14 +12,27 @@ export default function LoadingTruck({
   size = 'md' 
 }: LoadingTruckProps) {
   const [dots, setDots] = useState('')
+  const [mounted, setMounted] = useState(false)
 
-  // Typewriter ეფექტი წერტილებისთვის
+  // ტიპოგრაფიული ეფექტი წერტილებისთვის
   useEffect(() => {
+    setMounted(true)
     const interval = setInterval(() => {
       setDots(prev => prev.length >= 3 ? '' : prev + '.')
     }, 500)
     return () => clearInterval(interval)
   }, [])
+
+  // დეკორატიული ნაწილაკების პოზიციები - მხოლოდ client-side-ზე გენერირდება
+  const particles = useMemo(() => {
+    if (!mounted) return []
+    return [...Array(6)].map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 5}s`,
+      duration: `${3 + Math.random() * 4}s`,
+    }))
+  }, [mounted])
 
   const sizeClasses = {
     sm: 'scale-75',
@@ -57,7 +70,7 @@ export default function LoadingTruck({
               {/* Glow ეფექტი */}
               <div className="absolute inset-0 bg-violet-500 rounded-lg blur-xl opacity-50 animate-pulse" />
             </div>
-            {/* A ეიბლი */}
+            {/* A ლეიბლი */}
             <div className="mt-2 text-[10px] font-bold text-violet-400">A</div>
           </div>
 
@@ -145,21 +158,23 @@ export default function LoadingTruck({
           </div>
         </div>
 
-        {/* დეკორატიული ნაწილაკები ფონზე */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-violet-500/20 rounded-full animate-float"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${3 + Math.random() * 4}s`,
-              }}
-            />
-          ))}
-        </div>
+        {/* დეკორატიული ნაწილაკები ფონზე - მხოლოდ mounted-ის შემდეგ */}
+        {mounted && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {particles.map((particle, i) => (
+              <div
+                key={i}
+                className="absolute w-1 h-1 bg-violet-500/20 rounded-full animate-float"
+                style={{
+                  left: particle.left,
+                  top: particle.top,
+                  animationDelay: particle.delay,
+                  animationDuration: particle.duration,
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

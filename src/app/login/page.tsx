@@ -43,44 +43,106 @@ export default function LoginPage() {
       
     } catch (err: any) {
       console.error('❌ [Login] Error:', err.message)
-      setError(err.message || 'Login failed')
+      setError(err.message || 'შესვლა ვერ მოხერხდა')
       setLoading(false)
     }
   }
 
-  // 📝 REGISTER ფუნქცია
+  // 📝 REGISTER ფუნქცია (განახლებული)
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     setSuccess('')
 
+    // ვალიდაცია
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('პაროლები არ ემთხვევა')
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 8) {
+      setError('პაროლი უნდა იყოს მინიმუმ 8 სიმბოლო')
       setLoading(false)
       return
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // 1️⃣ ვქმნით მომხმარებელს Supabase Auth-ში
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { role: 'client' } }
+        options: { 
+          data: { role: 'client' },
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
       })
 
-      if (error) throw error
+      if (signUpError) throw signUpError
       
-      setSuccess('✅ Registration successful! Redirecting to login...')
+      if (!signUpData?.user) {
+        throw new Error('მომხმარებელი არ შეიქმნა')
+      }
+
+      console.log('✅ [Register] User created:', signUpData.user.id)
+
+      // 2️⃣ ვქმნით პროფილს profiles ცხრილში
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: signUpData.user.id,
+          email: email,
+          role: 'client',
+          status: 'active',
+          onboarding_completed: true,
+          approval_status: 'client_active',
+          selected_role: 'client'
+        })
+
+      if (profileError) {
+        console.error('❌ [Register] Profile creation error:', profileError)
+        // თუ პროფილი ვერ შეიქმნა, მაინც გავაგრძელოთ
+      } else {
+        console.log('✅ [Register] Profile created')
+      }
+
+      // 3️⃣ ვცდილობთ ავტომატურ შესვლას
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        // თუ ავტომატური შესვლა ვერ მოხერხდა (email confirmation-ის გამო)
+        console.log('⚠️ [Register] Auto sign-in failed, email confirmation needed')
+        setSuccess('✅ რეგისტრაცია წარმატებულია! გთხოვთ შეამოწმოთ თქვენი email დადასტურებისთვის, შემდეგ კი შეხვიდეთ სისტემაში.')
+        
+        // 3 წამის შემდეგ login ტაბზე დაბრუნება
+        setTimeout(() => {
+          setActiveTab('login')
+          setSuccess('')
+          setEmail('')
+          setPassword('')
+          setConfirmPassword('')
+          setLoading(false)
+        }, 3000)
+        return
+      }
+
+      // 4️⃣ ავტომატური შესვლა წარმატებულია - გადავდივართ დეშბორდზე
+      console.log('✅ [Register] Auto sign-in successful, redirecting to dashboard')
+      localStorage.setItem('userRole', 'client')
+      
+      setSuccess('✅ რეგისტრაცია წარმატებულია! გადაგყავთ დეშბორდზე...')
+      
       setTimeout(() => {
-        setActiveTab('login')
-        setSuccess('')
-        setEmail('')
-        setPassword('')
-        setConfirmPassword('')
-      }, 2000)
+        router.push('/dashboard')
+      }, 1500)
+      
     } catch (err: any) {
-      setError(err.message || 'Registration failed')
-    } finally {
+      console.error('❌ [Register] Error:', err.message)
+      setError(err.message || 'რეგისტრაცია ვერ მოხერხდა')
       setLoading(false)
     }
   }
@@ -157,7 +219,6 @@ export default function LoginPage() {
       </div>
 
       {/* მარჯვენა მხარე - ფორმა */}
-      {/* ✅ FIX: დამატებულია text-gray-900 - რომ ტექსტი მუქი იყოს */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 text-gray-900">
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
@@ -180,7 +241,7 @@ export default function LoginPage() {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
               >
-                Login
+                შესვლა
               </button>
               <button
                 onClick={() => { setActiveTab('register'); setError(''); setSuccess(''); }}
@@ -190,7 +251,7 @@ export default function LoginPage() {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
               >
-                Register
+                რეგისტრაცია
               </button>
             </div>
 
@@ -198,8 +259,7 @@ export default function LoginPage() {
             {activeTab === 'login' && (
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                  {/* ✅ FIX: დამატებულია text-gray-900 და placeholder-gray-400 */}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email მისამართი</label>
                   <input
                     type="email"
                     value={email}
@@ -210,8 +270,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-                  {/* ✅ FIX: დამატებულია text-gray-900 */}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">პაროლი</label>
                   <input
                     type="password"
                     value={password}
@@ -229,7 +288,7 @@ export default function LoginPage() {
                   disabled={loading}
                   className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Sign In
+                  შესვლა
                 </button>
               </form>
             )}
@@ -238,8 +297,7 @@ export default function LoginPage() {
             {activeTab === 'register' && (
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                  {/* ✅ FIX: დამატებულია text-gray-900 და placeholder-gray-400 */}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email მისამართი</label>
                   <input
                     type="email"
                     value={email}
@@ -250,18 +308,19 @@ export default function LoginPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">პაროლი</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none hover:border-gray-400"
-                    placeholder="••••••••"
+                    placeholder="მინიმუმ 8 სიმბოლო"
                     required
+                    minLength={8}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">პაროლის დადასტურება</label>
                   <input
                     type="password"
                     value={confirmPassword}
@@ -274,7 +333,7 @@ export default function LoginPage() {
                 
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-xs flex items-start gap-2">
                   <span>ℹ️</span>
-                  <span>ახალი ანგარიში ავტომატურად მიიღებს <strong>"client"</strong> როლს და მოხვდება კლიენტის პანელში.</span>
+                  <span>რეგისტრაციის შემდეგ ავტომატურად მიიღებთ <strong>"დამკვეთის"</strong> სტატუსს. მოგვიანებით შეგეძლებათ მძღოლადაც დარეგისტრირება.</span>
                 </div>
 
                 {error && (
@@ -288,12 +347,12 @@ export default function LoginPage() {
                   disabled={loading}
                   className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Create Account
+                  ანგარიშის შექმნა
                 </button>
                 <p className="text-center text-sm text-gray-600">
-                  Already have an account?{' '}
+                  უკვე გაქვთ ანგარიში?{' '}
                   <button type="button" onClick={() => setActiveTab('login')} className="text-blue-600 hover:text-blue-700 font-semibold underline underline-offset-2">
-                    Login
+                    შესვლა
                   </button>
                 </p>
               </form>
@@ -303,7 +362,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <div className="inline-flex items-center gap-2 text-xs text-gray-500 bg-white/50 px-4 py-2 rounded-full">
               <span className="text-green-600">🔒</span>
-              <span>Secured with enterprise-grade encryption</span>
+              <span>დაცულია უსაფრთხო ენკრიფციით</span>
             </div>
           </div>
         </div>
