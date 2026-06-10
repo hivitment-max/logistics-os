@@ -123,6 +123,7 @@ const migrateColumns = (columns: OrderColumnConfig[]): OrderColumnConfig[] => {
 // ============================================================================
 const SECTIONS = [
   { id: 'company', icon: '🏢', title: 'კომპანიის პროფილი' },
+  { id: 'email_notifications', icon: '📧', title: 'Email შეტყობინებები' },
   { id: 'orders_display', icon: '📋', title: 'შეკვეთების სვეტები' },
   { id: 'security', icon: '🔐', title: 'უსაფრთხოება & წვდომა' },
   { id: 'localization', icon: '🌍', title: 'ლოკალიზაცია & ფორმატები' },
@@ -152,6 +153,14 @@ interface Settings {
   enable_auto_backup: boolean
   cleanup_inactive_users_days: number
   order_columns?: OrderColumnConfig[]
+  // 🆕 Email Settings
+  email_from: string
+  email_company_name: string
+  email_enabled_order_created: boolean
+  email_enabled_driver_assigned: boolean
+  email_enabled_driver_en_route: boolean
+  email_enabled_cargo_loaded: boolean
+  email_enabled_order_delivered: boolean
   extra_config: Record<string, any>
 }
 
@@ -177,6 +186,14 @@ const getDefaultSettings = (): Settings => ({
   enable_auto_backup: false,
   cleanup_inactive_users_days: 180,
   order_columns: DEFAULT_ORDER_COLUMNS,
+  // 🆕 Email Settings
+  email_from: 'Logistics OS <onboarding@resend.dev>',
+  email_company_name: 'Logistics OS',
+  email_enabled_order_created: true,
+  email_enabled_driver_assigned: true,
+  email_enabled_driver_en_route: true,
+  email_enabled_cargo_loaded: true,
+  email_enabled_order_delivered: true,
   extra_config: {}
 })
 
@@ -189,6 +206,11 @@ export default function SettingsTab() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  // 🆕 Email test state
+  const [testEmail, setTestEmail] = useState('')
+  const [testLoading, setTestLoading] = useState(false)
+  const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -206,6 +228,9 @@ export default function SettingsTab() {
         } else {
           loadedSettings.order_columns = migrateColumns(loadedSettings.order_columns)
         }
+        // 🆕 Email defaults
+        if (!loadedSettings.email_from) loadedSettings.email_from = 'Logistics OS <onboarding@resend.dev>'
+        if (!loadedSettings.email_company_name) loadedSettings.email_company_name = 'Logistics OS'
         setSettings(loadedSettings)
       }
     } catch (err) {
@@ -235,7 +260,6 @@ export default function SettingsTab() {
     })
   }, [])
 
-  // ✅ გამოსწორებული - temp ცვლადით (არა destructuring)
   const handleColumnMove = useCallback((columnId: string, direction: 'up' | 'down') => {
     setSettings(prev => {
       if (!prev) return prev
@@ -277,6 +301,36 @@ export default function SettingsTab() {
       return { ...prev, order_columns: DEFAULT_ORDER_COLUMNS }
     })
   }, [])
+
+  // 🆕 Test Email Function
+  const handleSendTestEmail = async () => {
+    if (!testEmail) {
+      setTestResult({ success: false, message: '❌ ჩაწერე email მისამართი' })
+      return
+    }
+    
+    setTestLoading(true)
+    setTestResult(null)
+    
+    try {
+      const res = await fetch('/api/email/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmail })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        setTestResult({ success: true, message: `✅ Email წარმატებით გაიგზავნა! (ID: ${data.messageId?.substring(0, 8)}...)` })
+      } else {
+        setTestResult({ success: false, message: `❌ ${data.error || 'უცნობი შეცდომა'}` })
+      }
+    } catch (err: any) {
+      setTestResult({ success: false, message: `❌ ${err.message}` })
+    } finally {
+      setTestLoading(false)
+    }
+  }
 
   const handleSave = useCallback(async () => {
     if (!settings) return
@@ -320,6 +374,265 @@ export default function SettingsTab() {
             <Input label="ტელეფონი" value={settings.company_phone} onChange={(v) => handleChange('company_phone', v)} disabled={loading || isSaving} />
             <Input label="იურიდიული მისამართი" value={settings.company_address} onChange={(v) => handleChange('company_address', v)} disabled={loading || isSaving} />
             <Input label="VAT / საგადასახადო კოდი" value={settings.vat_id} onChange={(v) => handleChange('vat_id', v)} disabled={loading || isSaving} />
+          </div>
+        )
+
+      // 🆕 EMAIL NOTIFICATIONS SECTION
+      case 'email_notifications':
+        const enabledCount = [
+          settings.email_enabled_order_created,
+          settings.email_enabled_driver_assigned,
+          settings.email_enabled_driver_en_route,
+          settings.email_enabled_cargo_loaded,
+          settings.email_enabled_order_delivered,
+        ].filter(Boolean).length
+
+        return (
+          <div className="space-y-6">
+            {/* 📧 ზოგადი პარამეტრები */}
+            <div className="p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
+              <h3 className="text-sm font-semibold text-blue-300 flex items-center gap-2 mb-3">
+                ⚙️ ზოგადი Email პარამეტრები
+              </h3>
+              <div className="space-y-3">
+                <Input 
+                  label="From Email (ვისგან იგზავნება)" 
+                  value={settings.email_from} 
+                  onChange={(v) => handleChange('email_from', v)} 
+                  placeholder="Logistics OS <noreply@logistics.ge>"
+                  hint="ფორმატი: სახელი <email@domain.com>"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="კომპანიის სახელი (Email-ებში)" 
+                  value={settings.email_company_name} 
+                  onChange={(v) => handleChange('email_company_name', v)} 
+                  hint="გამოჩნდება ყველა ავტომატურ Email-ში"
+                  disabled={loading || isSaving} 
+                />
+              </div>
+            </div>
+
+            {/* 🔔 შეტყობინებების ტიპები */}
+            <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-xl">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+                  🔔 ავტომატური შეტყობინებები
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  {enabledCount}/5 ჩართული
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-500 mb-4">
+                აირჩიეთ რომელი სტატუსის ცვლილებისას გაეგზავნოს ავტომატური Email დამკვეთს
+              </p>
+              
+              <div className="space-y-2">
+                <div className="flex items-start justify-between p-3 bg-gray-900/30 rounded-lg border border-gray-800">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🆕</span>
+                    <div>
+                      <div className="text-xs font-medium text-gray-300">შეკვეთა შეიქმნა</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        "თქვენი შეკვეთა მიღებულია" - იგზავნება ახალი შეკვეთის შექმნისას
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('email_enabled_order_created', !settings.email_enabled_order_created)}
+                    disabled={loading || isSaving}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-50 ${settings.email_enabled_order_created ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${settings.email_enabled_order_created ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-start justify-between p-3 bg-gray-900/30 rounded-lg border border-gray-800">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">👨‍✈️</span>
+                    <div>
+                      <div className="text-xs font-medium text-gray-300">მძღოლი დაინიშნა</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        "მძღოლი [სახელი] დაინიშნა თქვენს შეკვეთაზე" - მძღოლის მითითებისას
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('email_enabled_driver_assigned', !settings.email_enabled_driver_assigned)}
+                    disabled={loading || isSaving}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-50 ${settings.email_enabled_driver_assigned ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${settings.email_enabled_driver_assigned ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-start justify-between p-3 bg-gray-900/30 rounded-lg border border-gray-800">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🚗</span>
+                    <div>
+                      <div className="text-xs font-medium text-gray-300">მძღოლი გზაშია</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        "მძღოლი გზაშია თქვენი ტვირთისკენ" - სტატუსის en_route-ზე გადასვლისას
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('email_enabled_driver_en_route', !settings.email_enabled_driver_en_route)}
+                    disabled={loading || isSaving}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-50 ${settings.email_enabled_driver_en_route ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${settings.email_enabled_driver_en_route ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-start justify-between p-3 bg-gray-900/30 rounded-lg border border-gray-800">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">📦</span>
+                    <div>
+                      <div className="text-xs font-medium text-gray-300">ტვირთი ჩაიტვირთა</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        "ტვირთი წარმატებით ჩაიტვირთა" - ჩატვირთვის დადასტურებისას
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('email_enabled_cargo_loaded', !settings.email_enabled_cargo_loaded)}
+                    disabled={loading || isSaving}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-50 ${settings.email_enabled_cargo_loaded ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${settings.email_enabled_cargo_loaded ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-start justify-between p-3 bg-gray-900/30 rounded-lg border border-gray-800">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🏁</span>
+                    <div>
+                      <div className="text-xs font-medium text-gray-300">შეკვეთა ჩაბარდა</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        "შეკვეთა წარმატებით ჩაბარდა" - მიწოდების დადასტურებისას
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('email_enabled_order_delivered', !settings.email_enabled_order_delivered)}
+                    disabled={loading || isSaving}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-50 ${settings.email_enabled_order_delivered ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${settings.email_enabled_order_delivered ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleChange('email_enabled_order_created', true)
+                    handleChange('email_enabled_driver_assigned', true)
+                    handleChange('email_enabled_driver_en_route', true)
+                    handleChange('email_enabled_cargo_loaded', true)
+                    handleChange('email_enabled_order_delivered', true)
+                  }}
+                  className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-medium hover:bg-emerald-500/20 transition"
+                >
+                  ✅ ყველას ჩართვა
+                </button>
+                <button
+                  onClick={() => {
+                    handleChange('email_enabled_order_created', false)
+                    handleChange('email_enabled_driver_assigned', false)
+                    handleChange('email_enabled_driver_en_route', false)
+                    handleChange('email_enabled_cargo_loaded', false)
+                    handleChange('email_enabled_order_delivered', false)
+                  }}
+                  className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-lg text-[10px] font-medium hover:bg-rose-500/20 transition"
+                >
+                  ❌ ყველას გამორთვა
+                </button>
+              </div>
+            </div>
+
+            {/* 🧪 ტესტ Email */}
+            <div className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+              <h3 className="text-sm font-semibold text-purple-300 flex items-center gap-2 mb-3">
+                🧪 ტესტ Email გაგზავნა
+              </h3>
+              <p className="text-[10px] text-gray-400 mb-3">
+                გაგზავნე სატესტო Email რომ შეამოწმო სისტემა მუშაობს თუ არა
+              </p>
+              
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="test@example.com"
+                  className="flex-1 px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-purple-500"
+                />
+                <button
+                  onClick={handleSendTestEmail}
+                  disabled={testLoading}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition flex items-center gap-2"
+                >
+                  {testLoading ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      იგზავნება...
+                    </>
+                  ) : (
+                    <>📤 გაგზავნა</>
+                  )}
+                </button>
+              </div>
+
+              {testResult && (
+                <div className={`mt-3 p-3 rounded-lg text-xs ${
+                  testResult.success 
+                    ? 'bg-green-500/10 border border-green-500/30 text-green-300' 
+                    : 'bg-red-500/10 border border-red-500/30 text-red-300'
+                }`}>
+                  {testResult.message}
+                </div>
+              )}
+
+              <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[9px] text-amber-300">
+                💡 <strong>შენიშვნა:</strong> Resend-ის უფასო პლანზე Email იგზავნება მხოლოდ ვერიფიცირებულ მიმღებებზე.
+              </div>
+            </div>
+
+            {/* 📋 Templates Preview */}
+            <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-xl">
+              <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2 mb-3">
+                📋 Email შაბლონების გადახედვა
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {[
+                  { icon: '🆕', name: 'შეკვეთა შეიქმნა', subject: '✅ შეკვეთა #TRK-001 მიღებულია', enabled: settings.email_enabled_order_created },
+                  { icon: '👨‍✈️', name: 'მძღოლი დაინიშნა', subject: '👨‍✈️ მძღოლი დაინიშნა - შეკვეთა #TRK-001', enabled: settings.email_enabled_driver_assigned },
+                  { icon: '🚗', name: 'მძღოლი გზაშია', subject: '🚗 მძღოლი გზაშია - შეკვეთა #TRK-001', enabled: settings.email_enabled_driver_en_route },
+                  { icon: '📦', name: 'ტვირთი ჩაიტვირთა', subject: '📦 ტვირთი ჩაიტვირთა - შეკვეთა #TRK-001', enabled: settings.email_enabled_cargo_loaded },
+                  { icon: '🏁', name: 'შეკვეთა ჩაბარდა', subject: '🏁 შეკვეთა ჩაბარდა - #TRK-001', enabled: settings.email_enabled_order_delivered },
+                ].map((tpl, i) => (
+                  <div key={i} className={`p-3 rounded-lg border ${tpl.enabled ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-gray-800/30 border-gray-700 opacity-60'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{tpl.icon}</span>
+                      <span className="text-xs font-medium text-gray-200">{tpl.name}</span>
+                      {tpl.enabled ? (
+                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">აქტიური</span>
+                      ) : (
+                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-gray-500/20 text-gray-400 border border-gray-500/30">გამორთული</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-mono truncate">{tpl.subject}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )
 
@@ -445,7 +758,6 @@ export default function SettingsTab() {
                       <p className="text-[10px] text-gray-500 mt-0.5">{col.description}</p>
                     </div>
 
-                    {/* ✅ გამოსწორებული - !! ოპერატორით boolean-ად გადაყვანა */}
                     {!isFixed ? (
                       <div className="flex items-center gap-0.5">
                         <button
@@ -550,7 +862,7 @@ export default function SettingsTab() {
       default:
         return null
     }
-  }, [settings, activeSection, loading, isSaving, handleChange, handleColumnToggle, handleColumnMove, handleToggleAll, handleResetColumns])
+  }, [settings, activeSection, loading, isSaving, handleChange, handleColumnToggle, handleColumnMove, handleToggleAll, handleResetColumns, testEmail, testLoading, testResult])
 
   if (loading) {
     return (
