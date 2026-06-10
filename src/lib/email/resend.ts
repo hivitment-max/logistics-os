@@ -1,7 +1,22 @@
 // src/lib/email/resend.ts
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// ❌ ეს არ მუშაობს - იქმნება build time-ზე
+// const resend = new Resend(process.env.RESEND_API_KEY)
+
+// ✅ ეს მუშაობს - იქმნება runtime-ზე
+let resendInstance: Resend | null = null
+
+function getResend(): Resend {
+  if (!resendInstance) {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY is not set in environment variables')
+    }
+    resendInstance = new Resend(apiKey)
+  }
+  return resendInstance
+}
 
 interface SendEmailParams {
   to: string | string[]
@@ -12,6 +27,7 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html, from }: SendEmailParams) {
   try {
+    const resend = getResend()
     const fromEmail = from || process.env.EMAIL_FROM || 'Logistics OS <onboarding@resend.dev>'
     
     const { data, error } = await resend.emails.send({
@@ -34,12 +50,7 @@ export async function sendEmail({ to, subject, html, from }: SendEmailParams) {
   }
 }
 
-// ============================================================================
-// 📧 Email Templates
-// ============================================================================
-
 export const emailTemplates = {
-  // ✅ შეკვეთა მიღებულია
   orderCreated: (trackingCode: string, clientName: string) => ({
     subject: `✅ შეკვეთა ${trackingCode} მიღებულია`,
     html: `
@@ -57,112 +68,6 @@ export const emailTemplates = {
             <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #7c3aed;">${trackingCode}</p>
           </div>
           <p style="color: #4b5563;">მალე დაგიკავშირდებით დეტალებით.</p>
-        </div>
-        <div style="padding: 20px; text-align: center; background: #f3f4f6; border-radius: 0 0 10px 10px;">
-          <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Logistics OS</p>
-        </div>
-      </div>
-    `
-  }),
-
-  // 👨‍✈️ მძღოლი დაინიშნა
-  driverAssigned: (trackingCode: string, clientName: string, driverName: string, driverPhone: string) => ({
-    subject: `👨‍✈️ მძღოლი დაინიშნა - შეკვეთა ${trackingCode}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">🚛 Logistics OS</h1>
-        </div>
-        <div style="padding: 30px; background: #f9fafb; border: 1px solid #e5e7eb;">
-          <h2 style="color: #111827;">გამარჯობა, ${clientName}!</h2>
-          <p style="color: #4b5563; font-size: 16px;">
-            თქვენს შეკვეთას <strong style="color: #7c3aed;">#${trackingCode}</strong> მძღოლი დაენიშნა.
-          </p>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #6b7280;">👨‍✈️ მძღოლი:</p>
-            <p style="margin: 5px 0; font-size: 20px; font-weight: bold; color: #111827;">${driverName}</p>
-            <p style="margin: 10px 0 0 0; color: #6b7280;">📞 ტელეფონი:</p>
-            <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: #10b981;">${driverPhone}</p>
-          </div>
-          <p style="color: #4b5563;">მძღოლი მალე დაგიკავშირდებათ.</p>
-        </div>
-        <div style="padding: 20px; text-align: center; background: #f3f4f6; border-radius: 0 0 10px 10px;">
-          <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Logistics OS</p>
-        </div>
-      </div>
-    `
-  }),
-
-  // 🚗 მძღოლი გზაშია
-  driverEnRoute: (trackingCode: string, clientName: string, driverName: string) => ({
-    subject: `🚗 მძღოლი გზაშია - შეკვეთა ${trackingCode}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">🚛 Logistics OS</h1>
-        </div>
-        <div style="padding: 30px; background: #f9fafb; border: 1px solid #e5e7eb;">
-          <h2 style="color: #111827;">გამარჯობა, ${clientName}!</h2>
-          <p style="color: #4b5563; font-size: 16px;">
-            მძღოლი <strong>${driverName}</strong> გზაშია თქვენი ტვირთისკენ.
-          </p>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-size: 48px;">🚗💨</p>
-            <p style="margin: 10px 0 0 0; color: #6b7280;">მძღოლი მიემართება ატვირთვის ადგილას</p>
-          </div>
-          <p style="color: #4b5563;">შეკვეთა: <strong style="color: #7c3aed;">#${trackingCode}</strong></p>
-        </div>
-        <div style="padding: 20px; text-align: center; background: #f3f4f6; border-radius: 0 0 10px 10px;">
-          <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Logistics OS</p>
-        </div>
-      </div>
-    `
-  }),
-
-  // 📦 ტვირთი ჩაიტვირთა
-  cargoLoaded: (trackingCode: string, clientName: string) => ({
-    subject: `📦 ტვირთი ჩაიტვირთა - შეკვეთა ${trackingCode}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">🚛 Logistics OS</h1>
-        </div>
-        <div style="padding: 30px; background: #f9fafb; border: 1px solid #e5e7eb;">
-          <h2 style="color: #111827;">გამარჯობა, ${clientName}!</h2>
-          <p style="color: #4b5563; font-size: 16px;">
-            თქვენი ტვირთი წარმატებით ჩაიტვირთა.
-          </p>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-size: 48px;">📦✅</p>
-            <p style="margin: 10px 0 0 0; color: #6b7280;">ტვირთი მზადაა ტრანსპორტირებისთვის</p>
-          </div>
-          <p style="color: #4b5563;">შეკვეთა: <strong style="color: #7c3aed;">#${trackingCode}</strong></p>
-        </div>
-        <div style="padding: 20px; text-align: center; background: #f3f4f6; border-radius: 0 0 10px 10px;">
-          <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Logistics OS</p>
-        </div>
-      </div>
-    `
-  }),
-
-  // 🏁 შეკვეთა ჩაბარდა
-  orderDelivered: (trackingCode: string, clientName: string) => ({
-    subject: `🏁 შეკვეთა ჩაბარდა - ${trackingCode}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">🎉 წარმატება!</h1>
-        </div>
-        <div style="padding: 30px; background: #f9fafb; border: 1px solid #e5e7eb;">
-          <h2 style="color: #111827;">გამარჯობა, ${clientName}!</h2>
-          <p style="color: #4b5563; font-size: 16px;">
-            თქვენი შეკვეთა <strong style="color: #10b981;">#${trackingCode}</strong> წარმატებით ჩაბარდა!
-          </p>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-size: 48px;">🏁✅</p>
-            <p style="margin: 10px 0 0 0; color: #10b981; font-weight: bold;">ჩაბარებულია</p>
-          </div>
-          <p style="color: #4b5563;">მადლობა რომ იყენებთ Logistics OS-ს!</p>
         </div>
         <div style="padding: 20px; text-align: center; background: #f3f4f6; border-radius: 0 0 10px 10px;">
           <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Logistics OS</p>
