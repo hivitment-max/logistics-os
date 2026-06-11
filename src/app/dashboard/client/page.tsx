@@ -18,10 +18,11 @@ import SettingsTab from './tabs/SettingsTab'
 // ============================================================================
 // 👤 CLIENT SIDEBAR COMPONENT
 // ============================================================================
-const ClientSidebar = ({ activeTab, setActiveTab, onSignOut }: {
+const ClientSidebar = ({ activeTab, setActiveTab, onSignOut, notifications }: {
   activeTab: string
   setActiveTab: (tab: string) => void
   onSignOut: () => void
+  notifications: any[]
 }) => {
   const menuItems = [
     { id: 'overview', icon: '📊', label: 'მიმოხილვა' },
@@ -33,6 +34,8 @@ const ClientSidebar = ({ activeTab, setActiveTab, onSignOut }: {
     { id: 'notifications', icon: '🔔', label: 'შეტყობინებები' },
     { id: 'settings', icon: '⚙️', label: 'პარამეტრები' },
   ]
+
+  const unreadCount = notifications.filter(n => !n.read).length
 
   return (
     <aside className="w-52 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
@@ -53,6 +56,11 @@ const ClientSidebar = ({ activeTab, setActiveTab, onSignOut }: {
           >
             <span className="text-sm w-4 text-center shrink-0">{item.icon}</span>
             <span className="truncate">{item.label}</span>
+            {item.id === 'notifications' && unreadCount > 0 && (
+              <span className="ml-auto px-1.5 py-0.5 bg-red-500 text-[9px] font-bold rounded-full">
+                {unreadCount}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -60,7 +68,6 @@ const ClientSidebar = ({ activeTab, setActiveTab, onSignOut }: {
       <div className="p-3 border-t border-gray-800 shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            {/* ✅ მრგვალი იკონკა - ახლა clickable! */}
             <button
               onClick={() => setActiveTab('profile')}
               className="w-7 h-7 rounded-full bg-gradient-to-tr from-green-400 to-emerald-500 flex items-center justify-center text-[10px] font-bold shadow-md shrink-0 hover:scale-110 transition-transform cursor-pointer"
@@ -72,7 +79,21 @@ const ClientSidebar = ({ activeTab, setActiveTab, onSignOut }: {
               <p className="text-[10px] font-medium truncate text-gray-300">კლიენტი</p>
             </div>
           </div>
-          <button onClick={onSignOut} className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition" title="გასვლა">🚪</button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className="relative p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
+              title="შეტყობინებები"
+            >
+              <span className="text-sm">🔔</span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full text-[8px] flex items-center justify-center font-bold">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <button onClick={onSignOut} className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition" title="გასვლა">🚪</button>
+          </div>
         </div>
       </div>
     </aside>
@@ -106,7 +127,7 @@ export default function ClientDashboard() {
     router.push('/login')
   }, [router])
 
-  // 🔐 როლის და მონაცემების ჩატვირთვა
+  // 🔐 Load data
   useEffect(() => {
     const loadClientData = async () => {
       try {
@@ -121,7 +142,6 @@ export default function ClientDashboard() {
 
         setCurrentUser(session.user)
 
-        // 🔵 ჩავტვირთოთ მხოლოდ ამ კლიენტის მონაცემები
         const [oRes, iRes, tRes] = await Promise.all([
           supabase.from('orders').select('*').eq('client_email', session.user.email).order('created_at', { ascending: false }),
           supabase.from('invoices').select('*').eq('client_email', session.user.email).order('created_at', { ascending: false }),
@@ -143,7 +163,7 @@ export default function ClientDashboard() {
     loadClientData()
   }, [router, showNotification])
 
-  // 🔵 Helper: სტატუსის ფერი
+  // 🔵 Helper: Status color
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'delivered': case 'paid': return 'bg-green-500/20 text-green-400 border-green-500/30'
@@ -178,7 +198,6 @@ export default function ClientDashboard() {
       case 'overview':
         return <ClientOverviewTab orders={orders} invoices={invoices} trackingData={trackingData} getStatusColor={getStatusColor} onNavigateToOrders={() => setActiveTab('my_orders')} onNavigateToNewOrder={() => setActiveTab('new_order')} />
       
-      // ✅ განახლებული MyOrdersTab - ახალი props-ებით
       case 'my_orders':
         return (
           <MyOrdersTab 
@@ -188,12 +207,10 @@ export default function ClientDashboard() {
             onView={(o: any) => showNotification(`👁️ შეკვეთა: ${o.tracking_code}`)} 
             getStatusColor={getStatusColor} 
             ActionButtons={ActionButtons}
-            // 🆕 ახალი props: რედაქტირებისას orders-ის განახლება
             onUpdate={(updatedOrder: any) => {
               setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o))
               showNotification('✅ შეკვეთა განახლდა!')
             }}
-            // 🆕 ახალი props: წაშლისას orders-დან ამოღება
             onDelete={(orderId: string) => {
               setOrders(orders.filter(o => o.id !== orderId))
               showNotification('🗑️ შეკვეთა წაიშალა!')
@@ -218,21 +235,6 @@ export default function ClientDashboard() {
     }
   }
 
-  const getCurrentItem = () => {
-    const items = [
-      { id: 'overview', icon: '📊', label: 'მიმოხილვა' },
-      { id: 'my_orders', icon: '📦', label: 'ჩემი შეკვეთები' },
-      { id: 'new_order', icon: '🚀', label: 'ახალი შეკვეთა' },
-      { id: 'tracking', icon: '📍', label: 'ტრეკინგი' },
-      { id: 'invoices', icon: '🧾', label: 'ინვოისები' },
-      { id: 'profile', icon: '👤', label: 'პროფილი' },
-      { id: 'notifications', icon: '🔔', label: 'შეტყობინებები' },
-      { id: 'settings', icon: '⚙️', label: 'პარამეტრები' },
-    ]
-    return items.find(i => i.id === activeTab) || { icon: '📄', label: 'გვერდი' }
-  }
-  const currentItem = getCurrentItem()
-
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       {notification && (
@@ -241,28 +243,15 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      <ClientSidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={handleSignOut} />
+      <ClientSidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onSignOut={handleSignOut}
+        notifications={notifications}
+      />
 
-      <main className="flex-1 overflow-y-auto bg-gray-950 flex flex-col">
-        <header className="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800/50 px-5 py-2">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-sm font-bold flex items-center gap-2 text-gray-100">
-                {currentItem.icon} {currentItem.label}
-              </h1>
-            </div>
-            <button onClick={() => showNotification('🔔 ახალი შეტყობინებები')} className="relative p-1.5 hover:bg-gray-800 rounded-lg transition">
-              <span className="text-lg leading-none">🔔</span>
-              {notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center">
-                  {notifications.filter(n => !n.read).length}
-                </span>
-              )}
-            </button>
-          </div>
-        </header>
-        
-        <div className="flex-1 p-4 space-y-4">
+      <main className="flex-1 overflow-y-auto bg-gray-950">
+        <div className="p-4">
           {renderContent()}
         </div>
       </main>

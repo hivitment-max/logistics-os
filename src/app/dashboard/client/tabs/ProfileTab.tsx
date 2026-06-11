@@ -93,7 +93,7 @@ export default function ProfileTab({ user, onUpdate }: any) {
     setSuccess('')
 
     try {
-      // ვალიდაცია - რივე ტიპისთვის
+      // ვალიდაცია
       if (!form.full_name.trim() && !form.company_name.trim()) {
         throw new Error('სახელი ან კომპანიის სახელი სავალდებულოა')
       }
@@ -101,20 +101,18 @@ export default function ProfileTab({ user, onUpdate }: any) {
       if (!form.email.trim()) throw new Error('Email სავალდებულოა')
       if (!form.address.trim()) throw new Error('მისამართი სავალდებულოა')
 
-      // ფიზიკური პირის ვალიდაცია (თუ შევსებულია)
       if (form.full_name.trim() && !form.personal_id.trim()) {
-        throw new Error('პირადი ნომერი სავალდებულოა ფიზიკური პირისთვის')
+        throw new Error('პირადი ნომერი სავალდებულოა')
       }
 
-      // იურიდიული პირის ვალიდაცია (თუ შევსებულია)
       if (form.company_name.trim() && !form.registration_number.trim()) {
-        throw new Error('საიდენტო კოდი სავალდებულოა იურიდიული პირისთვის')
+        throw new Error('საიდენტო კოდი სავალდებულოა')
       }
       if (form.company_name.trim() && !form.contact_person.trim()) {
-        throw new Error('საკონტაქტო პირი სავალდებულოა იურიდიული პირისთვის')
+        throw new Error('საკონტაქტო პირი სავალდებულოა')
       }
       if (form.company_name.trim() && !form.contact_phone.trim()) {
-        throw new Error('საკონტაქტო პირის ტელეფონი სავალდებულოა იურიდიული პირისთვის')
+        throw new Error('საკონტაქტო პირის ტელეფონი სავალდებულოა')
       }
 
       const updateData = {
@@ -147,7 +145,6 @@ export default function ProfileTab({ user, onUpdate }: any) {
 
       setSuccess('✅ პროფილი წარმატებით განახლდა!')
       onUpdate(updateData)
-      
       setTimeout(() => setSuccess(''), 3000)
     } catch (err: any) {
       setError(err.message || 'შეცდომა პროფილის განახლებისას')
@@ -156,12 +153,24 @@ export default function ProfileTab({ user, onUpdate }: any) {
     }
   }
 
-  const RequiredBadge = () => (
-    <span className="text-red-500 ml-1">*</span>
-  )
-
-  const OptionalBadge = () => (
-    <span className="text-gray-500 text-[9px] ml-1">(არასავალდებულო)</span>
+  const InputField = ({ label, value, onChange, type = 'text', placeholder, required = false, disabled = false, maxLength }: any) => (
+    <div>
+      <label className="block text-[10px] font-semibold text-gray-400 mb-1.5">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        disabled={disabled}
+        maxLength={maxLength}
+        className={`w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition ${
+          disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-gray-600'
+        }`}
+        required={required}
+      />
+    </div>
   )
 
   return (
@@ -201,18 +210,18 @@ export default function ProfileTab({ user, onUpdate }: any) {
           <button
             type="button"
             onClick={() => setActiveTab('private')}
-            className={`flex-1 py-3 px-4 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'private'
                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20'
                 : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50'
             }`}
           >
-             ფიზიკური პირი
+            👤 ფიზიკური პირი
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('company')}
-            className={`flex-1 py-3 px-4 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'company'
                 ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20'
                 : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50'
@@ -224,228 +233,208 @@ export default function ProfileTab({ user, onUpdate }: any) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* საკონტაქტო ინფორმაცია (ორივესთვის) */}
-        <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-          <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-            📧 საკონტაქტო ინფორმაცია
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                Email <RequiredBadge />
-              </label>
-              <input
-                type="email"
-                disabled
-                value={form.email || user?.email || ''}
-                className="w-full px-3 py-2.5 bg-gray-800/30 border border-gray-700 rounded-lg text-xs text-gray-500 cursor-not-allowed"
-              />
-              <p className="text-[9px] text-gray-500 mt-1">Email იცვლება ავტორიზაციის გვერდიდან</p>
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                ტელეფონი <RequiredBadge />
-              </label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => updateField('phone', e.target.value)}
-                placeholder="+995 555 123 456"
-                className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                ალტერნატიული ტელეფონი <OptionalBadge />
-              </label>
-              <input
-                type="tel"
-                value={form.alternative_phone}
-                onChange={(e) => updateField('alternative_phone', e.target.value)}
-                placeholder="+995 32 123 456"
-                className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ფიზიკური პირი */}
-        {activeTab === 'private' && (
-          <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-            <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-               ფიზიკური პირის ინფორმაცია
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                  სახელი და გვარი <RequiredBadge />
-                </label>
-                <input
-                  type="text"
+        {activeTab === 'private' ? (
+          // ფიზიკური პირი - 2 ბარათი გვერდიგვერდ
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* მარცხენა ბარათი: პირადი ინფორმაცია */}
+            <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
+              <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-gray-700">
+                👤 პირადი ინფორმაცია
+              </h3>
+              <div className="space-y-3">
+                <InputField
+                  label="სახელი და გვარი"
                   value={form.full_name}
-                  onChange={(e) => updateField('full_name', e.target.value)}
+                  onChange={(e: any) => updateField('full_name', e.target.value)}
                   placeholder="გიორგი ბერიძე"
-                  className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
                   required
                 />
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                  პირადი ნომერი <RequiredBadge />
-                </label>
-                <input
-                  type="text"
+                <InputField
+                  label="პირადი ნომერი"
                   value={form.personal_id}
-                  onChange={(e) => updateField('personal_id', e.target.value)}
+                  onChange={(e: any) => updateField('personal_id', e.target.value)}
                   placeholder="12345678901"
                   maxLength={11}
-                  className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
                   required
                 />
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 mb-1.5">
+                    მისამართი <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={form.address}
+                    onChange={(e) => updateField('address', e.target.value)}
+                    placeholder="თბილისი, რუსთაველის გამზირი 12"
+                    className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition resize-none hover:border-gray-600"
+                    required
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* იურიდიული პირი */}
-        {activeTab === 'company' && (
-          <>
+            {/* მარჯვენა ბარათი: საკონტაქტო ინფორმაცია */}
             <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-              <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-                 კომპანიის ინფორმაცია
+              <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-gray-700">
+                📧 საკონტაქტო ინფორმაცია
               </h3>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    კომპანიის სახელი <RequiredBadge />
-                  </label>
-                  <input
-                    type="text"
-                    value={form.company_name}
-                    onChange={(e) => updateField('company_name', e.target.value)}
-                    placeholder="შპს ლოჯისტიკა"
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    საიდენტო კოდი <RequiredBadge />
-                  </label>
-                  <input
-                    type="text"
-                    value={form.registration_number}
-                    onChange={(e) => updateField('registration_number', e.target.value)}
-                    placeholder="123456789"
-                    maxLength={9}
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    VAT ნომერი <OptionalBadge />
-                  </label>
-                  <input
-                    type="text"
-                    value={form.vat_number}
-                    onChange={(e) => updateField('vat_number', e.target.value)}
-                    placeholder="GE123456789"
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-              <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-                ‍💼 საკონტაქტო პირი
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    სახელი და გვარი <RequiredBadge />
-                  </label>
-                  <input
-                    type="text"
-                    value={form.contact_person}
-                    onChange={(e) => updateField('contact_person', e.target.value)}
-                    placeholder="გიორგი ბერიძე"
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    ტელეფონი <RequiredBadge />
-                  </label>
-                  <input
-                    type="tel"
-                    value={form.contact_phone}
-                    onChange={(e) => updateField('contact_phone', e.target.value)}
-                    placeholder="+995 555 123 456"
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* მისამართი */}
-        <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-          <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-             მისამართი
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                {activeTab === 'company' ? 'იურიდიული მისამართი' : 'მისამართი'} <RequiredBadge />
-              </label>
-              <textarea
-                rows={3}
-                value={form.address}
-                onChange={(e) => updateField('address', e.target.value)}
-                placeholder="თბილისი, რუსთაველის გამზირი 12"
-                className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition resize-none"
-                required
-              />
-            </div>
-            {activeTab === 'company' && (
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                  საბილინგო მისამართი <OptionalBadge />
-                </label>
-                <textarea
-                  rows={2}
-                  value={form.billing_address}
-                  onChange={(e) => updateField('billing_address', e.target.value)}
-                  placeholder="თუ განსხვავებულია იურიდიული მისამართისგან"
-                  className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition resize-none"
+                <InputField
+                  label="Email"
+                  value={form.email || user?.email || ''}
+                  disabled
+                  placeholder={user?.email || ''}
+                  required
+                />
+                <p className="text-[9px] text-gray-500 -mt-2 mb-2">Email იცვლება ავტორიზაციის გვერდიდან</p>
+                <InputField
+                  label="ტელეფონი"
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e: any) => updateField('phone', e.target.value)}
+                  placeholder="+995 555 123 456"
+                  required
+                />
+                <InputField
+                  label="ალტერნატიული ტელეფონი"
+                  type="tel"
+                  value={form.alternative_phone}
+                  onChange={(e: any) => updateField('alternative_phone', e.target.value)}
+                  placeholder="+995 32 123 456"
                 />
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        ) : (
+          // იურიდიული პირი - 2 ბარათი გვერდიგვერდ
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* მარცხენა ბარათი: კომპანიის ინფორმაცია */}
+            <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
+              <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-gray-700">
+                🏢 კომპანიის ინფორმაცია
+              </h3>
+              <div className="space-y-3">
+                <InputField
+                  label="კომპანიის სახელი"
+                  value={form.company_name}
+                  onChange={(e: any) => updateField('company_name', e.target.value)}
+                  placeholder="შპს ლოჯისტიკა"
+                  required
+                />
+                <InputField
+                  label="საიდენტო კოდი"
+                  value={form.registration_number}
+                  onChange={(e: any) => updateField('registration_number', e.target.value)}
+                  placeholder="123456789"
+                  maxLength={9}
+                  required
+                />
+                <InputField
+                  label="VAT ნომერი"
+                  value={form.vat_number}
+                  onChange={(e: any) => updateField('vat_number', e.target.value)}
+                  placeholder="GE123456789"
+                />
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 mb-1.5">
+                    იურიდიული მისამართი <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={form.address}
+                    onChange={(e) => updateField('address', e.target.value)}
+                    placeholder="თბილისი, რუსთაველის გამზირი 12"
+                    className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition resize-none hover:border-gray-600"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* მარჯვენა ბარათი: საკონტაქტო ინფორმაცია */}
+            <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
+              <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-gray-700">
+                📧 საკონტაქტო ინფორმაცია
+              </h3>
+              <div className="space-y-3">
+                <InputField
+                  label="Email"
+                  value={form.email || user?.email || ''}
+                  disabled
+                  placeholder={user?.email || ''}
+                  required
+                />
+                <p className="text-[9px] text-gray-500 -mt-2 mb-2">Email იცვლება ავტორიზაციის გვერდიდან</p>
+                <InputField
+                  label="ტელეფონი"
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e: any) => updateField('phone', e.target.value)}
+                  placeholder="+995 555 123 456"
+                  required
+                />
+                <InputField
+                  label="ალტერნატიული ტელეფონი"
+                  type="tel"
+                  value={form.alternative_phone}
+                  onChange={(e: any) => updateField('alternative_phone', e.target.value)}
+                  placeholder="+995 32 123 456"
+                />
+                <div className="pt-2 border-t border-gray-700 mt-3">
+                  <h4 className="text-[10px] font-semibold text-gray-400 mb-3">საკონტაქტო პირი</h4>
+                  <InputField
+                    label="სახელი და გვარი"
+                    value={form.contact_person}
+                    onChange={(e: any) => updateField('contact_person', e.target.value)}
+                    placeholder="გიორგი ბერიძე"
+                    required
+                  />
+                  <div className="mt-2">
+                    <InputField
+                      label="ტელეფონი"
+                      type="tel"
+                      value={form.contact_phone}
+                      onChange={(e: any) => updateField('contact_phone', e.target.value)}
+                      placeholder="+995 555 123 456"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* დამატებითი ინფორმაცია */}
         <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-          <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-             დამატებითი ინფორმაცია <OptionalBadge />
+          <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-gray-700">
+            📝 დამატებითი ინფორმაცია
           </h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField
+              label="ვებსაიტი"
+              type="url"
+              value={form.website}
+              onChange={(e: any) => updateField('website', e.target.value)}
+              placeholder="https://company.ge"
+            />
             {activeTab === 'company' && (
               <>
+                <InputField
+                  label="ინვოისის Email"
+                  type="email"
+                  value={form.invoice_email}
+                  onChange={(e: any) => updateField('invoice_email', e.target.value)}
+                  placeholder="billing@company.ge"
+                />
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    ინდუსტრია / სექტორი
+                  <label className="block text-[10px] font-semibold text-gray-400 mb-1.5">
+                    ინდუსტრია
                   </label>
                   <select
                     value={form.industry}
                     onChange={(e) => updateField('industry', e.target.value)}
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
+                    className="w-full px-3 py-2 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition hover:border-gray-600"
                   >
                     <option value="">აირჩიეთ...</option>
                     <option value="logistics">ლოჯისტიკა</option>
@@ -457,78 +446,36 @@ export default function ProfileTab({ user, onUpdate }: any) {
                     <option value="other">სხვა</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                    ინვოისის Email
-                  </label>
-                  <input
-                    type="email"
-                    value={form.invoice_email}
-                    onChange={(e) => updateField('invoice_email', e.target.value)}
-                    placeholder="billing@company.ge"
-                    className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                  />
-                </div>
               </>
             )}
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                ვებსაიტი
-              </label>
-              <input
-                type="url"
-                value={form.website}
-                onChange={(e) => updateField('website', e.target.value)}
-                placeholder="https://company.ge"
-                className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-              />
-            </div>
           </div>
         </div>
 
         {/* საბანკო ინფორმაცია (მხოლოდ კომპანიისთვის) */}
         {activeTab === 'company' && (
           <div className="bg-[#1a202c] border border-gray-700 rounded-xl p-4">
-            <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-              🏦 საბანკო ინფორმაცია <OptionalBadge />
+            <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-gray-700">
+              🏦 საბანკო ინფორმაცია
             </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                  ბანკის სახელი
-                </label>
-                <input
-                  type="text"
-                  value={form.bank_name}
-                  onChange={(e) => updateField('bank_name', e.target.value)}
-                  placeholder="TBC Bank"
-                  className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                  საბანკო ანგარიში (IBAN)
-                </label>
-                <input
-                  type="text"
-                  value={form.bank_account}
-                  onChange={(e) => updateField('bank_account', e.target.value)}
-                  placeholder="GE123456789012345678"
-                  className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-400 mb-1">
-                  SWIFT/BIC კოდი
-                </label>
-                <input
-                  type="text"
-                  value={form.bank_swift}
-                  onChange={(e) => updateField('bank_swift', e.target.value)}
-                  placeholder="TBCBGE22"
-                  className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition"
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <InputField
+                label="ბანკის სახელი"
+                value={form.bank_name}
+                onChange={(e: any) => updateField('bank_name', e.target.value)}
+                placeholder="TBC Bank"
+              />
+              <InputField
+                label="საბანკო ანგარიში (IBAN)"
+                value={form.bank_account}
+                onChange={(e: any) => updateField('bank_account', e.target.value)}
+                placeholder="GE123456789012345678"
+              />
+              <InputField
+                label="SWIFT/BIC კოდი"
+                value={form.bank_swift}
+                onChange={(e: any) => updateField('bank_swift', e.target.value)}
+                placeholder="TBCBGE22"
+              />
             </div>
           </div>
         )}

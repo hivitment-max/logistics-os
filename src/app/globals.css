@@ -1,7 +1,58 @@
 /* ✅ Tailwind დირექტივები */
 @import "tailwindcss";
 
-/* 🚛 Logistics OS - Custom Animations */
+/* ============================================================================
+   🎨 LOADSWIFT THEME VARIABLES
+   ============================================================================ */
+
+:root {
+  /* Light Theme */
+  --ls-bg-primary: #f8f9fa;
+  --ls-bg-secondary: #ffffff;
+  --ls-bg-sidebar: #1a1a1a;
+  --ls-bg-card: #ffffff;
+  --ls-bg-hover: #f3f4f6;
+  --ls-border-color: #e5e7eb;
+  --ls-border-light: #f3f4f6;
+  --ls-text-primary: #1a1a1a;
+  --ls-text-secondary: #6b7280;
+  --ls-text-muted: #9ca3af;
+  --ls-accent-blue: #3b82f6;
+  --ls-accent-green: #10b981;
+  --ls-accent-yellow: #f59e0b;
+  --ls-accent-red: #ef4444;
+  --ls-accent-purple: #8b5cf6;
+  --ls-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --ls-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --ls-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  /* Dark Theme */
+  --ls-bg-primary: #0a0a0a;
+  --ls-bg-secondary: #1a1a1a;
+  --ls-bg-sidebar: #0f0f0f;
+  --ls-bg-card: #1a1a1a;
+  --ls-bg-hover: #262626;
+  --ls-border-color: #404040;
+  --ls-border-light: #262626;
+  --ls-text-primary: #f8f9fa;
+  --ls-text-secondary: #9ca3af;
+  --ls-text-muted: #6b7280;
+  --ls-accent-blue: #60a5fa;
+  --ls-accent-green: #34d399;
+  --ls-accent-yellow: #fbbf24;
+  --ls-accent-red: #f87171;
+  --ls-accent-purple: #a78bfa;
+  --ls-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --ls-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --ls-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================================
+   🚛 Logistics OS - Custom Animations
+   ============================================================================ */
+
 @keyframes bounce-slow {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -244,7 +295,210 @@
 }
 
 /* ============================================================================
-   ️ PRINT STYLES - მხოლოდ ინვოისი
+   🎨 LOADSWIFT COMPONENT STYLES
+   ============================================================================ */
+
+/* Sidebar Styles */
+.ls-sidebar {
+  background: var(--ls-bg-sidebar);
+  border-right: 1px solid #262626;
+  transition: all 0.3s ease;
+}
+
+.ls-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.ls-sidebar-item:hover {
+  background: #262626;
+  color: #ffffff;
+}
+
+.ls-sidebar-item.active {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+}
+
+/* Card Styles */
+.ls-card {
+  background: var(--ls-bg-card);
+  border: 1px solid var(--ls-border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: var(--ls-shadow-sm);
+}
+
+.ls-card:hover {
+  box-shadow: var(--ls-shadow-md);
+  border-color: var(--ls-accent-blue);
+}
+
+/* Stats Card */
+.ls-stats-card {
+  background: var(--ls-bg-card);
+  border: 1px solid var(--ls-border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.ls-stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ls-shadow-lg);
+}
+
+/* Timeline Styles */
+.ls-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ls-timeline-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--ls-accent-blue);
+}
+
+.ls-timeline-dot.completed {
+  background: var(--ls-accent-green);
+}
+
+.ls-timeline-dot.pending {
+  background: #9ca3af;
+}
+
+.ls-timeline-line {
+  flex: 1;
+  height: 2px;
+  background: var(--ls-border-color);
+}
+
+.ls-timeline-line.completed {
+  background: var(--ls-accent-green);
+}
+
+/* Badge Styles */
+.ls-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.ls-badge-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.ls-badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.ls-badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.ls-badge-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* Button Styles */
+.ls-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.ls-btn-primary {
+  background: var(--ls-accent-blue);
+  color: #ffffff;
+}
+
+.ls-btn-primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.ls-btn-secondary {
+  background: var(--ls-bg-hover);
+  color: var(--ls-text-primary);
+  border: 1px solid var(--ls-border-color);
+}
+
+.ls-btn-secondary:hover {
+  background: var(--ls-border-light);
+}
+
+/* Input Styles */
+.ls-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--ls-bg-secondary);
+  border: 1px solid var(--ls-border-color);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--ls-text-primary);
+  transition: all 0.2s ease;
+}
+
+.ls-input:focus {
+  outline: none;
+  border-color: var(--ls-accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ls-input::placeholder {
+  color: var(--ls-text-muted);
+}
+
+/* Map Placeholder */
+.ls-map-placeholder {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px dashed var(--ls-border-color);
+  border-radius: 1rem;
+  padding: 3rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.ls-map-placeholder:hover {
+  border-color: var(--ls-accent-blue);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+/* ============================================================================
+   🖨️ PRINT STYLES - მხოლოდ ინვოისი
    ============================================================================ */
 @media print {
   @page {
