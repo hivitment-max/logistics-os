@@ -60,9 +60,14 @@ const ClientSidebar = ({ activeTab, setActiveTab, onSignOut }: {
       <div className="p-3 border-t border-gray-800 shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-green-400 to-emerald-500 flex items-center justify-center text-[10px] font-bold shadow-md shrink-0">
+            {/* ✅ მრგვალი იკონკა - ახლა clickable! */}
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="w-7 h-7 rounded-full bg-gradient-to-tr from-green-400 to-emerald-500 flex items-center justify-center text-[10px] font-bold shadow-md shrink-0 hover:scale-110 transition-transform cursor-pointer"
+              title="პროფილი"
+            >
               👤
-            </div>
+            </button>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-medium truncate text-gray-300">კლიენტი</p>
             </div>
@@ -101,11 +106,10 @@ export default function ClientDashboard() {
     router.push('/login')
   }, [router])
 
-  // 🔐 როლის და მონაცემების ჩატვირთვა - ✅ გამოსწორებული სინტაქსი
+  // 🔐 როლის და მონაცემების ჩატვირთვა
   useEffect(() => {
     const loadClientData = async () => {
       try {
-        // ✅ უსაფრთხო გზა: ჯერ ვიღებთ მთლიან პასუხს
         const response = await supabase.auth.getSession()
         const session = response.data?.session
         const error = response.error
@@ -173,8 +177,30 @@ export default function ClientDashboard() {
     switch (activeTab) {
       case 'overview':
         return <ClientOverviewTab orders={orders} invoices={invoices} trackingData={trackingData} getStatusColor={getStatusColor} onNavigateToOrders={() => setActiveTab('my_orders')} onNavigateToNewOrder={() => setActiveTab('new_order')} />
+      
+      // ✅ განახლებული MyOrdersTab - ახალი props-ებით
       case 'my_orders':
-        return <MyOrdersTab orders={orders} loading={loading} onStatusChange={() => {}} onView={(o: any) => showNotification(`👁️ შეკვეთა: ${o.tracking_code}`)} getStatusColor={getStatusColor} ActionButtons={ActionButtons} />
+        return (
+          <MyOrdersTab 
+            orders={orders} 
+            loading={loading} 
+            onStatusChange={() => {}} 
+            onView={(o: any) => showNotification(`👁️ შეკვეთა: ${o.tracking_code}`)} 
+            getStatusColor={getStatusColor} 
+            ActionButtons={ActionButtons}
+            // 🆕 ახალი props: რედაქტირებისას orders-ის განახლება
+            onUpdate={(updatedOrder: any) => {
+              setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o))
+              showNotification('✅ შეკვეთა განახლდა!')
+            }}
+            // 🆕 ახალი props: წაშლისას orders-დან ამოღება
+            onDelete={(orderId: string) => {
+              setOrders(orders.filter(o => o.id !== orderId))
+              showNotification('🗑️ შეკვეთა წაიშალა!')
+            }}
+          />
+        )
+      
       case 'new_order':
         return <NewOrderTab onCreateOrder={(order: any) => { showNotification('✅ შეკვეთა შეიქმნა!'); setOrders([order, ...orders]); setActiveTab('my_orders'); }} />
       case 'tracking':
