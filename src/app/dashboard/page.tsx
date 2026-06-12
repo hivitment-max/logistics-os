@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
       {/* ✅ ტესტის ბანერი წაშლილია - ახლა სუფთაა! */}
 
-      <main className="w-full h-full pt-10">
+      <main className="w-full h-full pt-2">
         {role === 'admin' && <AdminDashboard />}
         {role === 'manager' && <ManagerDashboard />}
         {role === 'accountant' && <AccountantDashboard />}
