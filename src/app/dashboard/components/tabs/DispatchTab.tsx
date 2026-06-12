@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import TruckLoadingModal from './TruckLoadingModal'
 
-// ✅ განახლებული: დამატებულია vehiclePlateNumber პარამეტრი + loadData კოლბეკი
 interface DispatchTabProps {
   orders: any[]
   drivers: any[]
@@ -21,6 +21,78 @@ interface DispatchTabProps {
   loadData?: () => void
 }
 
+// 🔍 DEBUG PANEL COMPONENT - მარჯვენა ქვედა კუთხეში, z-[99999] რომ ყოველთვის ყველაფერზე ზემოდან იყოს
+function DebugPanel({ orders, pendingOrders, vehicles, drivers }: any) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[99999]">
+      
+      {/* გაშლილი პანელი - ღილაკის ზემოთ */}
+      {isExpanded && (
+        <div className="mb-2 bg-gray-900/95 border border-yellow-500/50 rounded-xl p-3 text-[10px] text-white w-64 backdrop-blur-md shadow-2xl">
+          <div className="font-bold text-yellow-400 mb-2 flex items-center justify-between">
+            <span>🔍 DEBUG INFO</span>
+            <button 
+              onClick={() => setIsExpanded(false)}
+              className="text-gray-400 hover:text-white text-xs w-5 h-5 rounded hover:bg-gray-700 flex items-center justify-center"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between">
+              <span>📦 Orders prop:</span>
+              <span className="text-green-400 font-bold">{orders?.length || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>📋 Pending filtered:</span>
+              <span className="text-green-400 font-bold">{pendingOrders?.length || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>🚗 Vehicles:</span>
+              <span className="text-blue-400 font-bold">{vehicles?.length || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>👨‍✈️ Drivers:</span>
+              <span className="text-purple-400 font-bold">{drivers?.length || 0}</span>
+            </div>
+            <div className="border-t border-gray-700 pt-1 mt-1">
+              <div className="text-gray-400 mb-1">Statuses:</div>
+              <div className="max-h-32 overflow-y-auto space-y-0.5">
+                {orders?.slice(0, 7).map((o: any) => (
+                  <div key={o.id} className="text-[9px] text-gray-300 flex justify-between">
+                    <span className="font-mono truncate mr-1">{o.tracking_code}</span>
+                    <span className="text-yellow-300 shrink-0">{o.status}</span>
+                  </div>
+                ))}
+                {orders?.length > 7 && (
+                  <div className="text-[9px] text-gray-500 text-center">+{orders.length - 7} სხვა</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toggle ღილაკი */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`bg-gray-900/95 border rounded-lg px-3 py-2 text-[10px] text-white backdrop-blur-md hover:bg-gray-800/95 transition-all shadow-lg flex items-center gap-2 ${
+          isExpanded 
+            ? 'border-yellow-400 text-yellow-400' 
+            : 'border-yellow-500/50'
+        }`}
+        title="Debug ინფორმაცია"
+      >
+        <span>🔍</span>
+        <span className="font-bold">Debug</span>
+        <span className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▲</span>
+      </button>
+    </div>
+  )
+}
+
 export default function DispatchTab({ 
   orders, 
   drivers, 
@@ -32,6 +104,81 @@ export default function DispatchTab({
   loadData
 }: DispatchTabProps) {
   
+  // 🆕 DEBUG: შევამოწმოთ რა მოდის props-ში
+  useEffect(() => {
+    console.log('🔍 DEBUG DispatchTab:')
+    console.log('📦 orders prop:', orders)
+    console.log('📦 orders length:', orders?.length)
+    console.log('📦 orders types:', orders?.map(o => ({ id: o.id, status: o.status, tracking: o.tracking_code })))
+    console.log('🚗 vehicles length:', vehicles?.length)
+    console.log('👨‍✈️ drivers length:', drivers?.length)
+  }, [orders, vehicles, drivers])
+
+  // 🆕 DEBUG: პირდაპირ ბაზიდან წავიკითხოთ orders
+  useEffect(() => {
+    const checkOrdersDirectly = async () => {
+      console.log('🔍 Checking orders directly from Supabase...')
+      
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20)
+      
+      if (error) {
+        console.error('❌ Supabase orders error:', error)
+        console.error('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+      } else {
+        console.log('✅ Direct Supabase orders:', data)
+        console.log('✅ Direct orders count:', data?.length)
+        console.log('✅ Order statuses:', data?.map(o => o.status))
+      }
+    }
+    
+    checkOrdersDirectly()
+  }, [])
+
+  // 🆕 DEBUG: შევამოწმოთ RLS policies
+  useEffect(() => {
+    const checkRLS = async () => {
+      console.log('🔍 Checking RLS...')
+      
+      const { data: allOrders, error: allError } = await supabase
+        .from('orders')
+        .select('id, tracking_code, status')
+      
+      console.log('📋 All orders (no filter):', allOrders?.length, 'error:', allError?.message)
+      
+      const { data: pendingOrders, error: pendingError } = await supabase
+        .from('orders')
+        .select('id, tracking_code, status')
+        .eq('status', 'pending')
+      
+      console.log('📋 Pending orders:', pendingOrders?.length, 'error:', pendingError?.message)
+      
+      const { data: newOrders, error: newError } = await supabase
+        .from('orders')
+        .select('id, tracking_code, status')
+        .eq('status', 'new')
+      
+      console.log('📋 New orders:', newOrders?.length, 'error:', newError?.message)
+      
+      const { data: assignedOrders, error: assignedError } = await supabase
+        .from('orders')
+        .select('id, tracking_code, status')
+        .eq('status', 'assigned')
+      
+      console.log('📋 Assigned orders:', assignedOrders?.length, 'error:', assignedError?.message)
+    }
+    
+    checkRLS()
+  }, [])
+  
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [pendingDriverId, setPendingDriverId] = useState<string | null>(null)
   const [pendingVehicleId, setPendingVehicleId] = useState<string | null>(null)
@@ -41,13 +188,14 @@ export default function DispatchTab({
   const [pendingExternalVehicleId, setPendingExternalVehicleId] = useState<string | null>(null)
   const [assigning, setAssigning] = useState(false)
   const [validationMsg, setValidationMsg] = useState<string | null>(null)
+  const [showTruckModal, setShowTruckModal] = useState<any>(null)
 
-  // 🔍 ფილტრი: მხოლოდ 'pending', 'new', 'assigned' შეკვეთები
-  const pendingOrders = useMemo(() => 
-    orders.filter(o => ['pending', 'new', 'assigned'].includes(o.status)), 
-  [orders])
+  const pendingOrders = useMemo(() => {
+    const filtered = orders.filter(o => ['pending', 'new', 'assigned'].includes(o.status))
+    console.log('📋 pendingOrders filter result:', filtered.length, 'from', orders.length)
+    return filtered
+  }, [orders])
   
-  // 🧮 ტრანსპორტის დატვირთვის გამოთვლა
   const getVehicleLoad = (vehicleId: string) => {
     const assignedOrders = orders.filter(o => 
       (o.vehicle_id === vehicleId || o.external_vehicle_id === vehicleId) && 
@@ -58,7 +206,6 @@ export default function DispatchTab({
     return { weight, volume, assignedOrders };
   }
 
-  // ✅ შემოწმება არის თუ არა რესურსი დაკავებული
   const isVehicleBusy = (vehicleId: string, excludeOrderId?: string) => {
     return orders.some(o => 
       (o.vehicle_id === vehicleId || o.external_vehicle_id === vehicleId) && 
@@ -75,7 +222,6 @@ export default function DispatchTab({
     );
   };
 
-  // ✅ ჰელპერი: შეამოწმე არის თუ არა რესურსი უკვე მიბმული ამ შეკვეთაზე
   const isResourceAssignedToOrder = (resourceId: string, order: any, type: 'vehicle' | 'driver', isExternal: boolean) => {
     if (!order) return false
     if (type === 'vehicle') {
@@ -88,14 +234,12 @@ export default function DispatchTab({
       : order.driver_id === resourceId
   }
 
-  // ✅ ✅ ახალი ჰელპერი: არის თუ არა მანქანას უკვე მიბმული მძღოლი?
   const isVehicleHasAssignedDriver = (vehicleId: string, isExternal: boolean): boolean => {
     const source = isExternal ? vehicles.filter(v => v.owner_type === 'contractor' || v.is_external) : vehicles
     const vehicle = source.find(v => v.id === vehicleId)
     return !!vehicle?.driver_id
   }
 
-  // ✅ ✅ ✅ ახალი ჰელპერები: მიიღე მიბმული რესურსები
   const getVehicleAssignedDriver = (vehicleId: string | null, isExternal: boolean) => {
     if (!vehicleId) return null
     const source = isExternal 
@@ -114,7 +258,6 @@ export default function DispatchTab({
     return source.find(v => v.driver_id === driverId) || null
   }
 
-  // ✅ მანქანის არჩევის ლოგიკა + ვალიდაცია
   const handleVehicleSelect = (vehicleId: string, isExternal: boolean = false) => {
     if (!selectedOrder) {
       setValidationMsg('⚠️ ჯერ აუცილებელია შეკვეთის არჩევა')
@@ -127,7 +270,6 @@ export default function DispatchTab({
       : vehicles.find(v => v.id === vehicleId)
 
     if (vehicle && selectedOrder) {
-      // აღჭურვილობის ვალიდაცია
       if (selectedOrder.needs_tail_lift && !vehicle.has_tail_lift) {
         setValidationMsg('⚠️ ამ მანქანას არ აქვს ლიფტი')
         setTimeout(() => setValidationMsg(null), 3000)
@@ -161,7 +303,6 @@ export default function DispatchTab({
     }
   }
 
-  // ✅ მძღოლის არჩევის ლოგიკა + ADR ვალიდაცია
   const handleDriverSelect = (driverId: string, isExternal: boolean = false) => {
     if (!selectedOrder) {
       setValidationMsg('⚠️ ჯერ აუცილებელია შეკვეთის არჩევა')
@@ -190,7 +331,6 @@ export default function DispatchTab({
     }
   }
 
-  // 🧠 ჭკვიანი ფილტრი: ტევადობა + აღჭურვილობა + ტიპი
   const displayVehicles = useMemo(() => {
     if (!selectedOrder) return vehicles.filter(v => ['active', 'idle'].includes(v.status))
     
@@ -216,20 +356,16 @@ export default function DispatchTab({
     })
   }, [vehicles, selectedOrder, orders])
 
-  // ✅ ✅ ✅ განახლებული: მძღოლების ფილტრი — თუ არჩეულ მანქანას უკვე ჰყავს მძღოლი, სია ცარიელია!
   const displayDrivers = useMemo(() => {
-    // 🔍 თუ არჩეულია მანქანა და მას უკვე ჰყავს მძღოლი → არ ვაჩვენებთ მძღოლების სიას
     const selectedVehicleId = vehicleType === 'internal' ? pendingVehicleId : pendingExternalVehicleId
     const isVehicleExternal = vehicleType === 'external'
     
     if (selectedVehicleId && isVehicleHasAssignedDriver(selectedVehicleId, isVehicleExternal)) {
-      return [] // ✅ სია ცარიელი — მანქანას უკვე ჰყავს მძღოლი!
+      return []
     }
     
-    // თუ არ არის შეკვეთა არჩეული — ვაჩვენებთ ყველა ხელმისაწვდომ მძღოლს
     if (!selectedOrder) return drivers.filter(d => d.is_available && !d.current_order_id)
     
-    // ფილტრი: ხელმისაწვდომი + ADR თუ საჭიროა
     return drivers.filter(d => {
       if (!d.is_available || d.current_order_id) return false
       if (selectedOrder.is_dangerous && !d.has_adr) return false
@@ -237,7 +373,6 @@ export default function DispatchTab({
     })
   }, [drivers, selectedOrder, pendingVehicleId, pendingExternalVehicleId, vehicleType, vehicles])
 
-  // 🧠 გარე მძღოლების/მანქანების ფილტრი
   const externalDrivers = useMemo(() => 
     drivers.filter(d => d.employment_type === 'external' || d.is_external), 
   [drivers])
@@ -246,7 +381,6 @@ export default function DispatchTab({
     vehicles.filter(v => v.owner_type === 'contractor' || v.is_external), 
   [vehicles])
 
-  // 📊 დატვირთვის პროგრეს-ბარი
   const CapacityBar = ({ current, max, unit }: { current: number, max: number, unit: string }) => {
     if (max === 0) return null
     const percent = Math.min((current / max) * 100, 100)
@@ -266,7 +400,6 @@ export default function DispatchTab({
     )
   }
 
-  // ✅ ჭკვიანი ლოგიკა მანქანის ნომრის მისაღებად
   const getVehiclePlateNumber = (vehicleId: string | null, isExternal: boolean): string | null => {
     if (!vehicleId) return null
     const source = isExternal ? externalVehicles : vehicles
@@ -274,7 +407,6 @@ export default function DispatchTab({
     return vehicle?.plate_number || null
   }
 
-  // ✅ დადასტურების ლოგიკა
   const handleConfirmAssign = async () => {
     if (!selectedOrder) return
     
@@ -313,7 +445,6 @@ export default function DispatchTab({
     }
   }
 
-  // ❌ მინიჭების მოხსნა
   const handleUnassignClick = async () => {
     if (!selectedOrder || !onUnassign) return
     if (!confirm(`დარწმუნებული ხართ რომ გინდათ მინიჭების მოხსნა შეკვეთიდან ${selectedOrder.tracking_code}?`)) return
@@ -354,24 +485,22 @@ export default function DispatchTab({
     }
   }
 
-  // 🎨 კოლონის ჰედერი
   const ColumnHeader = ({ title, icon, color }: { title: string, icon: string, color: string }) => (
-    <div className={`px-4 py-3 border-b border-white/5 backdrop-blur-md bg-gradient-to-r ${color} flex items-center gap-2`}>
+    <div className={`px-4 py-3 border-b border-white/5 backdrop-blur-md bg-gradient-to-r ${color} flex items-center gap-2 shrink-0`}>
       <span className="text-lg filter drop-shadow-md">{icon}</span>
       <h3 className="text-xs font-bold uppercase tracking-wider text-white/90">{title}</h3>
     </div>
   )
 
-  // 🎨 ბარათის სტილი
+  // ✅ განახლებული: h-[500px] ფიქსირებული სიმაღლე - ზუსტად 5 შეკვეთა ჩანს, მე-6-დან scrollable
   const CardBase = `
-    flex flex-col h-[calc(100vh-180px)] 
+    flex flex-col h-[500px] 
     bg-gray-800/60 border border-white/5 rounded-2xl overflow-hidden
     shadow-[0_8px_30px_rgb(0,0,0,0.4)] backdrop-blur-sm
     hover:shadow-[0_12px_40px_rgb(0,0,0,0.5)] hover:border-white/10
     transition-all duration-300 ease-out
   `
 
-  // ✅ ✅ ✅ ახალი: "უკვე ჰყავს მძღოლი" ბეიჯი — მარჯვენა ზედა კუთხეში
   const DriverAssignedBadge = ({ driver }: { driver: any }) => {
     if (!driver) return null
     
@@ -380,7 +509,6 @@ export default function DispatchTab({
         className="group relative"
         title={`${driver.full_name} — მინიჭებული ამ მანქანაზე`}
       >
-        {/* ბეჯი: პროფილის აიკონი + მწვანე ჩარჩო */}
         <div className="
           w-7 h-7 rounded-full 
           bg-gradient-to-br from-emerald-500 to-green-600 
@@ -399,28 +527,24 @@ export default function DispatchTab({
               className="w-full h-full rounded-full object-cover border border-emerald-300"
             />
           ) : (
-            // 👤 პროფილის აიკონი
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           )}
         </div>
         
-        {/* ტულტიპი: ჩნდება Hover-ზე */}
         <div className="absolute top-full right-0 mt-2 w-48 p-2.5 bg-gray-900/95 border border-emerald-500/30 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 backdrop-blur-md">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-emerald-400 text-xs font-bold">✅ უკვე ჰყავს მძღოლი</span>
           </div>
           <p className="text-[10px] text-white font-medium">{driver.full_name}</p>
           {driver.phone && <p className="text-[9px] text-gray-400 mt-0.5">{driver.phone}</p>}
-          {/* დეკორატიული ისარი */}
           <div className="absolute -top-1.5 right-3 w-3 h-3 bg-gray-900/95 border-t border-l border-emerald-500/30 transform rotate-45"></div>
         </div>
       </div>
     )
   }
 
-  // ✅ BusyBadge — დაკავებული რესურსის ინდიკატორი
   const BusyBadge = ({ isBusy, type }: { isBusy: boolean, type: 'vehicle' | 'driver' }) => {
     if (!isBusy) return null;
     
@@ -471,7 +595,6 @@ export default function DispatchTab({
     );
   };
 
-  // ✅ "მიბმულია ამ შეკვეთაზე" ბეჯი
   const AssignedBadge = () => (
     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 border-2 border-emerald-300 text-white flex items-center justify-center text-sm shadow-lg" title="ეს რესურსი უკვე მიბმულია ამ შეკვეთაზე">
       🔗
@@ -479,17 +602,24 @@ export default function DispatchTab({
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-1 relative">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-1 relative items-start">
       
-      {/* ✅ ვალიდაციის შეტყობინება */}
+      {/* 🔍 DEBUG PANEL - მარჯვენა ქვედა კუთხეში */}
+      <DebugPanel 
+        orders={orders} 
+        pendingOrders={pendingOrders}
+        vehicles={vehicles}
+        drivers={drivers}
+      />
+
       {validationMsg && (
-        <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-2 animate-bounce">
+        <div className="fixed top-4 right-4 z-[99999] bg-red-500/90 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-2 animate-bounce">
           <span className="text-lg">⚠️</span>
           <span className="text-sm font-medium">{validationMsg}</span>
         </div>
       )}
 
-      {/* 🟡 სვეტი 1: შემოსული შეკვეთები */}
+      {/* 🟡 სვეტი 1: შემოსული შეკვეთები - 5 ბარათი ჩანს, მე-6-დან scrollable */}
       <div className={CardBase}>
         <ColumnHeader title="შემოსული შეკვეთები" icon="📦" color="from-yellow-600/20 to-yellow-800/5" />
         <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
@@ -497,6 +627,9 @@ export default function DispatchTab({
             <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
               <span className="text-3xl mb-2 opacity-50">📦</span>
               <p className="text-xs">ახალი შეკვეთები არ არის</p>
+              <p className="text-[9px] text-gray-600 mt-1">
+                (Orders prop: {orders?.length || 0}, Filtered: {pendingOrders.length})
+              </p>
             </div>
           ) : pendingOrders.map(order => (
             <button
@@ -554,8 +687,7 @@ export default function DispatchTab({
       <div className={CardBase}>
         <ColumnHeader title="ხელმისაწვდომი ტრანსპორტი" icon="🚛" color="from-indigo-600/20 to-indigo-800/5" />
         
-        {/* ტაბები: შიდა / გარე */}
-        <div className="px-3 py-2 border-b border-white/5 flex gap-1 bg-gray-900/30">
+        <div className="px-3 py-2 border-b border-white/5 flex gap-1 bg-gray-900/30 shrink-0">
           <button 
             onClick={() => setVehicleType('internal')}
             className={`flex-1 py-1.5 rounded text-[9px] font-bold transition ${vehicleType === 'internal' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
@@ -572,7 +704,6 @@ export default function DispatchTab({
         
         <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
           {vehicleType === 'internal' ? (
-            // შიდა მანქანები
             displayVehicles.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
                 <span className="text-3xl mb-2 opacity-50">🚛</span>
@@ -585,36 +716,38 @@ export default function DispatchTab({
               const typeIcon = vehicle.type === 'truck' ? '🚛' : vehicle.type === 'van' ? '🚐' : '🚗'
               const busy = isVehicleBusy(vehicle.id, selectedOrder?.id)
               const isAssigned = isResourceAssignedToOrder(vehicle.id, selectedOrder, 'vehicle', false)
-              
-              // ✅ ვპოულობთ მიბმულ მძღოლს (თუ არსებობს)
               const assignedDriver = vehicle.driver_id ? drivers.find(d => d.id === vehicle.driver_id) : null
 
               return (
-                <button
+                <div
                   key={vehicle.id}
                   onClick={() => handleVehicleSelect(vehicle.id, false)}
-                  className={`w-full p-3 rounded-xl border transition-all duration-200 text-left relative
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      handleVehicleSelect(vehicle.id, false)
+                    }
+                  }}
+                  className={`w-full p-3 rounded-xl border transition-all duration-200 text-left relative cursor-pointer
                     ${busy && !isAssigned ? 'opacity-80' : ''}
                     ${pendingVehicleId === vehicle.id 
                       ? 'bg-indigo-500/10 border-indigo-500/50 ring-1 ring-indigo-500/30' 
-                      : 'bg-gray-900/40 border-gray-700/50 hover:border-indigo-500/30'
+                      : 'bg-gray-900/40 border-gray-700/50 hover:border-indigo-500/30 hover:bg-gray-800/60'
                     }`}
                 >
-                  {/* ✅ "მიბმულია ამ შეკვეთაზე" ბეჯი - მარცხნივ ზემოთ */}
                   {isAssigned && (
                     <div className="absolute top-3 left-3 z-10">
                       <AssignedBadge />
                     </div>
                   )}
                   
-                  {/* ✅ ✅ ✅ ახალი: "უკვე ჰყავს მძღოლი" ბეიჯი - მარჯვენა ზედა კუთხეში */}
                   {assignedDriver && (
                     <div className="absolute top-3 right-3 z-10">
                       <DriverAssignedBadge driver={assignedDriver} />
                     </div>
                   )}
                   
-                  {/* BusyBadge - მხოლოდ თუ დაკავებულია სხვა შეკვეთაზე და არ აქვს მიბმული მძღოლი */}
                   {!isAssigned && !assignedDriver && (
                     <div className="absolute top-3 right-3 z-10">
                       <BusyBadge isBusy={busy} type="vehicle" />
@@ -639,11 +772,22 @@ export default function DispatchTab({
                     {(vehicle.straps_count || 0) >= 4 && <span className="text-[8px] px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded">🔗</span>}
                     {vehicle.adr_capable && <span className="text-[8px] px-1 py-0.5 bg-red-500/10 text-red-400 rounded">⚠️</span>}
                   </div>
-                </button>
+                  
+                  {/* 🚛 ტრუკის ვიზუალიზაციის ღილაკი */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowTruckModal(vehicle)
+                    }}
+                    className="mt-2 w-full py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/30 rounded-lg text-[10px] font-medium transition flex items-center justify-center gap-1"
+                  >
+                    <span>🚛</span>
+                    <span>ტრუკის ვიზუალიზაცია</span>
+                  </button>
+                </div>
               )
             })
           ) : (
-            // გარე მანქანები
             externalVehicles.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
                 <span className="text-3xl mb-2 opacity-50">🚛</span>
@@ -652,36 +796,38 @@ export default function DispatchTab({
             ) : externalVehicles.map(vehicle => {
               const busy = isVehicleBusy(vehicle.id, selectedOrder?.id)
               const isAssigned = isResourceAssignedToOrder(vehicle.id, selectedOrder, 'vehicle', true)
-              
-              // ✅ ვპოულობთ მიბმულ მძღოლს (თუ არსებობს)
               const assignedDriver = vehicle.driver_id ? drivers.find(d => d.id === vehicle.driver_id) : null
 
               return (
-                <button
+                <div
                   key={vehicle.id}
                   onClick={() => handleVehicleSelect(vehicle.id, true)}
-                  className={`w-full p-3 rounded-xl border transition-all duration-200 text-left relative
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      handleVehicleSelect(vehicle.id, true)
+                    }
+                  }}
+                  className={`w-full p-3 rounded-xl border transition-all duration-200 text-left relative cursor-pointer
                     ${busy && !isAssigned ? 'opacity-80' : ''}
                     ${pendingExternalVehicleId === vehicle.id 
                       ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30' 
-                      : 'bg-gray-900/40 border-gray-700/50 hover:border-orange-500/30'
+                      : 'bg-gray-900/40 border-gray-700/50 hover:border-orange-500/30 hover:bg-gray-800/60'
                     }`}
                 >
-                  {/* ✅ "მიბმულია ამ შეკვეთაზე" ბეჯი */}
                   {isAssigned && (
                     <div className="absolute top-3 left-3 z-10">
                       <AssignedBadge />
                     </div>
                   )}
                   
-                  {/* ✅ ✅ ✅ ახალი: "უკვე ჰყავს მძღოლი" ბეიჯი */}
                   {assignedDriver && (
                     <div className="absolute top-3 right-3 z-10">
                       <DriverAssignedBadge driver={assignedDriver} />
                     </div>
                   )}
                   
-                  {/* BusyBadge */}
                   {!isAssigned && !assignedDriver && (
                     <div className="absolute top-3 right-3 z-10">
                       <BusyBadge isBusy={busy} type="vehicle" />
@@ -697,7 +843,19 @@ export default function DispatchTab({
                   </div>
                   <p className="text-[10px] text-gray-400 truncate pl-6">{vehicle.model || 'მოდელი'}</p>
                   <p className="text-[9px] text-orange-400 pl-6 mt-1">💰 {vehicle.rate_per_km || 0} ₾/კმ</p>
-                </button>
+                  
+                  {/* 🚛 ტრუკის ვიზუალიზაციის ღილაკი */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowTruckModal(vehicle)
+                    }}
+                    className="mt-2 w-full py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 rounded-lg text-[10px] font-medium transition flex items-center justify-center gap-1"
+                  >
+                    <span>🚛</span>
+                    <span>ტრუკის ვიზუალიზაცია</span>
+                  </button>
+                </div>
               )
             })
           )}
@@ -708,8 +866,7 @@ export default function DispatchTab({
       <div className={CardBase}>
         <ColumnHeader title="ხელმისაწვდომი მძღოლები" icon="👨‍✈️" color="from-blue-600/20 to-blue-800/5" />
         
-        {/* ტაბები: შიდა / გარე */}
-        <div className="px-3 py-2 border-b border-white/5 flex gap-1 bg-gray-900/30">
+        <div className="px-3 py-2 border-b border-white/5 flex gap-1 bg-gray-900/30 shrink-0">
           <button 
             onClick={() => setDriverType('internal')}
             className={`flex-1 py-1.5 rounded text-[9px] font-bold transition ${driverType === 'internal' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
@@ -726,7 +883,6 @@ export default function DispatchTab({
         
         <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
           {driverType === 'internal' ? (
-            // ✅ ✅ ✅ ახალი ლოგიკა: თუ არჩეულ მანქანას უკვე ჰყავს მძღოლი → ვაჩვენებთ შეტყობინებას
             displayDrivers.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
                 {pendingVehicleId && isVehicleHasAssignedDriver(pendingVehicleId, false) ? (
@@ -782,7 +938,6 @@ export default function DispatchTab({
               )
             })
           ) : (
-            // გარე მძღოლები
             externalDrivers.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
                 <span className="text-3xl mb-2 opacity-50">👨‍✈️</span>
@@ -835,7 +990,6 @@ export default function DispatchTab({
         <div className="flex-1 overflow-y-auto p-4 flex flex-col custom-scrollbar">
           {selectedOrder ? (
             <div className="flex flex-col h-full">
-              {/* შეკვეთის ინფო */}
               <div className="p-3 bg-gray-900/60 rounded-xl border border-white/5 mb-4">
                 <p className="text-[9px] text-gray-400 uppercase mb-1 tracking-wider">არჩეული შეკვეთა</p>
                 <div className="flex justify-between items-center mb-2">
@@ -855,15 +1009,11 @@ export default function DispatchTab({
                 <p className="text-sm font-bold text-green-400 mt-2">💰 {selectedOrder.price} {selectedOrder.currency}</p>
               </div>
 
-              {/* ✅ ✅ ✅ განახლებული: არჩეული რესურსები — ახლა აჩვენებს მანქანის მიბმულ მძღოლსაც! */}
               <div className="space-y-3 mb-4">
-                
-                {/* 👨‍✈️ მძღოლი */}
                 <div className="flex items-center justify-between p-2.5 bg-gray-900/40 rounded-lg border border-white/5">
                   <span className="text-[10px] text-gray-400">👨‍✈️ მძღოლი</span>
                   <span className="text-xs text-white font-medium">
                     {(() => {
-                      // 1️⃣ ჯერ ვამოწმებთ: აქვს თუ არა არჩეულ მანქანას უკვე მიბმული მძღოლი?
                       const selectedVehicleId = vehicleType === 'internal' ? pendingVehicleId : pendingExternalVehicleId
                       const isVehicleExternal = vehicleType === 'external'
                       const vehicleDriver = getVehicleAssignedDriver(selectedVehicleId, isVehicleExternal)
@@ -879,7 +1029,6 @@ export default function DispatchTab({
                         )
                       }
                       
-                      // 2️⃣ თუ არა, ვაჩვენებთ ხელით არჩეულ მძღოლს
                       if (driverType === 'internal') {
                         return pendingDriverId 
                           ? drivers.find(d => d.id === pendingDriverId)?.full_name 
@@ -889,14 +1038,12 @@ export default function DispatchTab({
                         ? externalDrivers.find(d => d.id === pendingExternalDriverId)?.full_name 
                         : '—'
                     })()}
-                    {/* გარე მძღოლის ინდიკატორი */}
                     {driverType === 'external' && pendingExternalDriverId && !getVehicleAssignedDriver(pendingVehicleId || pendingExternalVehicleId, vehicleType === 'external') && (
                       <span className="text-[9px] text-orange-400 ml-1">(გარე)</span>
                     )}
                   </span>
                 </div>
 
-                {/* 🚛 ტრანსპორტი */}
                 <div className="flex items-center justify-between p-2.5 bg-gray-900/40 rounded-lg border border-white/5">
                   <span className="text-[10px] text-gray-400">🚛 ტრანსპორტი</span>
                   <span className="text-xs text-white font-medium font-mono">
@@ -909,10 +1056,8 @@ export default function DispatchTab({
                     )}
                   </span>
                 </div>
-                
               </div>
 
-              {/* ღილაკები */}
               <div className="mt-auto space-y-2">
                 {selectedOrder.driver_id || selectedOrder.vehicle_id ? (
                   <button 
@@ -944,6 +1089,18 @@ export default function DispatchTab({
           )}
         </div>
       </div>
+
+      {/* 🚛 Truck Loading Modal */}
+      {showTruckModal && (
+        <TruckLoadingModal
+          truck={showTruckModal}
+          orders={orders}
+          onClose={() => setShowTruckModal(null)}
+          onSlotUpdate={() => {
+            if (loadData) loadData()
+          }}
+        />
+      )}
     </div>
   )
 }

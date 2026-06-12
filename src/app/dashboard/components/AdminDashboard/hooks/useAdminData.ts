@@ -35,43 +35,62 @@ export function useAdminData() {
     router.push('/login')
   }, [router])
 
-  // მონაცემების ჩატვირთვა
+  // მონაცემების ჩატვირთვა - ცალ-ცალკე რომ ერთმა error-მა სხვები არ დაბლოკოს
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [vRes, dRes, oRes, iRes, extDRes, extVRes, pcRes, cRes] = await Promise.all([
-        supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
-        supabase.from('drivers').select('*').order('created_at', { ascending: false }),
-        supabase.from('orders').select('*, drivers(full_name, phone), vehicles(plate_number, model)').order('created_at', { ascending: false }),
-        
-        // ✅ ახლა ვაბრუნებთ orders-თან კავშირს (order_id არსებობს ბაზაში):
-        supabase.from('invoices')
-          .select(`
-            *,
-            order_id,
-            orders (
-              tracking_code,
-              cargo_description
-            )
-          `)
-          .order('created_at', { ascending: false }),
-        
-        supabase.from('external_drivers').select('*').order('created_at', { ascending: false }),
-        supabase.from('external_vehicles').select('*').order('created_at', { ascending: false }),
-        supabase.from('private_clients').select('*').order('created_at', { ascending: false }),
-        supabase.from('companies').select('*').order('created_at', { ascending: false })
-      ])
-      
+      // 🚗 vehicles
+      const vRes = await supabase.from('vehicles').select('*').order('created_at', { ascending: false })
+      console.log('🚗 vehicles:', vRes.error?.message || '✅ OK', vRes.data?.length || 0)
       if (vRes.data) setVehicles(vRes.data)
+
+      // 👨‍✈️ drivers
+      const dRes = await supabase.from('drivers').select('*').order('created_at', { ascending: false })
+      console.log('👨‍✈️ drivers:', dRes.error?.message || '✅ OK', dRes.data?.length || 0)
       if (dRes.data) setDrivers(dRes.data)
+
+      // 📦 orders - ✅ განახლებული: დავაკონკრეტეთ FK-ები (ეს იყო მთავარი პრობლემა!)
+      const oRes = await supabase.from('orders').select(`
+        *,
+        drivers:driver_id(full_name, phone),
+        vehicles:vehicle_id(plate_number, model)
+      `).order('created_at', { ascending: false })
+      console.log('📦 orders:', oRes.error?.message || '✅ OK', oRes.data?.length || 0)
       if (oRes.data) setOrders(oRes.data)
+
+      // 🧾 invoices - ✅ განახლებული: დავაკონკრეტეთ FK
+      const iRes = await supabase.from('invoices')
+        .select(`
+          *,
+          order_id,
+          orders:order_id(tracking_code, cargo_description)
+        `)
+        .order('created_at', { ascending: false })
+      console.log('🧾 invoices:', iRes.error?.message || '✅ OK', iRes.data?.length || 0)
       if (iRes.data) setInvoices(iRes.data)
+
+      // 👨‍✈️ external_drivers
+      const extDRes = await supabase.from('external_drivers').select('*').order('created_at', { ascending: false })
+      console.log('👨‍✈️ external_drivers:', extDRes.error?.message || '✅ OK', extDRes.data?.length || 0)
       if (extDRes.data) setExternalDrivers(extDRes.data)
+
+      // 🚗 external_vehicles
+      const extVRes = await supabase.from('external_vehicles').select('*').order('created_at', { ascending: false })
+      console.log('🚗 external_vehicles:', extVRes.error?.message || '✅ OK', extVRes.data?.length || 0)
       if (extVRes.data) setExternalVehicles(extVRes.data)
+
+      // 👤 private_clients
+      const pcRes = await supabase.from('private_clients').select('*').order('created_at', { ascending: false })
+      console.log('👤 private_clients:', pcRes.error?.message || '✅ OK', pcRes.data?.length || 0)
       if (pcRes.data) setPrivateClients(pcRes.data)
+
+      // 🏢 companies
+      const cRes = await supabase.from('companies').select('*').order('created_at', { ascending: false })
+      console.log('🏢 companies:', cRes.error?.message || '✅ OK', cRes.data?.length || 0)
       if (cRes.data) setCompanies(cRes.data)
-    } catch (error) {
-      console.error('❌ Failed to load data:', error)
+
+    } catch (error: any) {
+      console.error('❌ Failed to load data:', error.message)
     } finally {
       setLoading(false)
     }
