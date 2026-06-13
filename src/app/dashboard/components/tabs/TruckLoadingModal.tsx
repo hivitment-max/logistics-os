@@ -60,80 +60,57 @@ const FALLBACK_SLOTS: Slot[] = [
   { id: 'bx-15', code: 'BX-15', maxWeight: 700, currentWeight: 0, maxVolume: 3.5, currentVolume: 0, section: 'right' },
 ]
 
+// 🧠 BEST FIT ალგორითმი - ყველაზე პატარა შესაფერის სლოტს ირჩევს
 function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
+  // 1. თავისუფალი სლოტები
   const freeSlots: SlotWithFreeSpace[] = slots
     .map(s => ({ ...s, freeSpace: s.maxWeight - s.currentWeight }))
     .filter(s => s.freeSpace > 0)
-    .sort((a, b) => a.maxWeight - b.maxWeight)
 
   if (freeSlots.length === 0) {
     return { type: 'none', slots: [], message: '❌ ყველა სლოტი სავსეა!' }
   }
 
+  // 2. BEST FIT - ვპოულობთ ყველა შესაფერის სლოტს სადაც ტვირთი ეტევა
   const fittingSlots = freeSlots.filter(s => s.freeSpace >= orderWeight)
+  
   if (fittingSlots.length > 0) {
+    // ვიღებთ სლოტს სადაც დარჩენილი ადგილი ყველაზე ნაკლებია (მინიმალური waste)
     const bestSlot = fittingSlots.reduce((best, current) => 
       current.freeSpace < best.freeSpace ? current : best
     )
+    const waste = bestSlot.freeSpace - orderWeight
     return {
       type: 'single',
       slots: [bestSlot],
-      message: `💡 რეკომენდებული: ${bestSlot.code} (${bestSlot.freeSpace} კგ თავისუფალი)`
+      message: `💡 რეკომენდებული: ${bestSlot.code} (${bestSlot.freeSpace} კგ, დარჩება ${waste} კგ)`
     }
   }
 
-  let bestPair: SlotWithFreeSpace[] | null = null
-  let bestPairWaste = Infinity
-
-  for (let i = 0; i < freeSlots.length; i++) {
-    for (let j = i + 1; j < freeSlots.length; j++) {
-      const combined = freeSlots[i].freeSpace + freeSlots[j].freeSpace
-      if (combined >= orderWeight) {
-        const waste = combined - orderWeight
-        if (waste < bestPairWaste) {
-          bestPairWaste = waste
-          bestPair = [freeSlots[i], freeSlots[j]]
-        }
-      }
-    }
+  // 3. BEST FIT MULTIPLE - თუ ერთ სლოტში არ ეტევა, ვიყენებთ რამდენიმეს
+  // ჯერ დიდ სლოტებს ვალაგებთ (დიდიდან პატარისკენ)
+  const sortedBySize = [...freeSlots].sort((a, b) => b.freeSpace - a.freeSpace)
+  
+  const ffdResult: SlotWithFreeSpace[] = []
+  let remaining = orderWeight
+  
+  for (const slot of sortedBySize) {
+    if (remaining <= 0) break
+    ffdResult.push(slot)
+    remaining -= slot.freeSpace
   }
-
-  if (bestPair) {
-    const total = bestPair[0].freeSpace + bestPair[1].freeSpace
+  
+  if (remaining <= 0) {
+    const total = ffdResult.reduce((sum, s) => sum + s.freeSpace, 0)
+    const codes = ffdResult.map(s => s.code).join(' + ')
     return {
       type: 'combined',
-      slots: bestPair,
-      message: `💡 რეკომენდებული: ${bestPair[0].code} + ${bestPair[1].code} (${total} კგ ერთად)`
+      slots: ffdResult,
+      message: `💡 რეკომენდებული: ${codes} (${total} კგ ჯამში)`
     }
   }
 
-  let bestTriple: SlotWithFreeSpace[] | null = null
-  let bestTripleWaste = Infinity
-
-  for (let i = 0; i < freeSlots.length; i++) {
-    for (let j = i + 1; j < freeSlots.length; j++) {
-      for (let k = j + 1; k < freeSlots.length; k++) {
-        const combined = freeSlots[i].freeSpace + freeSlots[j].freeSpace + freeSlots[k].freeSpace
-        if (combined >= orderWeight) {
-          const waste = combined - orderWeight
-          if (waste < bestTripleWaste) {
-            bestTripleWaste = waste
-            bestTriple = [freeSlots[i], freeSlots[j], freeSlots[k]]
-          }
-        }
-      }
-    }
-  }
-
-  if (bestTriple) {
-    const total = bestTriple[0].freeSpace + bestTriple[1].freeSpace + bestTriple[2].freeSpace
-    return {
-      type: 'combined',
-      slots: bestTriple,
-      message: `💡 რეკომენდებული: ${bestTriple[0].code} + ${bestTriple[1].code} + ${bestTriple[2].code} (${total} კგ)`
-    }
-  }
-
+  // 4. ვერ მოიძებნა საკმარისი ადგილი
   const totalFree = freeSlots.reduce((sum, s) => sum + s.freeSpace, 0)
   return {
     type: 'none',
@@ -144,6 +121,7 @@ function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
 
 export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate }: TruckLoadingModalProps) {
   const [slots, setSlots] = useState<Slot[]>([])
+  const [initialSlots, setInitialSlots] = useState<Slot[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null)
@@ -151,66 +129,36 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
   const [assignedOrderIds, setAssignedOrderIds] = useState<Set<string>>(new Set())
 
-  // ✅ ახალი ფუნქცია: შეკვეთის ამოღება სლოტიდან
   const handleRemoveOrder = async (slotId: string) => {
     const slot = slots.find(s => s.id === slotId)
     if (!slot || !slot.orderId) return
     
-    try {
-      // 1. სლოტის გასუფთავება ბაზაში
-      await supabase
-        .from('cargo_slots')
-        .update({
-          current_weight_kg: 0,
-          current_volume_m3: 0,
-          is_occupied: false,
-          order_id: null
-        })
-        .eq('id', slotId)
-      
-      // 2. შეკვეთის განახლება ბაზაში
-      await supabase
-        .from('orders')
-        .update({
-          assigned_truck_id: null,
-          assigned_slot_id: null
-        })
-        .eq('id', slot.orderId)
-      
-      // 3. State განახლება
-      setSlots(slots.map(s => s.id === slotId ? {
-        ...s,
-        currentWeight: 0,
-        currentVolume: 0,
-        orderId: null,
-        trackingCode: null
-      } : s))
-      
-      // 4. assignedOrderIds-დან მოშორება
-      setAssignedOrderIds(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(slot.orderId!)
-        return newSet
-      })
-      
-      setSuccess(`✅ შეკვეთა ${slot.trackingCode} ამოღებულია`)
-      setTimeout(() => setSuccess(null), 2500)
-      
-      onSlotUpdate()
-    } catch (err: any) {
-      console.error('❌ Remove error:', err)
-      setError(`❌ ამოღების შეცდომა: ${err.message}`)
-      setTimeout(() => setError(null), 3000)
-    }
+    setSlots(slots.map(s => s.id === slotId ? {
+      ...s,
+      currentWeight: 0,
+      currentVolume: 0,
+      orderId: null,
+      trackingCode: null
+    } : s))
+    
+    setAssignedOrderIds(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(slot.orderId!)
+      return newSet
+    })
+    
+    setHasChanges(true)
+    setSuccess(`🔄 შეკვეთა ${slot.trackingCode} მოშორებულია სლოტიდან (დააჭირე დადასტურებას)`)
+    setTimeout(() => setSuccess(null), 2500)
   }
 
-  // ✅ სლოტიდან drag-ის დაწყება
   const handleSlotDragStart = (slot: Slot) => {
     if (!slot.orderId) return
     setDraggedSlotId(slot.id)
-    // ვქმნით "fake" order object-ს drag-ისთვის
     setDraggedOrder({
       id: slot.orderId,
       tracking_code: slot.trackingCode || '',
@@ -222,7 +170,6 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
     })
   }
 
-  // ✅ მარჯვენა სიაში drop (სლოტიდან ამოღება)
   const handleDropToOrdersList = async (e: React.DragEvent) => {
     e.preventDefault()
     if (draggedSlotId) {
@@ -240,129 +187,105 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
         if (!truck?.id) {
           console.warn('⚠️ No vehicle ID, using fallback')
           setSlots(FALLBACK_SLOTS)
+          setInitialSlots(FALLBACK_SLOTS)
           setLoading(false)
           return
         }
 
-        const { data, error } = await supabase
-          .from('cargo_slots')
-          .select('*, orders(id, tracking_code)')
-          .eq('vehicle_id', truck.id)
-          .order('position_y')
-          .order('position_x')
+        console.log('🔄 Creating proportional slots based on vehicle capacity...')
+        
+        const totalWeight = parseFloat(truck.capacity_kg) || 10000
+        const totalVolume = parseFloat(truck.volume_m3 || truck.capacity_m3) || 45
 
-        if (error) {
-          console.error('❌ Database error:', error)
-          setLoadError(`Database error: ${error.message}`)
-          setSlots(FALLBACK_SLOTS)
-          setLoading(false)
-          return
-        }
+        const leftSlotWeight = Math.max(1, Math.round((totalWeight * 0.30) / 6))
+        const leftSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.30) / 6).toFixed(2)))
 
-        console.log('✅ Loaded slots from DB:', data?.length || 0)
+        const centerSlotWeight = Math.max(1, Math.round((totalWeight * 0.40) / 2))
+        const centerSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.40) / 2).toFixed(2)))
 
-        if (!data || data.length === 0) {
-          console.log('🆕 No slots found, creating proportional slots based on vehicle capacity...')
-          
-          const totalWeight = parseFloat(truck.capacity_kg) || 10000
-          const totalVolume = parseFloat(truck.volume_m3 || truck.capacity_m3) || 45
+        const rightSlotWeight = Math.max(1, Math.round((totalWeight * 0.30) / 9))
+        const rightSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.30) / 9).toFixed(2)))
 
-          const leftSlotWeight = Math.max(1, Math.round((totalWeight * 0.30) / 6))
-          const leftSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.30) / 6).toFixed(2)))
+        console.log(`📊 Vehicle Capacity: ${totalWeight}kg / ${totalVolume}m³`)
+        console.log(`📦 Slot Sizes -> Left: ${leftSlotWeight}kg/${leftSlotVolume}m³, Center: ${centerSlotWeight}kg/${centerSlotVolume}m³, Right: ${rightSlotWeight}kg/${rightSlotVolume}m³`)
 
-          const centerSlotWeight = Math.max(1, Math.round((totalWeight * 0.40) / 2))
-          const centerSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.40) / 2).toFixed(2)))
-
-          const rightSlotWeight = Math.max(1, Math.round((totalWeight * 0.30) / 9))
-          const rightSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.30) / 9).toFixed(2)))
-
-          console.log(`📊 Vehicle Capacity: ${totalWeight}kg / ${totalVolume}m³`)
-          console.log(`📦 Slot Sizes -> Left: ${leftSlotWeight}kg/${leftSlotVolume}m³, Center: ${centerSlotWeight}kg/${centerSlotVolume}m³, Right: ${rightSlotWeight}kg/${rightSlotVolume}m³`)
-
-          const slotConfigs = [
-            { code: 'EX-05', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 0 },
-            { code: 'EX-06', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 0 },
-            { code: 'BX-03', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 1 },
-            { code: 'BX-04', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 1 },
-            { code: 'BX-01', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 2 },
-            { code: 'BX-02', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 2 },
-            { code: 'EX-08', weight: centerSlotWeight, volume: centerSlotVolume, x: 2, y: 0 },
-            { code: 'BX-07', weight: centerSlotWeight, volume: centerSlotVolume, x: 2, y: 1 },
-            { code: 'EX-13', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 0 },
-            { code: 'EX-14', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 0 },
-            { code: 'EX-17', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 0 },
-            { code: 'BX-11', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 1 },
-            { code: 'BX-12', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 1 },
-            { code: 'BX-16', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 1 },
-            { code: 'BX-09', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 2 },
-            { code: 'BX-10', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 2 },
-            { code: 'BX-15', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 2 },
-          ]
-          
-          const defaultSlots = slotConfigs.map(s => ({
-            vehicle_id: truck.id,
-            position_code: s.code,
-            max_weight_kg: s.weight,
-            current_weight_kg: 0,
-            max_volume_m3: s.volume,
-            current_volume_m3: 0,
-            position_x: s.x,
-            position_y: s.y,
-            is_occupied: false,
-          }))
-
-          const { data: insertedData, error: insertError } = await supabase
-            .from('cargo_slots')
-            .insert(defaultSlots)
-            .select()
-
-          if (insertError) {
-            console.error('❌ Error creating slots:', insertError)
-            setLoadError(`Slots შექმნის შეცდომა: ${insertError.message}`)
-            setSlots(FALLBACK_SLOTS)
-          } else {
-            console.log(`✅ Created ${insertedData?.length} proportional slots`)
-            
-            const formattedSlots: Slot[] = (insertedData || []).map((slot: any) => ({
-              id: slot.id,
-              code: slot.position_code,
-              maxWeight: parseFloat(slot.max_weight_kg) || 0,
-              currentWeight: parseFloat(slot.current_weight_kg) || 0,
-              maxVolume: parseFloat(slot.max_volume_m3) || 0,
-              currentVolume: parseFloat(slot.current_volume_m3) || 0,
-              section: slot.position_x < 2 ? 'left' : slot.position_x < 3 ? 'center' : 'right',
-              orderId: null,
-              trackingCode: null,
-            }))
-            
-            setSlots(formattedSlots)
-          }
-          
-          setLoading(false)
-          return
-        }
-
-        // ✅ ახლა ვიტვირთავთ order_id და tracking_code-საც
-        const formattedSlots: Slot[] = data.map((slot: any) => ({
-          id: slot.id,
-          code: slot.position_code,
-          maxWeight: parseFloat(slot.max_weight_kg) || 0,
-          currentWeight: parseFloat(slot.current_weight_kg) || 0,
-          maxVolume: parseFloat(slot.max_volume_m3) || 0,
-          currentVolume: parseFloat(slot.current_volume_m3) || 0,
-          section: slot.position_x < 2 ? 'left' : slot.position_x < 3 ? 'center' : 'right',
-          orderId: slot.order_id || null,
-          trackingCode: slot.orders?.tracking_code || null,
+        const slotConfigs = [
+          { code: 'EX-05', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 0 },
+          { code: 'EX-06', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 0 },
+          { code: 'BX-03', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 1 },
+          { code: 'BX-04', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 1 },
+          { code: 'BX-01', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 2 },
+          { code: 'BX-02', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 2 },
+          { code: 'EX-08', weight: centerSlotWeight, volume: centerSlotVolume, x: 2, y: 0 },
+          { code: 'BX-07', weight: centerSlotWeight, volume: centerSlotVolume, x: 2, y: 1 },
+          { code: 'EX-13', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 0 },
+          { code: 'EX-14', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 0 },
+          { code: 'EX-17', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 0 },
+          { code: 'BX-11', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 1 },
+          { code: 'BX-12', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 1 },
+          { code: 'BX-16', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 1 },
+          { code: 'BX-09', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 2 },
+          { code: 'BX-10', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 2 },
+          { code: 'BX-15', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 2 },
+        ]
+        
+        const defaultSlots = slotConfigs.map(s => ({
+          vehicle_id: truck.id,
+          position_code: s.code,
+          max_weight_kg: s.weight,
+          current_weight_kg: 0,
+          max_volume_m3: s.volume,
+          current_volume_m3: 0,
+          position_x: s.x,
+          position_y: s.y,
+          is_occupied: false,
         }))
 
-        console.log('✅ Formatted slots:', formattedSlots.length)
-        setSlots(formattedSlots)
+        const { error: deleteError } = await supabase
+          .from('cargo_slots')
+          .delete()
+          .eq('vehicle_id', truck.id)
+
+        if (deleteError) {
+          console.error('❌ Error deleting old slots:', deleteError)
+        }
+
+        const { data: insertedData, error: insertError } = await supabase
+          .from('cargo_slots')
+          .insert(defaultSlots)
+          .select()
+
+        if (insertError) {
+          console.error('❌ Error creating slots:', insertError)
+          setLoadError(`Slots შექმნის შეცდომა: ${insertError.message}`)
+          setSlots(FALLBACK_SLOTS)
+          setInitialSlots(FALLBACK_SLOTS)
+        } else {
+          console.log(`✅ Created ${insertedData?.length} proportional slots`)
+          
+          const formattedSlots: Slot[] = (insertedData || []).map((slot: any) => ({
+            id: slot.id,
+            code: slot.position_code,
+            maxWeight: parseFloat(slot.max_weight_kg) || 0,
+            currentWeight: parseFloat(slot.current_weight_kg) || 0,
+            maxVolume: parseFloat(slot.max_volume_m3) || 0,
+            currentVolume: parseFloat(slot.current_volume_m3) || 0,
+            section: slot.position_x < 2 ? 'left' : slot.position_x < 3 ? 'center' : 'right',
+            orderId: null,
+            trackingCode: null,
+          }))
+          
+          setSlots(formattedSlots)
+          setInitialSlots(formattedSlots)
+        }
+        
         setLoading(false)
 
       } catch (err: any) {
         console.error('❌ Exception:', err)
         setLoadError(`Exception: ${err.message}`)
         setSlots(FALLBACK_SLOTS)
+        setInitialSlots(FALLBACK_SLOTS)
         setLoading(false)
       }
     }
@@ -393,6 +316,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
     setDraggedSlotId(null)
     const rec = findBestSlots(order.weight_kg, slots)
     setRecommendation(rec)
+    console.log(`🧠 Best Fit for ${order.weight_kg}kg:`, rec.message)
   }
 
   const handleDragEnd = () => {
@@ -405,10 +329,9 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
     e.preventDefault()
   }
 
+  // ✅ მხოლოდ UI-ში ვცვლით, ბაზაში არა
   const handleDrop = async (slotId: string) => {
-    // ✅ თუ სლოტიდან მოდის (უკან ამოღება) - არა, ეს სხვა ფუნქციაა
     if (draggedSlotId) {
-      // სლოტიდან სლოტზე გადატანა - ჯერ არ გვაქვს
       return
     }
     
@@ -423,7 +346,11 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
 
     let remainingWeight = draggedOrder.weight_kg
     let remainingVolume = draggedOrder.volume_m3
-    const sortedRecommended = [...recommendation.slots].sort((a, b) => a.maxWeight - b.maxWeight)
+    
+    // ✅ ჯერ დიდ სლოტებს ვავსებთ (descending order)
+    const sortedRecommended = [...recommendation.slots].sort((a, b) => b.maxWeight - a.maxWeight)
+    
+    console.log(`📦 Dropping ${draggedOrder.weight_kg}kg into slots:`, sortedRecommended.map(s => s.code))
     
     const updatedSlots = slots.map(s => {
       const recSlot = sortedRecommended.find(rs => rs.id === s.id)
@@ -440,6 +367,8 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
       const actualVolumeToAdd = Math.min(freeVolume, volumeToAdd)
       remainingVolume -= actualVolumeToAdd
       
+      console.log(`  → ${s.code}: +${toAdd}kg (total: ${s.currentWeight + toAdd}/${s.maxWeight})`)
+      
       return { 
         ...s, 
         currentWeight: s.currentWeight + toAdd,
@@ -450,38 +379,79 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
     })
 
     setSlots(updatedSlots)
+    setAssignedOrderIds(prev => new Set([...prev, draggedOrder.id]))
+    setDraggedOrder(null)
+    setRecommendation(null)
+    setHasChanges(true)
+    
+    setSuccess(`🔄 ${draggedOrder.tracking_code} ჩაემატა სლოტებში (დააჭირე დადასტურებას)`)
+    setTimeout(() => setSuccess(null), 2500)
+  }
 
+  // ✅ დადასტურება - ინახავს ბაზაში
+  const handleConfirmLoading = async () => {
+    setConfirming(true)
+    
     try {
-      for (const slot of updatedSlots) {
-        const originalSlot = slots.find(s => s.id === slot.id)
-        if (originalSlot && (originalSlot.currentWeight !== slot.currentWeight || originalSlot.currentVolume !== slot.currentVolume)) {
+      // 1. ვინახოთ სლოტების ცვლილებები
+      for (const slot of slots) {
+        const initialSlot = initialSlots.find(s => s.id === slot.id)
+        if (initialSlot && (
+          initialSlot.currentWeight !== slot.currentWeight || 
+          initialSlot.currentVolume !== slot.currentVolume ||
+          initialSlot.orderId !== slot.orderId
+        )) {
           await supabase
             .from('cargo_slots')
             .update({ 
               current_weight_kg: slot.currentWeight,
               current_volume_m3: slot.currentVolume,
-              is_occupied: slot.currentWeight >= slot.maxWeight,
-              order_id: draggedOrder.id
+              is_occupied: slot.currentWeight > 0,
+              order_id: slot.orderId
             })
             .eq('id', slot.id)
         }
       }
 
-      await supabase
-        .from('orders')
-        .update({ 
-          assigned_truck_id: truck.id,
-          assigned_slot_id: slotId
-        })
-        .eq('id', draggedOrder.id)
-    } catch (err) {
-      console.error('❌ Database update error:', err)
-    }
+      // 2. ვინახოთ შეკვეთების მიბმა მანქანაზე
+      const assignedOrders = slots
+        .filter(s => s.orderId && s.currentWeight > 0)
+        .map(s => s.orderId)
+      
+      for (const orderId of assignedOrders) {
+        await supabase
+          .from('orders')
+          .update({ 
+            assigned_truck_id: truck.id,
+            assigned_slot_id: slots.find(s => s.orderId === orderId)?.id || null
+          })
+          .eq('id', orderId)
+      }
 
-    setAssignedOrderIds(prev => new Set([...prev, draggedOrder.id]))
-    setDraggedOrder(null)
-    setRecommendation(null)
-    onSlotUpdate()
+      setHasChanges(false)
+      setSuccess('✅ წარმატებით დადასტურდა!')
+      setTimeout(() => {
+        setSuccess(null)
+        onSlotUpdate()
+        onClose()
+      }, 1500)
+      
+    } catch (err: any) {
+      console.error('❌ Confirm error:', err)
+      setError(`❌ შეცდომა: ${err.message}`)
+      setTimeout(() => setError(null), 3000)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  // ✅ გაუქმება - აბრუნებს საწყის state-ს
+  const handleCancelLoading = () => {
+    setSlots(initialSlots)
+    setAssignedOrderIds(new Set())
+    setHasChanges(false)
+    setSuccess('↩️ ცვლილებები გაუქმდა')
+    setTimeout(() => setSuccess(null), 2000)
   }
 
   const getFill = (slot: Slot) => slot.maxWeight > 0 ? (slot.currentWeight / slot.maxWeight) * 100 : 0
@@ -531,7 +501,6 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
         />
         <span className="text-[9px] font-mono font-bold relative z-10">{slot.code}</span>
         
-        {/* ✅ შეკვეთის ინფო თუ არის */}
         {hasOrder ? (
           <div className="flex-1 flex flex-col items-center justify-center relative z-10">
             <span className="text-[10px] font-bold text-purple-700 truncate max-w-full">
@@ -567,7 +536,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
         <div className="bg-white rounded-2xl p-8 text-center">
           <div className="text-4xl mb-4 animate-bounce">🚛</div>
           <p className="text-lg font-bold">იტვირთება...</p>
-          <p className="text-xs text-slate-500 mt-2">სლოტების ჩატვირთვა/შექმნა</p>
+          <p className="text-xs text-slate-500 mt-2">სლოტების პროპორციული შექმნა</p>
         </div>
       </div>
     )
@@ -614,16 +583,50 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
                 {truck?.plate_number || 'TR-001'} — {truck?.model || 'MAN TGX'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                ტევადობა: {truck?.capacity_kg || 10000} კგ · გადაათრიე შეკვეთა სლოტში · სლოტიდან გადაათრიე უკან
+                ტევადობა: {truck?.capacity_kg || 10000} კგ · გადაათრიე შეკვეთა სლოტში
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-slate-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition text-slate-600 font-bold text-xl"
-          >
-            ✕
-          </button>
+          
+          <div className="flex items-center gap-2">
+            {hasChanges && (
+              <button
+                onClick={handleCancelLoading}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold text-sm transition flex items-center gap-2"
+              >
+                <span>↩️</span>
+                <span>გაუქმება</span>
+              </button>
+            )}
+            
+            {hasChanges && (
+              <button
+                onClick={handleConfirmLoading}
+                disabled={confirming}
+                className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-bold text-sm transition shadow-lg shadow-green-500/20 flex items-center gap-2"
+              >
+                {confirming ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>ინახება...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✅</span>
+                    <span>დადასტურება</span>
+                  </>
+                )}
+              </button>
+            )}
+            
+            <button
+              onClick={hasChanges ? handleCancelLoading : onClose}
+              className="w-10 h-10 rounded-full bg-slate-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition text-slate-600 font-bold text-xl"
+              title={hasChanges ? 'გაუქმება და დახურვა' : 'დახურვა'}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -683,7 +686,6 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
                   </span>
                 </div>
 
-                {/* ✅ Drop zone სლოტიდან ამოღებისთვის */}
                 <div 
                   onDragOver={handleDragOver}
                   onDrop={handleDropToOrdersList}
@@ -698,7 +700,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
                   )}
                   {availableOrders.length === 0 && draggedSlotId && (
                     <div className="text-center py-8 bg-blue-100 rounded-lg animate-pulse">
-                      <div className="text-4xl mb-2">📥</div>
+                      <div className="text-4xl mb-2"></div>
                       <p className="text-sm text-blue-700 font-bold">გაუშვი აქ ამოსაღებად!</p>
                     </div>
                   )}
@@ -768,9 +770,9 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
               <div className="text-[10px] font-bold text-blue-700 mb-1">💡 ინსტრუქცია</div>
               <ol className="text-[10px] text-slate-600 space-y-0.5 list-decimal list-inside">
                 <li>აირჩიე შეკვეთა მარჯვნივ</li>
+                <li>🧠 სისტემა ავტომატურად იპოვის ოპტიმალურ სლოტს</li>
                 <li>გადაათრიე მწვანე სლოტ(ებ)ში</li>
-                <li>🆕 სლოტზე ✕ დააჭირე ამოსაღებად</li>
-                <li>🆕 ან გადაათრიე სლოტიდან უკან</li>
+                <li>✅ დააჭირე "დადასტურება" შენახვისთვის</li>
               </ol>
             </div>
           </div>
