@@ -21,9 +21,10 @@ interface Slot {
   maxVolume: number
   currentVolume: number
   section: 'left' | 'center' | 'right'
+  orderId?: string | null
+  trackingCode?: string | null
 }
 
-// ✅ ახალი ტიპი freeSpace-ით
 type SlotWithFreeSpace = Slot & { freeSpace: number }
 
 interface Recommendation {
@@ -60,7 +61,6 @@ const FALLBACK_SLOTS: Slot[] = [
 ]
 
 function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
-  // ✅ ახლა ცხადად ვწერთ ტიპს
   const freeSlots: SlotWithFreeSpace[] = slots
     .map(s => ({ ...s, freeSpace: s.maxWeight - s.currentWeight }))
     .filter(s => s.freeSpace > 0)
@@ -82,7 +82,6 @@ function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
     }
   }
 
-  // ✅ ახლა სწორი ტიპით
   let bestPair: SlotWithFreeSpace[] | null = null
   let bestPairWaste = Infinity
 
@@ -108,7 +107,6 @@ function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
     }
   }
 
-  // ✅ ახლა სწორი ტიპით
   let bestTriple: SlotWithFreeSpace[] | null = null
   let bestTripleWaste = Infinity
 
@@ -149,9 +147,90 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null)
+  const [draggedSlotId, setDraggedSlotId] = useState<string | null>(null)
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [assignedOrderIds, setAssignedOrderIds] = useState<Set<string>>(new Set())
+
+  // ✅ ახალი ფუნქცია: შეკვეთის ამოღება სლოტიდან
+  const handleRemoveOrder = async (slotId: string) => {
+    const slot = slots.find(s => s.id === slotId)
+    if (!slot || !slot.orderId) return
+    
+    try {
+      // 1. სლოტის გასუფთავება ბაზაში
+      await supabase
+        .from('cargo_slots')
+        .update({
+          current_weight_kg: 0,
+          current_volume_m3: 0,
+          is_occupied: false,
+          order_id: null
+        })
+        .eq('id', slotId)
+      
+      // 2. შეკვეთის განახლება ბაზაში
+      await supabase
+        .from('orders')
+        .update({
+          assigned_truck_id: null,
+          assigned_slot_id: null
+        })
+        .eq('id', slot.orderId)
+      
+      // 3. State განახლება
+      setSlots(slots.map(s => s.id === slotId ? {
+        ...s,
+        currentWeight: 0,
+        currentVolume: 0,
+        orderId: null,
+        trackingCode: null
+      } : s))
+      
+      // 4. assignedOrderIds-დან მოშორება
+      setAssignedOrderIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(slot.orderId!)
+        return newSet
+      })
+      
+      setSuccess(`✅ შეკვეთა ${slot.trackingCode} ამოღებულია`)
+      setTimeout(() => setSuccess(null), 2500)
+      
+      onSlotUpdate()
+    } catch (err: any) {
+      console.error('❌ Remove error:', err)
+      setError(`❌ ამოღების შეცდომა: ${err.message}`)
+      setTimeout(() => setError(null), 3000)
+    }
+  }
+
+  // ✅ სლოტიდან drag-ის დაწყება
+  const handleSlotDragStart = (slot: Slot) => {
+    if (!slot.orderId) return
+    setDraggedSlotId(slot.id)
+    // ვქმნით "fake" order object-ს drag-ისთვის
+    setDraggedOrder({
+      id: slot.orderId,
+      tracking_code: slot.trackingCode || '',
+      weight_kg: slot.currentWeight,
+      volume_m3: slot.currentVolume,
+      price: 0,
+      from: '',
+      to: ''
+    })
+  }
+
+  // ✅ მარჯვენა სიაში drop (სლოტიდან ამოღება)
+  const handleDropToOrdersList = async (e: React.DragEvent) => {
+    e.preventDefault()
+    if (draggedSlotId) {
+      await handleRemoveOrder(draggedSlotId)
+      setDraggedSlotId(null)
+      setDraggedOrder(null)
+    }
+  }
 
   useEffect(() => {
     const loadSlots = async () => {
@@ -167,7 +246,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
 
         const { data, error } = await supabase
           .from('cargo_slots')
-          .select('*')
+          .select('*, orders(id, tracking_code)')
           .eq('vehicle_id', truck.id)
           .order('position_y')
           .order('position_x')
@@ -252,6 +331,8 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
               maxVolume: parseFloat(slot.max_volume_m3) || 0,
               currentVolume: parseFloat(slot.current_volume_m3) || 0,
               section: slot.position_x < 2 ? 'left' : slot.position_x < 3 ? 'center' : 'right',
+              orderId: null,
+              trackingCode: null,
             }))
             
             setSlots(formattedSlots)
@@ -261,6 +342,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
           return
         }
 
+        // ✅ ახლა ვიტვირთავთ order_id და tracking_code-საც
         const formattedSlots: Slot[] = data.map((slot: any) => ({
           id: slot.id,
           code: slot.position_code,
@@ -269,6 +351,8 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
           maxVolume: parseFloat(slot.max_volume_m3) || 0,
           currentVolume: parseFloat(slot.current_volume_m3) || 0,
           section: slot.position_x < 2 ? 'left' : slot.position_x < 3 ? 'center' : 'right',
+          orderId: slot.order_id || null,
+          trackingCode: slot.orders?.tracking_code || null,
         }))
 
         console.log('✅ Formatted slots:', formattedSlots.length)
@@ -306,12 +390,14 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
 
   const handleDragStart = (order: Order) => {
     setDraggedOrder(order)
+    setDraggedSlotId(null)
     const rec = findBestSlots(order.weight_kg, slots)
     setRecommendation(rec)
   }
 
   const handleDragEnd = () => {
     setDraggedOrder(null)
+    setDraggedSlotId(null)
     setRecommendation(null)
   }
 
@@ -320,6 +406,12 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
   }
 
   const handleDrop = async (slotId: string) => {
+    // ✅ თუ სლოტიდან მოდის (უკან ამოღება) - არა, ეს სხვა ფუნქციაა
+    if (draggedSlotId) {
+      // სლოტიდან სლოტზე გადატანა - ჯერ არ გვაქვს
+      return
+    }
+    
     if (!draggedOrder || !recommendation) return
 
     const isRecommended = recommendation.slots.some(s => s.id === slotId)
@@ -351,7 +443,9 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
       return { 
         ...s, 
         currentWeight: s.currentWeight + toAdd,
-        currentVolume: s.currentVolume + actualVolumeToAdd
+        currentVolume: s.currentVolume + actualVolumeToAdd,
+        orderId: draggedOrder.id,
+        trackingCode: draggedOrder.tracking_code,
       }
     })
 
@@ -395,9 +489,13 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
   const getSlotStyle = (slot: Slot) => {
     const fill = getFill(slot)
     const isRecommended = recommendation?.slots.some(s => s.id === slot.id)
+    const hasOrder = !!slot.orderId
     
     if (isRecommended) {
       return 'bg-green-100 border-green-500 text-green-700 animate-pulse shadow-lg shadow-green-500/30'
+    }
+    if (hasOrder) {
+      return 'bg-purple-100 border-purple-500 text-purple-700 shadow-md shadow-purple-500/20'
     }
     if (fill === 0) return 'bg-slate-50 border-slate-200 text-slate-600'
     if (fill < 50) return 'bg-blue-100 border-blue-300 text-slate-700'
@@ -414,21 +512,48 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
 
   const renderSlot = (slot: Slot) => {
     const fill = getFill(slot)
+    const hasOrder = !!slot.orderId
+    
     return (
       <div
         key={slot.id}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(slot.id)}
-        className={`relative rounded-lg border-2 flex flex-col justify-between p-2 h-[90px] transition-all overflow-hidden ${getSlotStyle(slot)}`}
+        draggable={hasOrder}
+        onDragStart={hasOrder ? () => handleSlotDragStart(slot) : undefined}
+        onDragEnd={handleDragEnd}
+        className={`relative rounded-lg border-2 flex flex-col justify-between p-2 h-[90px] transition-all overflow-hidden ${getSlotStyle(slot)} ${hasOrder ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        title={hasOrder ? `📦 ${slot.trackingCode} - გადაათრიე ამოსაღებად` : ''}
       >
         <div 
           className="absolute bottom-0 left-0 right-0 bg-blue-500/30 transition-all duration-500"
           style={{ height: `${fill}%` }}
         />
         <span className="text-[9px] font-mono font-bold relative z-10">{slot.code}</span>
-        <div className="flex-1 flex items-center justify-center relative z-10 text-2xl">
-          {fill === 100 ? '👁️' : fill > 0 ? '📦' : '+'}
-        </div>
+        
+        {/* ✅ შეკვეთის ინფო თუ არის */}
+        {hasOrder ? (
+          <div className="flex-1 flex flex-col items-center justify-center relative z-10">
+            <span className="text-[10px] font-bold text-purple-700 truncate max-w-full">
+              📦 {slot.trackingCode}
+            </span>
+            <button
+              onClick={(e) => { 
+                e.stopPropagation()
+                handleRemoveOrder(slot.id) 
+              }}
+              className="mt-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-md transition-all hover:scale-110"
+              title="შეკვეთის ამოღება"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center relative z-10 text-2xl">
+            {fill === 100 ? '👁️' : fill > 0 ? '📦' : '+'}
+          </div>
+        )}
+        
         <span className="text-[10px] font-bold relative z-10">
           {slot.currentWeight}/{slot.maxWeight} კგ
         </span>
@@ -463,7 +588,13 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
         </div>
       )}
 
-      {recommendation && draggedOrder && (
+      {success && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-xl shadow-2xl z-[200] font-bold animate-pulse">
+          {success}
+        </div>
+      )}
+
+      {recommendation && draggedOrder && !draggedSlotId && (
         <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl z-[200] font-bold ${
           recommendation.type === 'none' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
         }`}>
@@ -483,7 +614,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
                 {truck?.plate_number || 'TR-001'} — {truck?.model || 'MAN TGX'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                ტევადობა: {truck?.capacity_kg || 10000} კგ · გადაათრიე შეკვეთა სლოტში
+                ტევადობა: {truck?.capacity_kg || 10000} კგ · გადაათრიე შეკვეთა სლოტში · სლოტიდან გადაათრიე უკან
               </p>
             </div>
           </div>
@@ -552,39 +683,50 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
                   </span>
                 </div>
 
-                <div className="space-y-2 overflow-y-auto max-h-[400px]">
-                  {availableOrders.length === 0 ? (
+                {/* ✅ Drop zone სლოტიდან ამოღებისთვის */}
+                <div 
+                  onDragOver={handleDragOver}
+                  onDrop={handleDropToOrdersList}
+                  className="space-y-2 overflow-y-auto max-h-[400px] min-h-[100px] p-2 rounded-lg border-2 border-dashed border-slate-200 transition-all hover:border-blue-400 hover:bg-blue-50/30"
+                >
+                  {availableOrders.length === 0 && !draggedSlotId && (
                     <div className="text-center py-8">
                       <div className="text-4xl mb-2">✅</div>
                       <p className="text-sm text-slate-500">ყველა შეკვეთა განაწილებულია!</p>
+                      <p className="text-xs text-slate-400 mt-2">🔄 სლოტიდან გადაათრიე აქ უკან ამოსაღებად</p>
                     </div>
-                  ) : (
-                    availableOrders.map(order => (
-                      <div
-                        key={order.id}
-                        draggable
-                        onDragStart={() => handleDragStart(order)}
-                        onDragEnd={handleDragEnd}
-                        className={`p-3 rounded-xl border-2 cursor-move transition-all ${
-                          draggedOrder?.id === order.id
-                            ? 'bg-blue-100 border-blue-400 opacity-50 scale-95'
-                            : 'bg-slate-50 border-slate-200 hover:border-blue-400 hover:shadow-md'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="text-xs font-bold text-slate-800 font-mono">{order.tracking_code}</span>
-                          <span className="text-xs text-yellow-600 font-bold">{order.price} ₾</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 mb-1">
-                          📍 {order.from} → {order.to}
-                        </div>
-                        <div className="flex gap-2 text-[10px] text-slate-600 font-medium">
-                          <span>⚖️ {order.weight_kg} კგ</span>
-                          <span>📐 {order.volume_m3} m³</span>
-                        </div>
-                      </div>
-                    ))
                   )}
+                  {availableOrders.length === 0 && draggedSlotId && (
+                    <div className="text-center py-8 bg-blue-100 rounded-lg animate-pulse">
+                      <div className="text-4xl mb-2">📥</div>
+                      <p className="text-sm text-blue-700 font-bold">გაუშვი აქ ამოსაღებად!</p>
+                    </div>
+                  )}
+                  {availableOrders.map(order => (
+                    <div
+                      key={order.id}
+                      draggable
+                      onDragStart={() => handleDragStart(order)}
+                      onDragEnd={handleDragEnd}
+                      className={`p-3 rounded-xl border-2 cursor-move transition-all ${
+                        draggedOrder?.id === order.id
+                          ? 'bg-blue-100 border-blue-400 opacity-50 scale-95'
+                          : 'bg-slate-50 border-slate-200 hover:border-blue-400 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-bold text-slate-800 font-mono">{order.tracking_code}</span>
+                        <span className="text-xs text-yellow-600 font-bold">{order.price} ₾</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 mb-1">
+                        📍 {order.from} → {order.to}
+                      </div>
+                      <div className="flex gap-2 text-[10px] text-slate-600 font-medium">
+                        <span>⚖️ {order.weight_kg} კგ</span>
+                        <span>📐 {order.volume_m3} m³</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -626,9 +768,9 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
               <div className="text-[10px] font-bold text-blue-700 mb-1">💡 ინსტრუქცია</div>
               <ol className="text-[10px] text-slate-600 space-y-0.5 list-decimal list-inside">
                 <li>აირჩიე შეკვეთა მარჯვნივ</li>
-                <li>სისტემა იპოვის საუკეთესო სლოტს</li>
                 <li>გადაათრიე მწვანე სლოტ(ებ)ში</li>
-                <li>შეკვეთა გაქრება სიიდან</li>
+                <li>🆕 სლოტზე ✕ დააჭირე ამოსაღებად</li>
+                <li>🆕 ან გადაათრიე სლოტიდან უკან</li>
               </ol>
             </div>
           </div>
