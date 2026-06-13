@@ -23,6 +23,9 @@ interface Slot {
   section: 'left' | 'center' | 'right'
 }
 
+// ✅ ახალი ტიპი freeSpace-ით
+type SlotWithFreeSpace = Slot & { freeSpace: number }
+
 interface Recommendation {
   type: 'single' | 'combined' | 'none'
   slots: Slot[]
@@ -30,7 +33,7 @@ interface Recommendation {
 }
 
 interface TruckLoadingModalProps {
-  truck: any  // ეს ახლა vehicles-დან მოდის
+  truck: any
   orders: any[]
   onClose: () => void
   onSlotUpdate: () => void
@@ -57,7 +60,8 @@ const FALLBACK_SLOTS: Slot[] = [
 ]
 
 function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
-  const freeSlots = slots
+  // ✅ ახლა ცხადად ვწერთ ტიპს
+  const freeSlots: SlotWithFreeSpace[] = slots
     .map(s => ({ ...s, freeSpace: s.maxWeight - s.currentWeight }))
     .filter(s => s.freeSpace > 0)
     .sort((a, b) => a.maxWeight - b.maxWeight)
@@ -78,7 +82,8 @@ function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
     }
   }
 
-  let bestPair: Slot[] | null = null
+  // ✅ ახლა სწორი ტიპით
+  let bestPair: SlotWithFreeSpace[] | null = null
   let bestPairWaste = Infinity
 
   for (let i = 0; i < freeSlots.length; i++) {
@@ -103,7 +108,8 @@ function findBestSlots(orderWeight: number, slots: Slot[]): Recommendation {
     }
   }
 
-  let bestTriple: Slot[] | null = null
+  // ✅ ახლა სწორი ტიპით
+  let bestTriple: SlotWithFreeSpace[] | null = null
   let bestTripleWaste = Infinity
 
   for (let i = 0; i < freeSlots.length; i++) {
@@ -159,7 +165,6 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
           return
         }
 
-        // 🆕 ახლა vehicle_id-ით ვეძებთ (არა truck_id-ით)
         const { data, error } = await supabase
           .from('cargo_slots')
           .select('*')
@@ -177,43 +182,33 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
 
         console.log('✅ Loaded slots from DB:', data?.length || 0)
 
-        // თუ არ არის slots, შევქმნათ ავტომატურად პროპორციულად მანქანის ტევადობასთან
         if (!data || data.length === 0) {
           console.log('🆕 No slots found, creating proportional slots based on vehicle capacity...')
           
-          // 1. ვიღებთ მანქანის რეალურ ტევადობას
           const totalWeight = parseFloat(truck.capacity_kg) || 10000
           const totalVolume = parseFloat(truck.volume_m3 || truck.capacity_m3) || 45
 
-          // 2. ვანაწილებთ ტევადობას ზონების მიხედვით (პროპორციულად)
-          // მარცხენა ზონა: 6 სლოტი = ჯამური ტევადობის 30%
           const leftSlotWeight = Math.max(1, Math.round((totalWeight * 0.30) / 6))
           const leftSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.30) / 6).toFixed(2)))
 
-          // ცენტრალური ზონა: 2 დიდი სლოტი = ჯამური ტევადობის 40%
           const centerSlotWeight = Math.max(1, Math.round((totalWeight * 0.40) / 2))
           const centerSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.40) / 2).toFixed(2)))
 
-          // მარჯვენა ზონა: 9 სლოტი = ჯამური ტევადობის 30%
           const rightSlotWeight = Math.max(1, Math.round((totalWeight * 0.30) / 9))
           const rightSlotVolume = Math.max(0.1, parseFloat(((totalVolume * 0.30) / 9).toFixed(2)))
 
           console.log(`📊 Vehicle Capacity: ${totalWeight}kg / ${totalVolume}m³`)
           console.log(`📦 Slot Sizes -> Left: ${leftSlotWeight}kg/${leftSlotVolume}m³, Center: ${centerSlotWeight}kg/${centerSlotVolume}m³, Right: ${rightSlotWeight}kg/${rightSlotVolume}m³`)
 
-          // 3. ვქმნით სლოტების კონფიგურაციას დინამიური წონით
           const slotConfigs = [
-            // მარცხენა (2 cols × 3 rows = 6 slots)
             { code: 'EX-05', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 0 },
             { code: 'EX-06', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 0 },
             { code: 'BX-03', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 1 },
             { code: 'BX-04', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 1 },
             { code: 'BX-01', weight: leftSlotWeight, volume: leftSlotVolume, x: 0, y: 2 },
             { code: 'BX-02', weight: leftSlotWeight, volume: leftSlotVolume, x: 1, y: 2 },
-            // ცენტრი (1 col × 2 rows = 2 large slots)
             { code: 'EX-08', weight: centerSlotWeight, volume: centerSlotVolume, x: 2, y: 0 },
             { code: 'BX-07', weight: centerSlotWeight, volume: centerSlotVolume, x: 2, y: 1 },
-            // მარჯვენა (3 cols × 3 rows = 9 slots)
             { code: 'EX-13', weight: rightSlotWeight, volume: rightSlotVolume, x: 3, y: 0 },
             { code: 'EX-14', weight: rightSlotWeight, volume: rightSlotVolume, x: 4, y: 0 },
             { code: 'EX-17', weight: rightSlotWeight, volume: rightSlotVolume, x: 5, y: 0 },
@@ -226,7 +221,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
           ]
           
           const defaultSlots = slotConfigs.map(s => ({
-            vehicle_id: truck.id,  // 🆕 vehicle_id (არა truck_id)
+            vehicle_id: truck.id,
             position_code: s.code,
             max_weight_kg: s.weight,
             current_weight_kg: 0,
@@ -381,7 +376,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
       await supabase
         .from('orders')
         .update({ 
-          assigned_truck_id: truck.id,  // ეს ახლა vehicles.id-ია
+          assigned_truck_id: truck.id,
           assigned_slot_id: slotId
         })
         .eq('id', draggedOrder.id)
@@ -481,7 +476,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
         <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              
+              🚛
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-800">
@@ -507,7 +502,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
             <div className="col-span-7">
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                 <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-                   ტრუკის განლაგება
+                  📦 ტრუკის განლაგება
                 </h3>
 
                 <div className="bg-slate-200 border-2 border-slate-400 rounded-r-2xl rounded-l-md p-3 relative">
@@ -584,7 +579,7 @@ export default function TruckLoadingModal({ truck, orders, onClose, onSlotUpdate
                           📍 {order.from} → {order.to}
                         </div>
                         <div className="flex gap-2 text-[10px] text-slate-600 font-medium">
-                          <span>️ {order.weight_kg} კგ</span>
+                          <span>⚖️ {order.weight_kg} კგ</span>
                           <span>📐 {order.volume_m3} m³</span>
                         </div>
                       </div>
