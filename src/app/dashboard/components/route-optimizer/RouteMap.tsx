@@ -5,51 +5,75 @@ import 'leaflet/dist/leaflet.css'
 import { Icon, LatLngExpression } from 'leaflet'
 import { useEffect, useState } from 'react'
 
-const truckIcon = new Icon({
+// 📍 ატვირთვის მარკერი (მწვანე)
+const pickupIcon = new Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+// 📍 ჩატვირთვის მარკერი (წითელი)
+const deliveryIcon = new Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+// 🚛 მანქანის მარკერი (ლურჯი)
+const vehicleIcon = new Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/746/746776.png',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32]
+  iconSize: [36, 36],
+  iconAnchor: [18, 36],
+  popupAnchor: [0, -36]
 })
 
-const stopIcon = new Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-  popupAnchor: [0, -24]
+// 📍 სტანდარტული მარკერი (ყვითელი)
+const defaultIcon = new Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
 })
 
-const warehouseIcon = new Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/3159/3159517.png',
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-  popupAnchor: [0, -28]
-})
-
-interface Location {
+export interface MapLocation {
   id: string
   name: string
   address: string
   lat: number
   lng: number
-  type: 'warehouse' | 'stop' | 'vehicle'
+  type: 'pickup' | 'delivery' | 'vehicle' | 'stop'
   status?: 'pending' | 'completed' | 'in_transit'
   time?: string
+  routeId?: string
+}
+
+export interface RoutePath {
+  id: string
+  path: [number, number][]
+  color?: string
 }
 
 interface RouteMapProps {
-  locations: Location[]
-  routePath?: [number, number][]
+  locations: MapLocation[]
+  routePaths?: RoutePath[]
   center?: [number, number]
   zoom?: number
-  onLocationClick?: (location: Location) => void
+  onLocationClick?: (location: MapLocation) => void
 }
 
 export default function RouteMap({ 
   locations, 
-  routePath, 
+  routePaths = [],
   center = [42.31, 43.35] as [number, number],
-  zoom = 8,
+  zoom = 7,
   onLocationClick 
 }: RouteMapProps) {
   const [mapReady, setMapReady] = useState(false)
@@ -58,12 +82,21 @@ export default function RouteMap({
     setMapReady(true)
   }, [])
 
+  const getIcon = (type: MapLocation['type']) => {
+    switch (type) {
+      case 'pickup': return pickupIcon
+      case 'delivery': return deliveryIcon
+      case 'vehicle': return vehicleIcon
+      default: return defaultIcon
+    }
+  }
+
   if (!mapReady) {
     return (
-      <div className="w-full h-full bg-gray-100 rounded-xl flex items-center justify-center">
+      <div className="w-full h-full bg-slate-100 rounded-2xl flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-2 animate-bounce">️</div>
-          <p className="text-gray-600">რუკა იტვირთება...</p>
+          <div className="text-6xl mb-4 animate-bounce">🗺️</div>
+          <p className="text-slate-600 font-medium">რუკა იტვირთება...</p>
         </div>
       </div>
     )
@@ -74,7 +107,7 @@ export default function RouteMap({
       center={center}
       zoom={zoom}
       scrollWheelZoom={true}
-      className="w-full h-full rounded-xl z-0"
+      className="w-full h-full z-0"
       style={{ minHeight: '500px' }}
     >
       <TileLayer
@@ -82,27 +115,24 @@ export default function RouteMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {routePath && routePath.length > 1 && (
+      {/* მარშრუტის ხაზები */}
+      {routePaths.map((routePath) => (
         <Polyline
-          positions={routePath}
-          color="#3b82f6"
+          key={routePath.id}
+          positions={routePath.path}
+          color={routePath.color || '#3b82f6'}
           weight={4}
           opacity={0.8}
           dashArray="10, 10"
         />
-      )}
+      ))}
 
+      {/* ლოკაციები */}
       {locations.map((location) => (
         <Marker
           key={location.id}
           position={[location.lat, location.lng] as LatLngExpression}
-          icon={
-            location.type === 'warehouse' 
-              ? warehouseIcon 
-              : location.type === 'vehicle'
-              ? truckIcon
-              : stopIcon
-          }
+          icon={getIcon(location.type)}
           eventHandlers={{
             click: () => onLocationClick?.(location)
           }}
@@ -112,7 +142,7 @@ export default function RouteMap({
               <h3 className="font-bold text-sm mb-1">{location.name}</h3>
               <p className="text-xs text-gray-600 mb-2">{location.address}</p>
               {location.time && (
-                <p className="text-xs text-blue-600 mb-2">⏰ {location.time}</p>
+                <p className="text-xs text-blue-600 mb-2">📍 {location.time}</p>
               )}
               {location.status && (
                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
