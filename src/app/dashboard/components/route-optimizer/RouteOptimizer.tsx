@@ -1,9 +1,22 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import RouteMap from './RouteMap'
+import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase/client'
 import { getCityCoordinates, calculateDistance } from '@/lib/locations'
+
+// ✅ Dynamic import - SSR-ის გარეშე (Leaflet-ის პრობლემის გამოსავალი)
+const RouteMap = dynamic(() => import('./RouteMap'), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-slate-100 rounded-2xl flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-6xl mb-4 animate-bounce">🗺️</div>
+        <p className="text-slate-600 font-medium">რუკა იტვირთება...</p>
+      </div>
+    </div>
+  )
+})
 
 interface Route {
   id: string
