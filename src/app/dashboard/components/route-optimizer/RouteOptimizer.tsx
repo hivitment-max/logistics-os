@@ -3,44 +3,33 @@
 import { useState, useEffect } from 'react'
 import RouteMap from './RouteMap'
 import { supabase } from '@/lib/supabase/client'
+import { getCityCoordinates, calculateDistance } from '@/lib/locations'
 
 interface Route {
   id: string
+  trackingCode: string
   vehicleId: string
   plateNumber: string
   driverName: string
+  driverPhone: string
   from: string
   to: string
+  fromCoords: { lat: number; lng: number }
+  toCoords: { lat: number; lng: number }
   distance: number
+  weight: number
   status: 'pending' | 'in_transit' | 'delivered'
+  driverResponse: 'pending' | 'accepted' | 'rejected'
   createdAt: string
-  timeline: {
-    time: string
-    event: string
-    status: 'completed' | 'current' | 'pending'
-  }[]
-}
-
-interface Location {
-  id: string
-  name: string
-  address: string
-  lat: number
-  lng: number
-  type: 'warehouse' | 'stop' | 'vehicle'
-  status?: 'pending' | 'completed' | 'in_transit'
-  time?: string
-  routeId?: string
+  assignedAt: string | null
 }
 
 export default function RouteOptimizer() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [routes, setRoutes] = useState<Route[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
 
-  // მონაცემების ჩატვირთვა ბაზიდან
   useEffect(() => {
     loadRoutes()
   }, [])
@@ -49,7 +38,6 @@ export default function RouteOptimizer() {
     try {
       setLoading(true)
       
-      // შეკვეთების ჩატვირთვა მანქანებით და მძღოლებით
       const { data: orders, error } = await supabase
         .from('orders')
         .select(`
@@ -57,74 +45,42 @@ export default function RouteOptimizer() {
           vehicle:vehicle_id(plate_number, model),
           driver:driver_id(full_name, phone)
         `)
-        .in('status', ['assigned', 'in_transit', 'dispatched'])
+        .in('status', ['assigned', 'in_transit', 'delivered'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      // მარშრუტების ფორმატირება
-      const formattedRoutes: Route[] = (orders || []).map((order: any) => ({
-        id: order.id,
-        vehicleId: order.vehicle?.plate_number || 'N/A',
-        plateNumber: order.vehicle?.plate_number || 'N/A',
-        driverName: order.driver?.full_name || 'მძღოლი არ არის',
-        from: order.pickup_city || order.pickup_address || 'თბილისი',
-        to: order.delivery_city || order.delivery_address || 'ბათუმი',
-        distance: Math.floor(Math.random() * 500) + 50, // TODO: რეალური მანძილი
-        status: order.status === 'assigned' ? 'pending' : 
-                order.status === 'in_transit' ? 'in_transit' : 'delivered',
-        createdAt: order.created_at,
-        timeline: [
-          { 
-            time: new Date(order.created_at).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' }), 
-            event: 'შეკვეთა შეიქმნა', 
-            status: 'completed' 
-          },
-          { 
-            time: order.assigned_at ? new Date(order.assigned_at).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' }) : '-', 
-            event: 'მანქანას მიემატა', 
-            status: order.assigned_at ? 'completed' : 'pending' 
-          },
-          { 
-            time: '-', 
-            event: 'ატვირთვა', 
-            status: 'pending' 
-          },
-          { 
-            time: '-', 
-            event: 'გზაში', 
-            status: 'pending' 
-          },
-          { 
-            time: '-', 
-            event: 'მიწოდება', 
-            status: 'pending' 
-          }
-        ]
-      }))
-
-      setRoutes(formattedRoutes)
-
-      // ლოკაციების ფორმატირება (TODO: რეალური კოორდინატები)
-      const formattedLocations: Location[] = (orders || []).map((order: any, idx: number) => {
-        // TODO: აქ უნდა იყოს რეალური გეოკოდინგი მისამართებიდან
-        const baseLat = 41.7 + (idx * 0.5)
-        const baseLng = 44.7 + (idx * 0.3)
+      const formattedRoutes: Route[] = (orders || []).map((order: any) => {
+        const fromCity = order.pickup_city || 'თბილისი'
+        const toCity = order.delivery_city || 'ბათუმი'
         
         return {
           id: order.id,
-          name: `${order.tracking_code || `შეკვეთა ${idx + 1}`}`,
-          address: `${order.pickup_city || order.pickup_address} → ${order.delivery_city || order.delivery_address}`,
-          lat: baseLat,
-          lng: baseLng,
-          type: 'stop',
-          status: order.status === 'in_transit' ? 'in_transit' : 'pending',
-          routeId: order.id
+          trackingCode: order.tracking_code || 'N/A',
+          vehicleId: order.vehicle_id || 'N/A',
+          plateNumber: order.vehicle?.plate_number || 'N/A',
+          driverName: order.driver?.full_name || 'მძღოლი არ არის',
+          driverPhone: order.driver?.phone || '-',
+          from: fromCity,
+          to: toCity,
+          fromCoords: getCityCoordinates(fromCity),
+          toCoords: getCityCoordinates(toCity),
+          distance: calculateDistance(
+            getCityCoordinates(fromCity).lat,
+            getCityCoordinates(fromCity).lng,
+            getCityCoordinates(toCity).lat,
+            getCityCoordinates(toCity).lng
+          ),
+          weight: parseFloat(order.cargo_weight_kg) || 0,
+          status: order.status === 'assigned' ? 'pending' : 
+                  order.status === 'in_transit' ? 'in_transit' : 'delivered',
+          driverResponse: order.driver_response || 'pending',
+          createdAt: order.created_at,
+          assignedAt: order.assigned_at || null
         }
       })
 
-      setLocations(formattedLocations)
-
+      setRoutes(formattedRoutes)
     } catch (error: any) {
       console.error('❌ Failed to load routes:', error)
     } finally {
@@ -137,6 +93,20 @@ export default function RouteOptimizer() {
     routes.filter(r => r.status === 'delivered')
 
   const selectedRouteData = routes.find(r => r.id === selectedRoute)
+
+  // რუკის ლოკაციები
+  const mapLocations = routes.map((route) => ({
+    id: route.id,
+    name: `${route.trackingCode} - ${route.plateNumber}`,
+    address: `${route.from} → ${route.to}`,
+    lat: route.fromCoords.lat,
+    lng: route.fromCoords.lng,
+    type: 'stop' as const,
+    status: route.status === 'in_transit' ? 'in_transit' : 
+            route.status === 'delivered' ? 'completed' : 'pending',
+    time: route.distance + ' კმ',
+    routeId: route.id
+  }))
 
   if (loading) {
     return (
@@ -164,35 +134,33 @@ export default function RouteOptimizer() {
               </svg>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">🗺️ მარშრუტების ოპტიმიზაცია</h1>
+              <h1 className="text-2xl font-bold text-slate-800">️ მარშრუტების ოპტიმიზაცია</h1>
               <p className="text-sm text-slate-500 mt-1">
                 აქტიური მარშრუტები: {routes.filter(r => r.status === 'in_transit' || r.status === 'pending').length}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={loadRoutes}
-              className="p-2 hover:bg-white/50 rounded-lg transition"
-              title="განახლება"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          </div>
+          <button 
+            onClick={loadRoutes}
+            className="p-2 hover:bg-white/50 rounded-lg transition"
+            title="განახლება"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
 
         {/* Main Grid */}
         <div className="grid grid-cols-12 gap-6">
-          {/* Left Panel - Routes List */}
+          {/* Left Panel */}
           <div className="col-span-5 space-y-4">
-            {/* Routes Table */}
+            {/* Routes List */}
             <div className="bg-white/80 backdrop-blur rounded-2xl p-6 shadow-lg border border-white/50">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-700">აქტიური მარშრუტები</h2>
-                  <p className="text-xs text-slate-500 mt-1">🚛 სულ: {routes.length}</p>
+                  <p className="text-xs text-slate-500 mt-1"> სულ: {routes.length}</p>
                 </div>
               </div>
 
@@ -224,7 +192,7 @@ export default function RouteOptimizer() {
                 </button>
               </div>
 
-              {/* Routes List */}
+              {/* Routes */}
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {filteredRoutes.length === 0 ? (
                   <div className="text-center py-8 text-slate-500">
@@ -244,7 +212,7 @@ export default function RouteOptimizer() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-lg">🚛</span>
+                          <span className="text-lg"></span>
                           <div>
                             <p className="text-sm font-bold text-slate-800">
                               {route.plateNumber}
@@ -253,7 +221,7 @@ export default function RouteOptimizer() {
                               {route.from} → {route.to}
                             </p>
                             <p className="text-[10px] text-slate-400 mt-0.5">
-                              👨‍️ {route.driverName}
+                              👨‍✈️ {route.driverName} · ⚖️ {route.weight} კგ
                             </p>
                           </div>
                         </div>
@@ -265,8 +233,11 @@ export default function RouteOptimizer() {
                           }`}>
                             {route.status === 'in_transit' ? '🚚 გზაში' :
                              route.status === 'delivered' ? '✅ მიწოდებული' :
-                             '⏳ ოდინში'}
+                             '⏳ ლოდინში'}
                           </span>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            📍 {route.distance} კმ
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -288,16 +259,33 @@ export default function RouteOptimizer() {
                   </div>
                 </div>
 
-                <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs text-slate-600">
-                    <span className="font-semibold">მძღოლი:</span> {selectedRouteData.driverName}
-                  </p>
+                <div className="space-y-2 mb-4">
+                  <div className="p-3 bg-slate-50 rounded-lg">
+                    <p className="text-xs text-slate-600">
+                      <span className="font-semibold">📦 შეკვეთა:</span> {selectedRouteData.trackingCode}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      <span className="font-semibold">👨‍✈️ მძღოლი:</span> {selectedRouteData.driverName}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      <span className="font-semibold">📞 ტელეფონი:</span> {selectedRouteData.driverPhone}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      <span className="font-semibold">⚖️ წონა:</span> {selectedRouteData.weight} კგ
+                    </p>
+                  </div>
                 </div>
 
                 {/* Timeline */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-slate-700 mb-2">მარშრუტის სტატუსი</h4>
-                  {selectedRouteData.timeline.map((event, idx) => (
+                  {[
+                    { time: new Date(selectedRouteData.createdAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' }), event: 'შეკვეთა შეიქმნა', status: 'completed' as const },
+                    { time: selectedRouteData.assignedAt ? new Date(selectedRouteData.assignedAt).toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' }) : '-', event: 'მანქანას მიემატა', status: selectedRouteData.assignedAt ? 'completed' : 'pending' as const },
+                    { time: '-', event: 'მძღოლმა დაადასტურა', status: selectedRouteData.driverResponse === 'accepted' ? 'completed' : 'pending' as const },
+                    { time: '-', event: 'გზაში', status: selectedRouteData.status === 'in_transit' ? 'current' : 'pending' as const },
+                    { time: '-', event: 'მიწოდებული', status: selectedRouteData.status === 'delivered' ? 'completed' : 'pending' as const }
+                  ].map((event, idx) => (
                     <div key={idx} className="flex items-start gap-3">
                       <div className="flex flex-col items-center">
                         <div className={`w-2 h-2 rounded-full ${
@@ -305,7 +293,7 @@ export default function RouteOptimizer() {
                           event.status === 'current' ? 'bg-blue-500 animate-pulse' :
                           'bg-slate-300'
                         }`}></div>
-                        {idx < selectedRouteData.timeline.length - 1 && (
+                        {idx < 4 && (
                           <div className="w-0.5 h-8 bg-slate-200 mt-1"></div>
                         )}
                       </div>
@@ -334,7 +322,7 @@ export default function RouteOptimizer() {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/80 backdrop-blur rounded-2xl p-6 shadow-lg border border-white/50">
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">აქტიური მარშრუტები</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">აქტიური</h3>
                 <p className="text-3xl font-bold text-blue-600">
                   {routes.filter(r => r.status === 'in_transit').length}
                 </p>
@@ -351,16 +339,16 @@ export default function RouteOptimizer() {
           {/* Right Panel - Map */}
           <div className="col-span-7">
             <div className="bg-white/80 backdrop-blur rounded-2xl shadow-lg border border-white/50 overflow-hidden h-[800px]">
-              {locations.length > 0 ? (
+              {routes.length > 0 ? (
                 <RouteMap
-                  locations={locations}
-                  center={[42.0, 43.0]} // საქართველო
+                  locations={mapLocations}
+                  center={[42.0, 43.0]}
                   zoom={7}
                 />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-500">
                   <div className="text-center">
-                    <div className="text-6xl mb-4">🗺️</div>
+                    <div className="text-6xl mb-4">️</div>
                     <p className="font-medium">მარშრუტები არ არის</p>
                     <p className="text-sm mt-2">შექმენი შეკვეთა და მიუბმი მანქანას</p>
                   </div>
