@@ -498,6 +498,99 @@
 }
 
 /* ============================================================================
+   🗺️ LEAFLET MAP STYLES - რუკის სტილები
+   ============================================================================ */
+
+/* რუკის კონტეინერი */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  font-family: inherit;
+}
+
+/* რუკის კონტეინერი RouteOptimizer-ში */
+.leaflet-container {
+  border-radius: 0.75rem;
+}
+
+/* Popup სტილიზაცია */
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+}
+
+.leaflet-popup-tip {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+/* მარკერების ანიმაცია */
+.leaflet-marker-icon {
+  transition: transform 0.2s ease;
+}
+
+.leaflet-marker-icon:hover {
+  transform: scale(1.1);
+}
+
+/* რუკის კონტროლები (zoom, fullscreen) */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a {
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+  color: #374151 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: white !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #f3f4f6 !important;
+  color: #1f2937 !important;
+}
+
+/* Attribution */
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.8) !important;
+  padding: 2px 8px !important;
+  border-radius: 0.25rem !important;
+  font-size: 10px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #3b82f6 !important;
+}
+
+/* Polyline (მარშრუტის ხაზი) */
+.leaflet-interactive {
+  transition: stroke-width 0.2s ease;
+}
+
+/* რუკის ტილების ანიმაცია */
+.leaflet-tile {
+  transition: opacity 0.3s ease;
+}
+
+/* რუკის კონტეინერი როცა იტვირთება */
+.leaflet-container.leaflet-loading {
+  cursor: wait;
+}
+
+/* ============================================================================
    🖨️ PRINT STYLES - მხოლოდ ინვოისი
    ============================================================================ */
 @media print {

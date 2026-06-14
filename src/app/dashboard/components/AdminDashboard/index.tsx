@@ -33,7 +33,10 @@ import AuditTab from '../tabs/AuditTab'
 import SettingsTab from '../tabs/SettingsTab'
 import DispatchTab from '../tabs/DispatchTab'
 import NotificationsTab from '../tabs/NotificationsTab'
-import AITab from '../tabs/AITab' // 🤖 ახალი იმპორტი
+import AITab from '../tabs/AITab'
+
+// 🗺️ ROUTE OPTIMIZER - ახალი იმპორტი
+import RouteOptimizer from '../route-optimizer/RouteOptimizer'
 
 // ✅ მოდალების იმპორტები
 import AddVehicleModal from '../modals/vehicle/AddVehicleModal'
@@ -154,7 +157,6 @@ export default function AdminDashboard() {
       setDashboardNotifications(data || [])
       setUnreadCount((data || []).filter((n: any) => n.status === 'unread').length)
     } catch (err) {
-      // Silent fail for notifications - not critical
       console.debug('Notifications fetch skipped:', err)
     }
   }, [])
@@ -208,7 +210,7 @@ export default function AdminDashboard() {
     }
   }, [fetchDashboardNotifications])
 
-  // ✅ განახლებული მენიუს სტრუქტურა
+  // ✅ განახლებული მენიუს სტრუქტურა - დამატებულია Route Optimizer
   const menuStructure = [
     { category: 'მთავარი', items: [{ id: 'overview', icon: '📈', label: 'მიმოხილვა' }, { id: 'kpi', icon: '🎯', label: 'KPI & ანალიტიკა' }]},
     { category: 'მომხმარებლები', items: [ ...(isAdmin ? [{ id: 'users', icon: '👥', label: 'მომხმარებლები' }] : []), { id: 'roles', icon: '🔑', label: 'როლები' } ]},
@@ -217,7 +219,8 @@ export default function AdminDashboard() {
       { id: 'vehicles', icon: '🚐', label: 'მანქანები' }, 
       { id: 'drivers', icon: '👨‍✈️', label: 'მძღოლები' }, 
       { id: 'orders', icon: '📦', label: 'შეკვეთები' }, 
-      { id: 'tracking', icon: '📍', label: 'ტრეკინგი' }
+      { id: 'tracking', icon: '📍', label: 'ტრეკინგი' },
+      { id: 'route_optimizer', icon: '🗺️', label: 'მარშრუტები' } // 🗺️ ახალი!
     ]},
     { category: 'დამკვეთები', items: [{ id: 'private_clients', icon: '👤', label: 'კერძო პირი' }, { id: 'companies', icon: '🏢', label: 'კომპანია' }]},
     { category: 'ფინანსები', items: [
@@ -229,7 +232,7 @@ export default function AdminDashboard() {
     { category: 'სისტემა', items: [
       { id: 'audit', icon: '📜', label: 'აუდიტი' }, 
       { id: 'api', icon: '🔌', label: 'API' }, 
-      { id: 'ai', icon: '🤖', label: 'AI აგენტი' }, // 🤖 ახალი ტაბი
+      { id: 'ai', icon: '🤖', label: 'AI აგენტი' },
       { id: 'settings', icon: '⚙️', label: 'პარამეტრები' }
     ]},
     { category: 'შეტყობინებები', items: [{ id: 'notifications', icon: '📢', label: 'შეტყობინებები' }]},
@@ -256,7 +259,7 @@ export default function AdminDashboard() {
   const getCurrentItem = () => menuStructure.flatMap((g: any) => g.items).find((i: any) => i.id === activeTab) || { icon: '📄', label: 'გვერდი' }
   const currentItem = getCurrentItem()
 
-  // 🚗 მძღოლის მინიჭება მანქანას — ✅ განახლებული logAudit-ით (3 არგუმენტი)
+  // 🚗 მძღოლის მინიჭება მანქანას
   const handleAssignDriver = useCallback(async (vehicleId: string, driverId: string) => {
     try {
       const { error } = await supabase
@@ -269,11 +272,10 @@ export default function AdminDashboard() {
       
       if (error) throw error
       
-      // ✅ განახლებული: 3 არგუმენტი logAudit-ისთვის
       await logAudit(
         'update', 
-        `vehicles/${vehicleId}`,  // target: vehicles/abc123
-        `მძღოლი ${driverId ? 'მინიჭებული' : 'მოხსნილი'}: ${driverId || 'none'}`  // details
+        `vehicles/${vehicleId}`,
+        `მძღოლი ${driverId ? 'მინიჭებული' : 'მოხსნილი'}: ${driverId || 'none'}`
       )
       
       loadData()
@@ -284,14 +286,10 @@ export default function AdminDashboard() {
     }
   }, [loadData, logAudit, showNotification])
 
-  // 📸 ფოტოების განახლება - გასწორებული ვერსია ბაზის ტიპებისთვის
+  // 📸 ფოტოების განახლება
   const handleUpdateVehiclePhotos = useCallback(async (vehicleId: string, photos: string[]) => {
     try {
-      // 🔍 ვარიანტი 1: თუ photo_urls არის TEXT (კომა-გამოყოფილი სტრიქონი)
       const photoUrlsValue = photos.length > 0 ? photos.join(',') : null
-      
-      // ვარიანტი 2: თუ photo_urls არის JSONB ან TEXT[] (მასივი) - გააკომენტარე ზემოთ და გააუქომენტარე ეს:
-      // const photoUrlsValue = photos.length > 0 ? photos : null
 
       const { data, error } = await supabase
         .from('vehicles')
@@ -300,7 +298,7 @@ export default function AdminDashboard() {
           updated_at: new Date().toISOString()
         })
         .eq('id', vehicleId)
-        .select() // ✅ დაბრუნება დებაგინგისთვის
+        .select()
       
       if (error) {
         console.error('Supabase update error:', error)
@@ -316,7 +314,7 @@ export default function AdminDashboard() {
     }
   }, [showNotification])
 
-  // ✅ განახლებული renderContent
+  // ✅ განახლებული renderContent - დამატებულია route_optimizer
   const renderContent = () => {
     if (activeTab === 'dispatch') return (
       <DispatchTab 
@@ -342,19 +340,20 @@ export default function AdminDashboard() {
     if (activeTab === 'tracking') return <TrackingTab />
     if (activeTab === 'audit') return <AuditTab />
     if (activeTab === 'settings') return <SettingsTab />
-    if (activeTab === 'ai') return <AITab /> // 🤖 ახალი ტაბი
+    if (activeTab === 'ai') return <AITab />
+    
+    // 🗺️ ROUTE OPTIMIZER - ახალი ტაბი
+    if (activeTab === 'route_optimizer') return <RouteOptimizer />
     
     if (activeTab === 'notifications') {
       return <NotificationsTab showNotification={showNotification} />
     }
     
-    // ✅ ✅ ✅ განახლებული InvoicesTab - მხოლოდ კომპონენტი, პროპების გარეშე!
     if (activeTab === 'invoices') return <InvoicesTab />
     
     if (activeTab === 'payroll') return <PayrollTab />
     if (activeTab === 'expenses') return <ExpensesTab />
     
-    // ✅ განახლებული VehiclesTab - ყველა ახალი პროპით
     if (activeTab === 'vehicles') return (
       <VehiclesTab 
         vehicles={vehiclesData} 
@@ -363,11 +362,9 @@ export default function AdminDashboard() {
         onDelete={vehicles.handleDeleteVehicleClick} 
         onAdd={() => vehicles.setShowAddVehicleModal(true)} 
         onPrint={(v) => setPrintVehicle(v)}
-        // 👥 Drag & Drop პროპები:
         drivers={drivers}
         onAssignDriver={(vehicleId, driverId) => handleAssignDriver(vehicleId, driverId)}
         onUnassignDriver={(vehicleId) => handleAssignDriver(vehicleId, '')}
-        // 📸 ფოტოების პროპი:
         onUpdateVehiclePhotos={handleUpdateVehiclePhotos}
       />
     )
@@ -576,10 +573,8 @@ export default function AdminDashboard() {
             <div className="px-5 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800"><h3 className="text-sm font-bold text-white flex items-center gap-2">👨‍✈️ ახალი მძღოლის რეგისტრაცია</h3><button onClick={() => driversHook.setShowAddDriverModal(false)} className="text-gray-400 hover:text-white text-xl transition">&times;</button></div>
             <form onSubmit={driversHook.handleAddDriver} className="p-5 overflow-y-auto space-y-6">
               
-              {/* Employment Type Tabs */}
               <div className="flex bg-gray-700/30 p-1 rounded-lg mb-2">{['internal', 'contractor'].map(type => (<button type="button" key={type} onClick={() => driversHook.setDriverForm({...driversHook.driverForm, employment_type: type})} className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase tracking-wide transition ${driversHook.driverForm.employment_type === type ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>{type === 'internal' ? '🏢 კომპანიის მძღოლი' : '🤝 კონტრაქტით'}</button>))}</div>
               
-              {/* 🔴 Section 1: Critical Info */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50"><SectionHeader title="🔴 კრიტიკულად აუცილებელი" icon="📋" color="text-red-400" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="სრული სახელი" hint="სახელი და გვარი" required value={driversHook.driverForm.full_name} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, full_name:e.target.value})} />
                 <FormField label="დაბადების თარიღი" type="date" required value={driversHook.driverForm.dob} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, dob:e.target.value})} />
@@ -592,14 +587,12 @@ export default function AdminDashboard() {
                 <FormField label="ვადა" type="date" required value={driversHook.driverForm.license_expiry} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, license_expiry:e.target.value})} />
               </div></div>
               
-              {/* 🟡 Section 2: Operational */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50"><SectionHeader title="🟡 საოპერაციო და ფინანსური" icon="⚙️" color="text-yellow-400" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="გამოცდილება (წლები)" type="number" value={driversHook.driverForm.total_experience_years} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, total_experience_years:e.target.value})} />
                 <div className="col-span-2"><label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wide">სპეციალური უნარები</label><textarea rows={1} value={driversHook.driverForm.special_experience} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, special_experience:e.target.value})} placeholder="მაგ: მაცივარი..." className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-xs text-white outline-none focus:border-blue-500 transition resize-none" /></div>
                 <FormField checkbox label="ADR სერტიფიკატი" value={driversHook.driverForm.has_adr} onChange={(e:any)=>driversHook.setDriverForm({...driversHook.driverForm, has_adr:e.target.checked})} />
               </div></div>
 
-              {/* 💰 Section 3: Financial Details */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="💰 ფინანსური დეტალები" icon="💸" color="text-emerald-400" />
                 <p className="text-[10px] text-gray-400 mb-3">ეს მონაცემები გამოიყენება ავტომატური ანგარიშსწორებისთვის.</p>
@@ -655,7 +648,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* 🔔 Section 4: Notifications & Communication */}
               <div className="bg-gray-900/20 p-4 rounded-xl border border-gray-700/50">
                 <SectionHeader title="🔔 შეტყობინებები & კომუნიკაცია" icon="📱" color="text-purple-400" />
                 <p className="text-[10px] text-gray-400 mb-3">მითითებული მონაცემებით სისტემა ავტომატურად გაუგზავნის შეტყობინებებს.</p>
@@ -704,7 +696,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Footer Buttons */}
               <div className="flex gap-3 pt-4 border-t border-gray-700 mt-2"><button type="button" onClick={() => driversHook.setShowAddDriverModal(false)} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition">გაუქმება</button><button type="submit" className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-bold transition shadow-lg shadow-green-500/20">💾 რეგისტრაცია</button></div>
             </form>
           </div>
