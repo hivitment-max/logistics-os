@@ -72,9 +72,9 @@ export default function RouteOptimizer() {
             getCityCoordinates(toCity).lng
           ),
           weight: parseFloat(order.cargo_weight_kg) || 0,
-          status: order.status === 'assigned' ? 'pending' : 
-                  order.status === 'in_transit' ? 'in_transit' : 'delivered',
-          driverResponse: order.driver_response || 'pending',
+          status: (order.status === 'assigned' ? 'pending' : 
+                  order.status === 'in_transit' ? 'in_transit' : 'delivered') as 'pending' | 'in_transit' | 'delivered',
+          driverResponse: (order.driver_response || 'pending') as 'pending' | 'accepted' | 'rejected',
           createdAt: order.created_at,
           assignedAt: order.assigned_at || null
         }
@@ -94,7 +94,7 @@ export default function RouteOptimizer() {
 
   const selectedRouteData = routes.find(r => r.id === selectedRoute)
 
-  // რუკის ლოკაციები
+  // ✅ რუკის ლოკაციები - სწორი ტიპებით
   const mapLocations = routes.map((route) => ({
     id: route.id,
     name: `${route.trackingCode} - ${route.plateNumber}`,
@@ -102,8 +102,8 @@ export default function RouteOptimizer() {
     lat: route.fromCoords.lat,
     lng: route.fromCoords.lng,
     type: 'stop' as const,
-    status: route.status === 'in_transit' ? 'in_transit' : 
-            route.status === 'delivered' ? 'completed' : 'pending',
+    status: (route.status === 'in_transit' ? 'in_transit' : 
+             route.status === 'delivered' ? 'completed' : 'pending') as 'in_transit' | 'completed' | 'pending',
     time: route.distance + ' კმ',
     routeId: route.id
   }))
@@ -134,7 +134,7 @@ export default function RouteOptimizer() {
               </svg>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">️ მარშრუტების ოპტიმიზაცია</h1>
+              <h1 className="text-2xl font-bold text-slate-800">🗺️ მარშრუტების ოპტიმიზაცია</h1>
               <p className="text-sm text-slate-500 mt-1">
                 აქტიური მარშრუტები: {routes.filter(r => r.status === 'in_transit' || r.status === 'pending').length}
               </p>
@@ -160,7 +160,7 @@ export default function RouteOptimizer() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-700">აქტიური მარშრუტები</h2>
-                  <p className="text-xs text-slate-500 mt-1"> სულ: {routes.length}</p>
+                  <p className="text-xs text-slate-500 mt-1">🚛 სულ: {routes.length}</p>
                 </div>
               </div>
 
@@ -212,7 +212,7 @@ export default function RouteOptimizer() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-lg"></span>
+                          <span className="text-lg">🚛</span>
                           <div>
                             <p className="text-sm font-bold text-slate-800">
                               {route.plateNumber}
@@ -348,7 +348,7 @@ export default function RouteOptimizer() {
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-500">
                   <div className="text-center">
-                    <div className="text-6xl mb-4">️</div>
+                    <div className="text-6xl mb-4">🗺️</div>
                     <p className="font-medium">მარშრუტები არ არის</p>
                     <p className="text-sm mt-2">შექმენი შეკვეთა და მიუბმი მანქანას</p>
                   </div>
