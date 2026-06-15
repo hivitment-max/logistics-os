@@ -125,6 +125,7 @@ const SECTIONS = [
   { id: 'company', icon: '🏢', title: 'კომპანიის პროფილი' },
   { id: 'email_notifications', icon: '📧', title: 'Email შეტყობინებები' },
   { id: 'orders_display', icon: '📋', title: 'შეკვეთების სვეტები' },
+  { id: 'pricing', icon: '💰', title: 'ფასების გამოთვლა' },
   { id: 'security', icon: '🔐', title: 'უსაფრთხოება & წვდომა' },
   { id: 'localization', icon: '🌍', title: 'ლოკალიზაცია & ფორმატები' },
   { id: 'integrations', icon: '🔌', title: 'ინტეგრაციები & API' },
@@ -161,6 +162,22 @@ interface Settings {
   email_enabled_driver_en_route: boolean
   email_enabled_cargo_loaded: boolean
   email_enabled_order_delivered: boolean
+  // 💰 Pricing Settings
+  pricing_base_price: number
+  pricing_min_price: number
+  pricing_max_price: number
+  pricing_rate_short_haul: number
+  pricing_rate_medium_haul: number
+  pricing_rate_long_haul: number
+  pricing_rate_per_kg: number
+  pricing_rate_per_m3: number
+  pricing_volume_weight_factor: number
+  pricing_fuel_surcharge_per_km: number
+  pricing_toll_fee_flat: number
+  pricing_waiting_time_per_hour: number
+  pricing_special_handling_adr: number
+  pricing_special_handling_refrigerated: number
+  pricing_discount_percentage: number
   extra_config: Record<string, any>
 }
 
@@ -194,8 +211,100 @@ const getDefaultSettings = (): Settings => ({
   email_enabled_driver_en_route: true,
   email_enabled_cargo_loaded: true,
   email_enabled_order_delivered: true,
+  // 💰 Pricing Settings
+  pricing_base_price: 50,
+  pricing_min_price: 30,
+  pricing_max_price: 5000,
+  pricing_rate_short_haul: 0.80,
+  pricing_rate_medium_haul: 0.50,
+  pricing_rate_long_haul: 0.30,
+  pricing_rate_per_kg: 0.10,
+  pricing_rate_per_m3: 5.00,
+  pricing_volume_weight_factor: 333,
+  pricing_fuel_surcharge_per_km: 0.05,
+  pricing_toll_fee_flat: 10,
+  pricing_waiting_time_per_hour: 15,
+  pricing_special_handling_adr: 50,
+  pricing_special_handling_refrigerated: 75,
+  pricing_discount_percentage: 0,
   extra_config: {}
 })
+
+// ============================================================================
+// 💰 ფასების გამოთვლის ფუნქცია
+// ============================================================================
+function calculatePrice(params: {
+  distance_km: number
+  weight_kg: number
+  volume_m3: number
+  settings: Settings
+}): {
+  base_price: number
+  distance_fee: number
+  weight_fee: number
+  volume_fee: number
+  subtotal: number
+  extra_fees: number
+  discount: number
+  total: number
+} {
+  const { distance_km, weight_kg, volume_m3, settings } = params
+
+  // ბაზის ფასი
+  const base_price = settings.pricing_base_price
+
+  // მანძილის ფასი (ზონური)
+  let distance_fee = 0
+  if (distance_km < 100) {
+    distance_fee = distance_km * settings.pricing_rate_short_haul
+  } else if (distance_km < 500) {
+    distance_fee = (100 * settings.pricing_rate_short_haul) + 
+                   ((distance_km - 100) * settings.pricing_rate_medium_haul)
+  } else {
+    distance_fee = (100 * settings.pricing_rate_short_haul) + 
+                   (400 * settings.pricing_rate_medium_haul) + 
+                   ((distance_km - 500) * settings.pricing_rate_long_haul)
+  }
+
+  // მოცულობითი წონა
+  const volume_weight = volume_m3 * settings.pricing_volume_weight_factor
+  const chargeable_weight = Math.max(weight_kg, volume_weight)
+
+  // წონის ფასი
+  const weight_fee = chargeable_weight * settings.pricing_rate_per_kg
+
+  // მოცულობის ფასი
+  const volume_fee = volume_m3 * settings.pricing_rate_per_m3
+
+  // ჯამი
+  const subtotal = base_price + distance_fee + weight_fee + volume_fee
+
+  // დამატებითი ხარჯები (საწვავი + გზასაკეტი)
+  const extra_fees = (distance_km * settings.pricing_fuel_surcharge_per_km) + 
+                     settings.pricing_toll_fee_flat
+
+  // ფასდაკლება
+  const total_before_discount = subtotal + extra_fees
+  const discount = total_before_discount * (settings.pricing_discount_percentage / 100)
+
+  // საბოლოო ფასი
+  let total = total_before_discount - discount
+
+  // მინ/მაქს შეზღუდვები
+  if (total < settings.pricing_min_price) total = settings.pricing_min_price
+  if (total > settings.pricing_max_price) total = settings.pricing_max_price
+
+  return {
+    base_price: Math.round(base_price * 100) / 100,
+    distance_fee: Math.round(distance_fee * 100) / 100,
+    weight_fee: Math.round(weight_fee * 100) / 100,
+    volume_fee: Math.round(volume_fee * 100) / 100,
+    subtotal: Math.round(subtotal * 100) / 100,
+    extra_fees: Math.round(extra_fees * 100) / 100,
+    discount: Math.round(discount * 100) / 100,
+    total: Math.round(total * 100) / 100
+  }
+}
 
 // ============================================================================
 // 👑 MAIN COMPONENT
@@ -211,6 +320,12 @@ export default function SettingsTab() {
   const [testEmail, setTestEmail] = useState('')
   const [testLoading, setTestLoading] = useState(false)
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null)
+
+  // 💰 Pricing test state
+  const [testDistance, setTestDistance] = useState(150)
+  const [testWeight, setTestWeight] = useState(500)
+  const [testVolume, setTestVolume] = useState(2)
+  const [testResult2, setTestResult2] = useState<ReturnType<typeof calculatePrice> | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -231,6 +346,23 @@ export default function SettingsTab() {
         // 🆕 Email defaults
         if (!loadedSettings.email_from) loadedSettings.email_from = 'Logistics OS <onboarding@resend.dev>'
         if (!loadedSettings.email_company_name) loadedSettings.email_company_name = 'Logistics OS'
+        // 💰 Pricing defaults
+        const defaults = getDefaultSettings()
+        if (loadedSettings.pricing_base_price === undefined) loadedSettings.pricing_base_price = defaults.pricing_base_price
+        if (loadedSettings.pricing_min_price === undefined) loadedSettings.pricing_min_price = defaults.pricing_min_price
+        if (loadedSettings.pricing_max_price === undefined) loadedSettings.pricing_max_price = defaults.pricing_max_price
+        if (loadedSettings.pricing_rate_short_haul === undefined) loadedSettings.pricing_rate_short_haul = defaults.pricing_rate_short_haul
+        if (loadedSettings.pricing_rate_medium_haul === undefined) loadedSettings.pricing_rate_medium_haul = defaults.pricing_rate_medium_haul
+        if (loadedSettings.pricing_rate_long_haul === undefined) loadedSettings.pricing_rate_long_haul = defaults.pricing_rate_long_haul
+        if (loadedSettings.pricing_rate_per_kg === undefined) loadedSettings.pricing_rate_per_kg = defaults.pricing_rate_per_kg
+        if (loadedSettings.pricing_rate_per_m3 === undefined) loadedSettings.pricing_rate_per_m3 = defaults.pricing_rate_per_m3
+        if (loadedSettings.pricing_volume_weight_factor === undefined) loadedSettings.pricing_volume_weight_factor = defaults.pricing_volume_weight_factor
+        if (loadedSettings.pricing_fuel_surcharge_per_km === undefined) loadedSettings.pricing_fuel_surcharge_per_km = defaults.pricing_fuel_surcharge_per_km
+        if (loadedSettings.pricing_toll_fee_flat === undefined) loadedSettings.pricing_toll_fee_flat = defaults.pricing_toll_fee_flat
+        if (loadedSettings.pricing_waiting_time_per_hour === undefined) loadedSettings.pricing_waiting_time_per_hour = defaults.pricing_waiting_time_per_hour
+        if (loadedSettings.pricing_special_handling_adr === undefined) loadedSettings.pricing_special_handling_adr = defaults.pricing_special_handling_adr
+        if (loadedSettings.pricing_special_handling_refrigerated === undefined) loadedSettings.pricing_special_handling_refrigerated = defaults.pricing_special_handling_refrigerated
+        if (loadedSettings.pricing_discount_percentage === undefined) loadedSettings.pricing_discount_percentage = defaults.pricing_discount_percentage
         setSettings(loadedSettings)
       }
     } catch (err) {
@@ -332,6 +464,18 @@ export default function SettingsTab() {
     }
   }
 
+  // 💰 Test Pricing Function
+  const handleTestPricing = () => {
+    if (!settings) return
+    const result = calculatePrice({
+      distance_km: testDistance,
+      weight_kg: testWeight,
+      volume_m3: testVolume,
+      settings
+    })
+    setTestResult2(result)
+  }
+
   const handleSave = useCallback(async () => {
     if (!settings) return
     setIsSaving(true)
@@ -374,6 +518,275 @@ export default function SettingsTab() {
             <Input label="ტელეფონი" value={settings.company_phone} onChange={(v) => handleChange('company_phone', v)} disabled={loading || isSaving} />
             <Input label="იურიდიული მისამართი" value={settings.company_address} onChange={(v) => handleChange('company_address', v)} disabled={loading || isSaving} />
             <Input label="VAT / საგადასახადო კოდი" value={settings.vat_id} onChange={(v) => handleChange('vat_id', v)} disabled={loading || isSaving} />
+          </div>
+        )
+
+      // 💰 PRICING SECTION
+      case 'pricing':
+        return (
+          <div className="space-y-6">
+            {/* 📊 ფორმულის აღწერა */}
+            <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 rounded-xl">
+              <h3 className="text-sm font-semibold text-emerald-300 flex items-center gap-2 mb-3">
+                💰 ფასების გამოთვლის ფორმულა
+              </h3>
+              <div className="bg-gray-900/50 rounded-lg p-3 font-mono text-[10px] text-emerald-200 space-y-1">
+                <div>TOTAL_PRICE = BASE_PRICE + DISTANCE_FEE + WEIGHT_FEE + VOLUME_FEE + EXTRA_FEES - DISCOUNT</div>
+                <div className="text-gray-500 mt-2">სადაც:</div>
+                <div className="text-gray-400">• DISTANCE_FEE = ზონური ტარიფი (&lt;100კმ, 100-500კმ, &gt;500კმ)</div>
+                <div className="text-gray-400">• WEIGHT_FEE = max(რეალური_წონა, მოცულობა×333) × ტარიფი/კგ</div>
+                <div className="text-gray-400">• VOLUME_FEE = მოცულობა × ტარიფი/მ³</div>
+                <div className="text-gray-400">• EXTRA_FEES = საწვავი + გზასაკეტი + ლოდინი + სპეციალური</div>
+              </div>
+            </div>
+
+            {/* 📦 ბაზის პარამეტრები */}
+            <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-xl">
+              <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2 mb-3">
+                📦 ბაზის პარამეტრები
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input 
+                  label="ბაზის ფასი (₾)" 
+                  type="number" 
+                  value={settings.pricing_base_price} 
+                  onChange={(v) => handleChange('pricing_base_price', parseFloat(v) || 0)} 
+                  hint="ფიქსირებული საწყისი ღირებულება"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="მინიმალური ფასი (₾)" 
+                  type="number" 
+                  value={settings.pricing_min_price} 
+                  onChange={(v) => handleChange('pricing_min_price', parseFloat(v) || 0)} 
+                  hint="შეკვეთის მინიმალური ღირებულება"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="მაქსიმალური ფასი (₾)" 
+                  type="number" 
+                  value={settings.pricing_max_price} 
+                  onChange={(v) => handleChange('pricing_max_price', parseFloat(v) || 0)} 
+                  hint="შეკვეთის მაქსიმალური ღირებულება"
+                  disabled={loading || isSaving} 
+                />
+              </div>
+            </div>
+
+            {/* 📏 მანძილის ტარიფები */}
+            <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-xl">
+              <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2 mb-3">
+                📏 მანძილის ტარიფები (₾/კმ)
+              </h3>
+              <p className="text-[10px] text-gray-500 mb-3">
+                ზონური ფასები მანძილის მიხედვით. რაც უფრო გრძელი მარშრუტი, მით უფრო დაბალი ტარიფი.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input 
+                  label="მოკლე (&lt; 100 კმ)" 
+                  type="number" 
+                  value={settings.pricing_rate_short_haul} 
+                  onChange={(v) => handleChange('pricing_rate_short_haul', parseFloat(v) || 0)} 
+                  hint="მაგ: 0.80₾/კმ"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="საშუალო (100-500 კმ)" 
+                  type="number" 
+                  value={settings.pricing_rate_medium_haul} 
+                  onChange={(v) => handleChange('pricing_rate_medium_haul', parseFloat(v) || 0)} 
+                  hint="მაგ: 0.50₾/კმ"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="გრძელი (&gt; 500 კმ)" 
+                  type="number" 
+                  value={settings.pricing_rate_long_haul} 
+                  onChange={(v) => handleChange('pricing_rate_long_haul', parseFloat(v) || 0)} 
+                  hint="მაგ: 0.30₾/კმ"
+                  disabled={loading || isSaving} 
+                />
+              </div>
+            </div>
+
+            {/* ⚖️ წონა & მოცულობა */}
+            <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-xl">
+              <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2 mb-3">
+                ⚖️ წონა & მოცულობა
+              </h3>
+              <p className="text-[10px] text-gray-500 mb-3">
+                Chargeable Weight = max(რეალური_წონა, მოცულობა × ფაქტორი). სისტემა ირჩევს უფრო დიდს.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input 
+                  label="ტარიფი წონაზე (₾/კგ)" 
+                  type="number" 
+                  value={settings.pricing_rate_per_kg} 
+                  onChange={(v) => handleChange('pricing_rate_per_kg', parseFloat(v) || 0)} 
+                  hint="მაგ: 0.10₾/კგ"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="ტარიფი მოცულობაზე (₾/მ³)" 
+                  type="number" 
+                  value={settings.pricing_rate_per_m3} 
+                  onChange={(v) => handleChange('pricing_rate_per_m3', parseFloat(v) || 0)} 
+                  hint="მაგ: 5.00₾/მ³"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="მოცულობითი ფაქტორი" 
+                  type="number" 
+                  value={settings.pricing_volume_weight_factor} 
+                  onChange={(v) => handleChange('pricing_volume_weight_factor', parseFloat(v) || 0)} 
+                  hint="საგზაო: 333, საჰაერო: 167"
+                  disabled={loading || isSaving} 
+                />
+              </div>
+            </div>
+
+            {/*  დამატებითი ხარჯები */}
+            <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-xl">
+              <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2 mb-3">
+                 დამატებითი ხარჯები
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input 
+                  label="საწვავის დამატება (₾/კმ)" 
+                  type="number" 
+                  value={settings.pricing_fuel_surcharge_per_km} 
+                  onChange={(v) => handleChange('pricing_fuel_surcharge_per_km', parseFloat(v) || 0)} 
+                  hint="მაგ: 0.05₾/კმ"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="გზასაკეტი (₾)" 
+                  type="number" 
+                  value={settings.pricing_toll_fee_flat} 
+                  onChange={(v) => handleChange('pricing_toll_fee_flat', parseFloat(v) || 0)} 
+                  hint="ფიქსირებული თანხა"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="ლოდინის ტარიფი (₾/სთ)" 
+                  type="number" 
+                  value={settings.pricing_waiting_time_per_hour} 
+                  onChange={(v) => handleChange('pricing_waiting_time_per_hour', parseFloat(v) || 0)} 
+                  hint="მაგ: 15₾/სთ"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="ADR საფრთხიანი ტვირთი (₾)" 
+                  type="number" 
+                  value={settings.pricing_special_handling_adr} 
+                  onChange={(v) => handleChange('pricing_special_handling_adr', parseFloat(v) || 0)} 
+                  hint="მაგ: 50₾"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="მაცივარი (₾)" 
+                  type="number" 
+                  value={settings.pricing_special_handling_refrigerated} 
+                  onChange={(v) => handleChange('pricing_special_handling_refrigerated', parseFloat(v) || 0)} 
+                  hint="მაგ: 75₾"
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="ფასდაკლება (%)" 
+                  type="number" 
+                  value={settings.pricing_discount_percentage} 
+                  onChange={(v) => handleChange('pricing_discount_percentage', parseFloat(v) || 0)} 
+                  hint="0-100%"
+                  disabled={loading || isSaving} 
+                />
+              </div>
+            </div>
+
+            {/* 🧪 ტესტირება */}
+            <div className="p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
+              <h3 className="text-sm font-semibold text-blue-300 flex items-center gap-2 mb-3">
+                🧪 ფორმულის ტესტირება
+              </h3>
+              <p className="text-[10px] text-gray-400 mb-3">
+                შეიყვანე სატესტო მონაცემები და ნახე როგორ გამოითვლება ფასი
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <Input 
+                  label="მანძილი (კმ)" 
+                  type="number" 
+                  value={testDistance} 
+                  onChange={(v) => setTestDistance(parseFloat(v) || 0)} 
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="წონა (კგ)" 
+                  type="number" 
+                  value={testWeight} 
+                  onChange={(v) => setTestWeight(parseFloat(v) || 0)} 
+                  disabled={loading || isSaving} 
+                />
+                <Input 
+                  label="მოცულობა (მ³)" 
+                  type="number" 
+                  value={testVolume} 
+                  onChange={(v) => setTestVolume(parseFloat(v) || 0)} 
+                  disabled={loading || isSaving} 
+                />
+              </div>
+
+              <button
+                onClick={handleTestPricing}
+                disabled={loading || isSaving}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition flex items-center gap-2"
+              >
+                 გამოთვლა
+              </button>
+
+              {testResult2 && (
+                <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                  <h4 className="text-xs font-bold text-gray-200 mb-3">📊 გამოთვლის შედეგი:</h4>
+                  <div className="space-y-2 text-[11px]">
+                    <div className="flex justify-between text-gray-400">
+                      <span>ბაზის ფასი:</span>
+                      <span className="font-mono">{testResult2.base_price} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>მანძილის ფასი:</span>
+                      <span className="font-mono">{testResult2.distance_fee} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>წონის ფასი:</span>
+                      <span className="font-mono">{testResult2.weight_fee} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>მოცულობის ფასი:</span>
+                      <span className="font-mono">{testResult2.volume_fee} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 border-t border-gray-700 pt-2">
+                      <span>ქვეჯამი:</span>
+                      <span className="font-mono font-semibold">{testResult2.subtotal} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>დამატებითი:</span>
+                      <span className="font-mono">+{testResult2.extra_fees} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>ფასდაკლება:</span>
+                      <span className="font-mono text-red-400">-{testResult2.discount} ₾</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-400 border-t border-emerald-500/30 pt-2 text-lg font-bold">
+                      <span>საბოლოო ფასი:</span>
+                      <span className="font-mono">{testResult2.total} ₾</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[9px] text-amber-300">
+                💡 <strong>შენიშვნა:</strong> ეს ფორმულა გამოიყენება ავტომატურად შეკვეთის შექმნისას და AI აგენტიც იყენებს მას რეკომენდაციებისთვის.
+              </div>
+            </div>
           </div>
         )
 
@@ -862,7 +1275,7 @@ export default function SettingsTab() {
       default:
         return null
     }
-  }, [settings, activeSection, loading, isSaving, handleChange, handleColumnToggle, handleColumnMove, handleToggleAll, handleResetColumns, testEmail, testLoading, testResult])
+  }, [settings, activeSection, loading, isSaving, handleChange, handleColumnToggle, handleColumnMove, handleToggleAll, handleResetColumns, testEmail, testLoading, testResult, testDistance, testWeight, testVolume, testResult2])
 
   if (loading) {
     return (
