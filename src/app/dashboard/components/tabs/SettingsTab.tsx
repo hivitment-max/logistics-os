@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { testPricing } from '@/lib/pricingCalculator' // 🆕 ეს დაამატე
 
 // ============================================================================
 // 🎨 UI კომპონენტები
@@ -371,6 +372,10 @@ export default function SettingsTab() {
     } finally {
       setLoading(false)
     }
+
+    // 🧪 ტესტირება - დროებითი!
+    console.log('🧪 ფასების ფორმულის ტესტირება...')
+    testPricing()
   }
 
   const handleChange = useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
