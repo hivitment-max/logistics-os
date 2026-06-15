@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 // 🔁 Retry helper - Supabase lock errors-ისთვის
+// ⚠️ მნიშვნელოვანი: PromiseLike და არა Promise, რადგან Supabase-ის query builder არის thenable და არა ნამდვილი Promise
 async function withRetry<T>(
-  fn: () => Promise<{ data: T | null; error: any }>,
+  fn: () => PromiseLike<{ data: T | null; error: any }>,
   maxAttempts = 3,
   delayMs = 500
 ): Promise<{ data: T | null; error: any }> {
