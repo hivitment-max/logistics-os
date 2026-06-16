@@ -134,7 +134,6 @@ const calculateDistanceBetweenAddresses = async (pickupAddress: string, delivery
 
 type ValidationState = 'valid' | 'warning' | 'invalid' | null
 
-// 🆕 გაუმჯობესებული FormField - inputMode-ის მხარდაჭერით
 const FormField = ({ label, hint, required, type = 'text', value, onChange, options, textarea, checkbox, radio, file, className = '', suffix = '', validation = null, inputMode }: any) => {
   const getBorderClass = () => {
     if (validation === 'valid') return 'border-green-500 ring-1 ring-green-500/30'
@@ -206,7 +205,6 @@ const FormField = ({ label, hint, required, type = 'text', value, onChange, opti
           {suffix && (<span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-gray-400 pointer-events-none">{suffix}</span>)}
         </div>
       )}
-      {/* 🆕 Error message ველის ქვეშ */}
       {validation === 'invalid' && !textarea && !options && !checkbox && !radio && !file && (
         <p className="text-[9px] text-red-400 mt-1 flex items-center gap-1">
           <span>❌</span>
@@ -349,13 +347,14 @@ export default function AddOrderModal({ isOpen, onClose, orderForm, setOrderForm
     calculateDistance()
   }, [pickupGeocoded, deliveryGeocoded])
 
+  // ✅ FIX: prev-ს აქვს explicit any type
   useEffect(() => {
     const l = parseFloat(orderForm.cargo_length_m)
     const w = parseFloat(orderForm.cargo_width_m)
     const h = parseFloat(orderForm.cargo_height_m)
     if (l > 0 && w > 0 && h > 0) {
       const calculatedVolume = (l * w * h).toFixed(2)
-      if (orderForm.cargo_volume_m3 !== calculatedVolume) setOrderForm(prev => ({ ...prev, cargo_volume_m3: calculatedVolume }))
+      if (orderForm.cargo_volume_m3 !== calculatedVolume) setOrderForm((prev: any) => ({ ...prev, cargo_volume_m3: calculatedVolume }))
     }
   }, [orderForm.cargo_length_m, orderForm.cargo_width_m, orderForm.cargo_height_m])
 
@@ -367,7 +366,6 @@ export default function AddOrderModal({ isOpen, onClose, orderForm, setOrderForm
       return null
     }
 
-    // 🆕 რიცხვითი ველების validation - მინუსი, ნული, NaN → invalid
     const getNumberValidation = (value: any): ValidationState => {
       if (value === '' || value === null || value === undefined) return null
       const num = parseFloat(value)
@@ -554,7 +552,6 @@ export default function AddOrderModal({ isOpen, onClose, orderForm, setOrderForm
           </div>
         )
 
-      // 🆕 CASE 2: ტვირთი - type="text" + inputMode
       case 2:
         return (
           <div className="space-y-4">
@@ -576,92 +573,33 @@ export default function AddOrderModal({ isOpen, onClose, orderForm, setOrderForm
               </div>
             </div>
 
-            {/* 🆕 ფიზიკური პარამეტრები - type="text" + inputMode */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-gradient-to-br from-blue-900/20 to-cyan-900/20 rounded-xl border border-blue-500/30 space-y-3">
                 <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-1 h-3 bg-blue-400 rounded-full"></span>ფიზიკური პარამეტრები <span className="text-red-400 ml-1">*</span>
                 </h4>
                 <div className="grid grid-cols-3 gap-2">
-                  <FormField 
-                    label="⚖️ წონა" 
-                    type="text"
-                    inputMode="decimal"
-                    hint="500" 
-                    suffix="კგ" 
-                    required 
-                    value={orderForm.cargo_weight_kg} 
-                    onChange={(e: any) => updateField('cargo_weight_kg', e.target.value)} 
-                    validation={fieldValidation.cargo_weight_kg} 
-                  />
-                  <FormField 
-                    label="📐 მოცულობა" 
-                    type="text"
-                    inputMode="decimal"
-                    hint="ავტო" 
-                    suffix="m³" 
-                    required 
-                    value={orderForm.cargo_volume_m3} 
-                    onChange={(e: any) => updateField('cargo_volume_m3', e.target.value)} 
-                    validation={fieldValidation.cargo_volume_m3} 
-                  />
-                  <FormField 
-                    label="🔢 ერთეულები" 
-                    type="text"
-                    inputMode="numeric"
-                    hint="10" 
-                    suffix="ცალი" 
-                    required 
-                    value={orderForm.cargo_units} 
-                    onChange={(e: any) => updateField('cargo_units', e.target.value)} 
-                    validation={fieldValidation.cargo_units} 
-                  />
+                  <FormField label="⚖️ წონა" type="text" inputMode="decimal" hint="500" suffix="კგ" required value={orderForm.cargo_weight_kg} onChange={(e: any) => updateField('cargo_weight_kg', e.target.value)} validation={fieldValidation.cargo_weight_kg} />
+                  <FormField label="📐 მოცულობა" type="text" inputMode="decimal" hint="ავტო" suffix="m³" required value={orderForm.cargo_volume_m3} onChange={(e: any) => updateField('cargo_volume_m3', e.target.value)} validation={fieldValidation.cargo_volume_m3} />
+                  <FormField label="🔢 ერთეულები" type="text" inputMode="numeric" hint="10" suffix="ცალი" required value={orderForm.cargo_units} onChange={(e: any) => updateField('cargo_units', e.target.value)} validation={fieldValidation.cargo_units} />
                 </div>
               </div>
 
-              {/* 🆕 განზომილებები - type="text" + inputMode */}
               <div className="p-4 bg-gradient-to-br from-green-900/20 to-emerald-900/20 rounded-xl border border-green-500/30 space-y-3">
                 <h4 className="text-[10px] font-bold text-green-400 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-1 h-3 bg-green-400 rounded-full"></span>განზომილებები <span className="text-red-400 ml-1">*</span>
                 </h4>
                 <div className="flex items-end gap-1">
                   <div className="flex-1">
-                    <FormField 
-                      label="↔️ სიგრძე" 
-                      type="text"
-                      inputMode="decimal"
-                      hint="0" 
-                      required 
-                      value={orderForm.cargo_length_m} 
-                      onChange={(e: any) => updateField('cargo_length_m', e.target.value)} 
-                      validation={fieldValidation.cargo_length_m} 
-                    />
+                    <FormField label="↔️ სიგრძე" type="text" inputMode="decimal" hint="0" required value={orderForm.cargo_length_m} onChange={(e: any) => updateField('cargo_length_m', e.target.value)} validation={fieldValidation.cargo_length_m} />
                   </div>
                   <span className="text-gray-500 text-lg font-bold pb-2.5">×</span>
                   <div className="flex-1">
-                    <FormField 
-                      label="↕️ სიგანე" 
-                      type="text"
-                      inputMode="decimal"
-                      hint="0" 
-                      required 
-                      value={orderForm.cargo_width_m} 
-                      onChange={(e: any) => updateField('cargo_width_m', e.target.value)} 
-                      validation={fieldValidation.cargo_width_m} 
-                    />
+                    <FormField label="↕️ სიგანე" type="text" inputMode="decimal" hint="0" required value={orderForm.cargo_width_m} onChange={(e: any) => updateField('cargo_width_m', e.target.value)} validation={fieldValidation.cargo_width_m} />
                   </div>
                   <span className="text-gray-500 text-lg font-bold pb-2.5">×</span>
                   <div className="flex-1">
-                    <FormField 
-                      label="↕️ სიმაღლე" 
-                      type="text"
-                      inputMode="decimal"
-                      hint="0" 
-                      required 
-                      value={orderForm.cargo_height_m} 
-                      onChange={(e: any) => updateField('cargo_height_m', e.target.value)} 
-                      validation={fieldValidation.cargo_height_m} 
-                    />
+                    <FormField label="↕️ სიმაღლე" type="text" inputMode="decimal" hint="0" required value={orderForm.cargo_height_m} onChange={(e: any) => updateField('cargo_height_m', e.target.value)} validation={fieldValidation.cargo_height_m} />
                   </div>
                   <span className="text-[10px] font-semibold text-gray-400 pb-3 whitespace-nowrap">მ</span>
                 </div>
@@ -676,7 +614,6 @@ export default function AddOrderModal({ isOpen, onClose, orderForm, setOrderForm
           </div>
         )
 
-      // 🆕 CASE 3: ფინანსები - type="text" + inputMode ფასის ველზე
       case 3:
         return (
           <div className="space-y-4">
@@ -775,18 +712,8 @@ export default function AddOrderModal({ isOpen, onClose, orderForm, setOrderForm
               </div>
             )}
 
-            {/* 🆕 ფასის ველები - type="text" + inputMode */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <FormField 
-                label="💰 საბოლოო ფასი" 
-                type="text"
-                inputMode="decimal"
-                required 
-                hint="მაგ: 250" 
-                value={orderForm.price} 
-                onChange={(e: any) => updateField('price', e.target.value)} 
-                validation={fieldValidation.price} 
-              />
+              <FormField label="💰 საბოლოო ფასი" type="text" inputMode="decimal" required hint="მაგ: 250" value={orderForm.price} onChange={(e: any) => updateField('price', e.target.value)} validation={fieldValidation.price} />
               <FormField label="💵 ვალუტა" required options={[{ value: 'GEL', label: '🇬 GEL' }, { value: 'USD', label: '🇺🇸 USD' }, { value: 'EUR', label: '🇪🇺 EUR' }, { value: 'RUB', label: '🇷🇺 RUB' }]} value={orderForm.currency} onChange={(e: any) => updateField('currency', e.target.value)} validation={fieldValidation.currency} />
               <FormField label="💳 გადახდა" options={[{ value: 'prepaid', label: '💸 წინასწარ' }, { value: 'on_delivery', label: '📦 მიწოდებისას' }, { value: 'invoice', label: '🧾 ინვოისით' }]} value={orderForm.payment_terms} onChange={(e: any) => updateField('payment_terms', e.target.value)} />
               <FormField label="🧾 ინვოისი სჭირდება?" checkbox value={orderForm.invoice_needed} onChange={(e: any) => updateField('invoice_needed', e.target.checked)} />
