@@ -134,6 +134,55 @@ const createNotification = async (data: any) => {
   }
 }
 
+// ============================================================================
+// 🗑️ HELPER: ყველა დამოკიდებული ცხრილის სია
+// ============================================================================
+const DEPENDENT_TABLES = [
+  'cargo_slots',
+  'payroll',
+  'driver_advances',
+  'driver_settlements',
+  'notifications',
+  'trip_expenses',
+  'invoices'
+]
+
+// ============================================================================
+// 🗑️ HELPER: ერთი შეკვეთის სრული წაშლა
+// ============================================================================
+const deleteOrderWithDependencies = async (orderId: string): Promise<void> => {
+  // 1. წაშალე ყველა დამოკიდებული ცხრილი
+  for (const table of DEPENDENT_TABLES) {
+    try {
+      await supabase.from(table).delete().eq('order_id', orderId)
+    } catch (e: any) {
+      console.warn(`⚠️ ${table} delete failed for ${orderId}:`, e.message)
+    }
+  }
+
+  // 2. ბოლოს წაშალე order
+  const { error } = await supabase.from('orders').delete().eq('id', orderId)
+  if (error) throw error
+}
+
+// ============================================================================
+// 🗑️ HELPER: მრავალი შეკვეთის სრული წაშლა (Bulk)
+// ============================================================================
+const bulkDeleteOrdersWithDependencies = async (orderIds: string[]): Promise<void> => {
+  // 1. წაშალე ყველა დამოკიდებული ცხრილი
+  for (const table of DEPENDENT_TABLES) {
+    try {
+      await supabase.from(table).delete().in('order_id', orderIds)
+    } catch (e: any) {
+      console.warn(`⚠️ ${table} bulk delete failed:`, e.message)
+    }
+  }
+
+  // 2. ბოლოს წაშალე orders
+  const { error } = await supabase.from('orders').delete().in('id', orderIds)
+  if (error) throw error
+}
+
 // ════════════════════════════════════════════════════════════
 // 🎨 STATUS CONFIG
 // ════════════════════════════════════════════════════════════
@@ -325,9 +374,6 @@ export default function OrdersTab({
   
   const toast = useToast()
   
-  // ════════════════════════════════════════════════════════════
-  // 📌 ALL useState HOOKS
-  // ════════════════════════════════════════════════════════════
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingOrder, setEditingOrder] = useState<any | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
@@ -348,13 +394,8 @@ export default function OrdersTab({
   const [newOrderForm, setNewOrderForm] = useState<any>(getInitialOrderForm())
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' })
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
-  
-  // 🆕 SETTINGS - სვეტების კონფიგურაცია
   const [visibleColumns, setVisibleColumns] = useState<OrderColumnConfig[]>(DEFAULT_ORDER_COLUMNS)
 
-  // ════════════════════════════════════════════════════════════
-  // 📌 ALL useMemo HOOKS
-  // ════════════════════════════════════════════════════════════
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
       const mf = orderFilter === 'all' || o.status === orderFilter
@@ -404,9 +445,6 @@ export default function OrdersTab({
     }
   }, [orders])
 
-  // ════════════════════════════════════════════════════════════
-  // 📌 ALL useEffect HOOKS
-  // ════════════════════════════════════════════════════════════
   const loadClients = useCallback(async () => {
     try {
       const [privateRes, companiesRes] = await Promise.all([
@@ -436,7 +474,6 @@ export default function OrdersTab({
     return () => { supabase.removeChannel(channel) }
   }, [loadData, loadClients])
 
-  // 🆕 Settings-დან სვეტების კონფიგურაციის წაკითხვა
   useEffect(() => {
     const loadColumnSettings = async () => {
       try {
@@ -451,9 +488,6 @@ export default function OrdersTab({
     loadColumnSettings()
   }, [])
 
-  // ════════════════════════════════════════════════════════════
-  // 📌 ALL FUNCTIONS
-  // ════════════════════════════════════════════════════════════
   const handleRefresh = async () => {
     if (!loadData || isRefreshing) return
     setIsRefreshing(true)
@@ -614,7 +648,6 @@ export default function OrdersTab({
     setShowEditModal(true)
   }
 
-  // ✅ გამოსწორებული - tracking_code აღარ არის ორჯერ
   const handleEditSave = (updatedData: any) => {
     const payload = mapFormToDatabase(updatedData)
     onEdit({ id: editingOrder?.id, ...payload })
@@ -622,14 +655,16 @@ export default function OrdersTab({
     setEditingOrder(null)
   }
 
+  // 🗑️ ერთი შეკვეთის წაშლა
   const handleDeleteClick = async (order: any) => {
     if (!confirm(`წაიშალოს შეკვეთა ${order.tracking_code}?`)) return
     try {
-      await supabase.from('invoices').delete().eq('order_id', order.id)
-      onDelete(order)
+      await deleteOrderWithDependencies(order.id)
       await createNotification({ title: '🗑️ შეკვეთა წაიშალა', message: `წაიშალა შეკვეთა #${order.tracking_code}`, type: 'alert' })
       toast.success(`შეკვეთა ${order.tracking_code} წაიშალა`)
+      if (loadData) await loadData()
     } catch (e: any) {
+      console.error('❌ Delete error:', e)
       toast.error(`შეცდომა: ${e.message}`)
     }
   }
@@ -736,17 +771,22 @@ export default function OrdersTab({
     return { success: true }
   }
 
+  // 🗑️ BULK DELETE - ყველა დამოკიდებული ცხრილის წაშლით
   const handleBulkDelete = async () => {
     if (selectedOrders.size === 0) return
-    if (!confirm(`წაიშალოს ${selectedOrders.size} შეკვეთა?`)) return
+    if (!confirm(`ნამდვილად გსურთ ${selectedOrders.size} შეკვეთის წაშლა?\n\n(წაიშლება ყველა დაკავშირებული ჩანაწერი: ინვოისები, ნოტიფიკაციები, ხარჯები და ა.შ.)`)) return
+    
+    const ids = Array.from(selectedOrders)
+    
     try {
-      const ids = Array.from(selectedOrders)
-      await supabase.from('invoices').delete().in('order_id', ids)
-      await supabase.from('orders').delete().in('id', ids)
+      await bulkDeleteOrdersWithDependencies(ids)
       toast.success(`${selectedOrders.size} შეკვეთა წაიშალა`)
       setSelectedOrders(new Set())
-      if (loadData) loadData()
-    } catch (e: any) { toast.error(`შეცდომა: ${e.message}`) }
+      if (loadData) await loadData()
+    } catch (e: any) {
+      console.error('❌ Bulk delete error:', e)
+      toast.error(`შეცდომა: ${e.message}`)
+    }
   }
 
   const handleBulkStatusChange = async (newStatus: string) => {
@@ -781,7 +821,6 @@ export default function OrdersTab({
     toast.success(`ექსპორტირებულია ${dataToExport.length} შეკვეთა`)
   }, [sortedOrders, selectedOrders, toast])
 
-  // ⌨️ KEYBOARD SHORTCUTS
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAddClick() }
@@ -794,7 +833,6 @@ export default function OrdersTab({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedOrders, exportToCSV])
 
-  // 🆕 ფიქსირებული + დინამიური სვეტები
   const FIXED_LEFT_WIDTHS: Record<string, string> = {
     checkbox: '40px',
     tracking: '110px',
@@ -815,7 +853,6 @@ export default function OrdersTab({
     visibleColumns.filter(c => !c.fixed && c.visible), 
   [visibleColumns])
 
-  // 🆕 COL: ფიქსირებული მარცხნივ + 1fr შუაში + ფიქსირებული მარჯვნივ
   const COL = useMemo(() => {
     return [
       ...getFixedLeftColumns().map(c => FIXED_LEFT_WIDTHS[c.id] || '100px'),
@@ -824,26 +861,18 @@ export default function OrdersTab({
     ].join(' ')
   }, [getFixedLeftColumns, getMiddleColumns, getFixedRightColumns])
 
-  // 🆕 რენდერის რიგი: მარცხენა → შუა → მარჯვენა
   const getOrderedColumns = useCallback(() => [
     ...getFixedLeftColumns(),
     ...getMiddleColumns(),
     ...getFixedRightColumns(),
   ], [getFixedLeftColumns, getMiddleColumns, getFixedRightColumns])
 
-  // ════════════════════════════════════════════════════════════
-  // 🚨 EARLY RETURN - ყველა hook-ის შემდეგ!
-  // ════════════════════════════════════════════════════════════
   if (loading) return <LoadingTruck message="შეკვეთები იტვირთება..." size="md" />
 
-  // ════════════════════════════════════════════════════════════
-  // 🎨 RENDER
-  // ════════════════════════════════════════════════════════════
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden bg-gray-900/50 border border-gray-800">
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
 
-      {/* HEADER */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/80 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
@@ -880,7 +909,6 @@ export default function OrdersTab({
         </div>
       </div>
 
-      {/* 📊 STATS CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 px-6 py-4 border-b border-gray-800 bg-gray-900/30">
         <StatsCard label="სულ" value={stats.total} icon="📦" color="violet" />
         <StatsCard label="დღეს" value={stats.todayCount} icon="📅" color="blue" />
@@ -890,7 +918,6 @@ export default function OrdersTab({
         <StatsCard label="გზაში" value={stats.inTransitCount} icon="🚚" color="rose" />
       </div>
 
-      {/* FILTER TABS */}
       <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-800 bg-gray-900/40">
         {FILTER_TABS.map(f => (
           <button key={f.key} onClick={() => setOrderFilter(f.key)}
@@ -901,7 +928,6 @@ export default function OrdersTab({
         ))}
       </div>
 
-      {/* ☑️ BULK ACTIONS BAR */}
       {selectedOrders.size > 0 && (
         <div className="flex items-center justify-between px-6 py-2.5 bg-violet-500/10 border-b border-violet-500/20">
           <div className="flex items-center gap-3">
@@ -924,7 +950,6 @@ export default function OrdersTab({
         </div>
       )}
 
-      {/* 🆕 TABLE HEADER - Fixed + Dynamic + Fixed */}
       <div className="grid px-4 py-3 border-b border-gray-800 bg-gray-800/50" style={{ gridTemplateColumns: COL }}>
         {getOrderedColumns().map(col => {
           switch (col.id) {
@@ -961,7 +986,6 @@ export default function OrdersTab({
         })}
       </div>
 
-      {/* 🆕 TABLE BODY - Fixed + Dynamic + Fixed */}
       <div className="divide-y divide-gray-800/50 max-h-[calc(100vh-500px)] overflow-y-auto">
         {sortedOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -1090,7 +1114,6 @@ export default function OrdersTab({
         )}
       </div>
 
-      {/* KEYBOARD SHORTCUTS HINT */}
       <div className="flex items-center justify-between px-6 py-2 border-t border-gray-800 bg-gray-900/50 text-[10px] text-gray-600">
         <div className="flex items-center gap-4">
           <span><kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-gray-400">Ctrl+N</kbd> ახალი</span>
@@ -1102,7 +1125,6 @@ export default function OrdersTab({
         <span>{sortedOrders.length} შეკვეთა</span>
       </div>
 
-      {/* INSTRUCTIONS MODAL */}
       {showInstructionsModal && instructionsOrder && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowInstructionsModal(false)}>
           <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1156,7 +1178,6 @@ export default function OrdersTab({
         </div>
       )}
 
-      {/* MODALS */}
       {showAddModal && (
         <AddOrderModal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setNewOrderForm(getInitialOrderForm()) }}
           orderForm={newOrderForm} setOrderForm={setNewOrderForm} onSubmit={handleAddSubmit}
