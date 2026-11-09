@@ -1,7 +1,7 @@
-
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 
 const projects = [
   {
@@ -13,6 +13,7 @@ const projects = [
     accent: "#d7a5ff",
     symbol: "✳",
     tags: ["AI", "TELEGRAM", "SAAS"],
+    url: "#",
   },
   {
     id: "02",
@@ -23,6 +24,7 @@ const projects = [
     accent: "#8f594b",
     symbol: "V",
     tags: ["PRODUCT", "DESIGN", "TECH"],
+    url: "#",
   },
   {
     id: "03",
@@ -33,6 +35,7 @@ const projects = [
     accent: "#46d9c5",
     symbol: "◈",
     tags: ["SAAS", "WEB", "SYSTEMS"],
+    url: "#",
   },
   {
     id: "04",
@@ -43,6 +46,7 @@ const projects = [
     accent: "#fff2d9",
     symbol: "↗",
     tags: ["WEB", "AUTOMATION"],
+    url: "/logistics", // ✅ აქ არის ლინკი ლოჯისტიკის გვერდზე!
   },
 ];
 
@@ -283,14 +287,14 @@ export default function Home() {
 
         <div className="projects-grid">
           {projects.map((project) => (
-            <article
+            <Link
+              href={project.url || "#"}
               key={project.id}
               className={`project-card ${
                 activeProject === project.id ? "selected" : ""
               }`}
               onMouseEnter={() => setActiveProject(project.id)}
             >
-
               <div
                 className="project-preview"
                 style={{
@@ -330,8 +334,7 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-
-            </article>
+            </Link>
           ))}
         </div>
 
@@ -1113,6 +1116,7 @@ export default function Home() {
         .project-card {
           min-width: 0;
           cursor: default;
+          display: block; /* Added for Link compatibility */
         }
 
         .project-preview {
