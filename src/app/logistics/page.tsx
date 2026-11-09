@@ -28,7 +28,7 @@ const features = [
     id: "03",
     name: "AI და ავტომატიზაცია",
     type: "AI & AUTOMATION",
-    description: "ხელოვნური ინტელექტით ფასების დინამიური განსაზღვრა, Telegram ბოტი და Cron ჯობები.",
+    description: "ხელოვნური ინტელექტით ფასების დინამიური განსაზღვრა, Telegram ბოტი და ავტომატური შეტყობინებები.",
     color: "#e87521",
     accent: "#fff2d9",
     symbol: "🤖",
@@ -44,13 +44,6 @@ const features = [
     symbol: "📊",
     tags: ["INVOICES", "PDF", "DASHBOARD"],
   },
-];
-
-const techStack = [
-  ["01", "Next.js 14", "App Router, Server Actions და TypeScript უსაფრთხოებისთვის"],
-  ["02", "Supabase", "PostgreSQL, Realtime, Auth და Storage ერთ პლატფორმაზე"],
-  ["03", "Tailwind CSS", "სწრაფი, რესპონსიული და თანამედროვე UI დიზაინი"],
-  ["04", "Vercel & Bots", "ავტომატური დეპლოი, Cron ჯობები და Telegram API ინტეგრაცია"],
 ];
 
 function Arrow() {
@@ -102,9 +95,9 @@ export default function LogisticsLandingPage() {
           </Link>
 
           <nav className="desktop-nav">
-            <a href="#features">ფიჩერები</a>
-            <a href="#tech">ტექნოლოგიები</a>
-            <a href="#about">შესახებ</a>
+            <a href="#features">შესაძლებლობები</a>
+            <a href="#about">უპირატესობები</a>
+            <a href="#contact">კონტაქტი</a>
           </nav>
 
           <button
@@ -118,13 +111,13 @@ export default function LogisticsLandingPage() {
 
           {menuOpen && (
             <nav className="mobile-menu">
-              {["features", "tech", "about"].map((item) => (
+              {["features", "about", "contact"].map((item) => (
                 <a
                   key={item}
                   href={`#${item}`}
                   onClick={() => setMenuOpen(false)}
                 >
-                  {item === "features" ? "ფიჩერები" : item === "tech" ? "ტექნოლოგიები" : "შესახებ"}
+                  {item === "features" ? "შესაძლებლობები" : item === "about" ? "უპირატესობები" : "კონტაქტი"}
                 </a>
               ))}
             </nav>
@@ -207,7 +200,7 @@ export default function LogisticsLandingPage() {
           <div className="hero-footer-left">
             <span>01</span>
             <div />
-            <span>04</span>
+            <span>03</span>
           </div>
 
           <div className="hero-footer-center">
@@ -236,7 +229,7 @@ export default function LogisticsLandingPage() {
         </div>
         <div className="strip-note">
           <span>✳</span>
-          <strong>Next.js 14 · Supabase · TypeScript</strong>
+          <strong>შეკვეთები · ფლოტი · ანალიტიკა</strong>
         </div>
       </section>
 
@@ -297,74 +290,49 @@ export default function LogisticsLandingPage() {
         </div>
       </section>
 
-      {/* ABOUT / MINDSET */}
+      {/* ABOUT / ADVANTAGES (შეცვლილი სატრანსპორტო თემატიკაზე) */}
       <section className="about-section" id="about">
         <div className="about-title">
-          <span className="section-kicker">02 / ფილოსოფია</span>
+          <span className="section-kicker">02 / უპირატესობები</span>
           <h2>
-            ქაოსის<br />
-            <span>ნაცვლად — სისტემა.</span>
+            სიჩქარე. სიზუსტე.<br />
+            <span>სრული კონტროლი.</span>
           </h2>
         </div>
 
         <div className="about-text">
           <div className="about-symbol">🚛</div>
           <div>
-            <h3>არა უბრალოდ ცხრილები.<br />რეალური ოპერაციული ძალა.</h3>
+            <h3>შექმნილია სპეციალურად სატრანსპორტო<br />და გადამზიდი კომპანიებისთვის.</h3>
             <p>
-              Logistics OS აერთიანებს შეკვეთების მიღებას, მძღოლების მენეჯმენტს, 
-              ფინანსურ ანალიტიკას და AI-ზე დაფუძნებელ ავტომატიზაციას ერთიან, 
-              ინტუიციურ ინტერფეისში. ეს არის ინსტრუმენტი, რომელიც ზრდის 
-              ეფექტურობას და ამცირებს ოპერაციულ ხარჯებს.
+              ჩვენი პლატფორმა აერთიანებს დისპეტჩერიზაციას, ფლოტის მონიტორინგს 
+              და ფინანსურ ანგარიშსწორებას ერთ სივრცეში. დაივიწყე ქაოსი და გადადი 
+              ციფრულ მართვაზე, სადაც ყოველი კილომეტრი, მძღოლი და შეკვეთა 
+              სრულად თვალსაჩინოა და კონტროლირებადი.
             </p>
           </div>
         </div>
 
         <div className="about-bottom">
-          <span>ტექნოლოგია ემსახურება ბიზნესს.</span>
-          <span>შედეგი იზომება ეფექტურობით. ↗</span>
+          <span>ტექნოლოგია ემსახურება ტრანსპორტირებას.</span>
+          <span>შედეგი იზომება დროულ მიწოდებით. ↗</span>
         </div>
       </section>
 
-      {/* TECH STACK */}
-      <section className="tech-section" id="tech">
-        <div className="section-heading">
-          <div>
-            <span className="section-kicker">03 / ტექნოლოგიური სტეკი</span>
-            <h2>რაზეა <span>აგებული.</span></h2>
-          </div>
-          <p>
-            თანამედროვე, მასშტაბირებადი და უსაფრთხო ტექნოლოგიები, 
-            რომლებიც უზრუნველყოფენ სისტემის სტაბილურ მუშაობას.
-          </p>
-        </div>
-
-        <div className="tech-list">
-          {techStack.map(([number, title, description]) => (
-            <div className="tech-row" key={number}>
-              <span className="tech-number">{number}</span>
-              <h3>{title}</h3>
-              <p>{description}</p>
-              <Arrow />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA SECTION */}
-      <section className="cta-section">
+      {/* CTA SECTION (შეცვლილი, უფრო ძლიერი და ბიზნესზე ორიენტირებული) */}
+      <section className="cta-section" id="contact">
         <div className="cta-decoration">✳</div>
 
-        <span className="section-kicker">04 / დაიწყე ახლავე</span>
+        <span className="section-kicker">03 / ტრანსფორმაცია</span>
 
         <h2>
-          მზად ხარ<br />
-          <span>ოპტიმიზაციისთვის?</span>
+          გადაიყვანე შენი<br />
+          <span>კომპანია ახალ დონეზე.</span>
         </h2>
 
         <p>
-          შედი სისტემაში და მართე შენი ლოჯისტიკური ოპერაციები 
-          პროფესიონალურ დონეზე.
+          შეუერთდი თანამედროვე ლოჯისტიკურ სისტემას. მართე ფლოტი, 
+          შეკვეთები და ფინანსები ერთიანი, უსაფრთხო და ინტუიციური ინტერფეისით.
         </p>
 
         <Link href="/login" className="cta-button">
@@ -374,7 +342,7 @@ export default function LogisticsLandingPage() {
         <div className="cta-meta">
           <span>უსაფრთხო ავტორიზაცია</span>
           <span>როლების მიხედვით წვდომა</span>
-          <span>2026 — PRESENT</span>
+          <span>24/7 მხარდაჭერა</span>
         </div>
       </section>
 
@@ -992,8 +960,7 @@ export default function LogisticsLandingPage() {
         }
 
         /* SECTIONS SHARED */
-        .features-section,
-        .tech-section {
+        .features-section {
           padding: 65px 6%;
         }
 
@@ -1220,46 +1187,6 @@ export default function LogisticsLandingPage() {
           letter-spacing: 1px;
           color: #888;
           font-weight: 800;
-        }
-
-        /* TECH LIST */
-        .tech-section {
-          padding-top: 55px;
-          padding-bottom: 55px;
-        }
-
-        .tech-list {
-          border-top: 1px solid #ddd9d2;
-        }
-
-        .tech-row {
-          display: grid;
-          grid-template-columns: 40px 1fr 1fr 20px;
-          align-items: center;
-          gap: 15px;
-          padding: 17px 5px;
-          border-bottom: 1px solid #ddd9d2;
-        }
-
-        .tech-number {
-          color: #ed792c;
-          font-size: 9px;
-          font-weight: 800;
-        }
-
-        .tech-row h3 {
-          font-size: 14px;
-          margin: 0;
-        }
-
-        .tech-row p {
-          color: #888;
-          font-size: 9px;
-          margin: 0;
-        }
-
-        .tech-row svg {
-          width: 15px;
         }
 
         /* CTA SECTION */
@@ -1517,8 +1444,7 @@ export default function LogisticsLandingPage() {
             font-size: 6px;
           }
 
-          .features-section,
-          .tech-section {
+          .features-section {
             padding: 43px 5%;
           }
 
@@ -1598,19 +1524,6 @@ export default function LogisticsLandingPage() {
           .about-bottom {
             font-size: 6px;
             gap: 10px;
-          }
-
-          .tech-row {
-            grid-template-columns: 25px 1fr 18px;
-            gap: 10px;
-          }
-
-          .tech-row h3 {
-            font-size: 12px;
-          }
-
-          .tech-row p {
-            display: none;
           }
 
           .cta-section {
