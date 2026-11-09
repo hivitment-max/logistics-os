@@ -72,19 +72,32 @@ export default function LogisticsLandingPage() {
         <div className="orange-bg" />
         <div className="white-bg" />
 
-        {/* ABSTRACT LOGISTICS GRAPHIC */}
-        <div className="abstract-art">
-          <div className="art-circle">
-            <div className="art-inner-circle" />
-            <div className="art-core">L</div>
+        {/* LOGISTICS VISUAL (შეცვლილია სატრანსპორტო თემატიკაზე) */}
+        <div className="logistics-visual">
+          {/* მთავარი ფოტო: თანამედროვე სატვირთო */}
+          <div className="main-image">
+            <img 
+              src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=800&q=80" 
+              alt="Modern Logistics Truck" 
+            />
+            <div className="image-overlay" />
           </div>
-          <div className="art-orbit orbit-1" />
-          <div className="art-orbit orbit-2" />
-          <div className="art-orbit orbit-3" />
-          <div className="art-star">✳</div>
-          <div className="art-cross">◈</div>
-          <div className="art-glow" />
-          <div className="art-caption">SYSTEM v2.0 — 2026</div>
+          
+          {/* მცურავი ბარათი: სისტემის ელემენტი */}
+          <div className="floating-card">
+            <div className="card-icon">🚚</div>
+            <div className="card-text">
+              <strong>მარშრუტი ოპტიმიზირებულია</strong>
+              <small>შეკვეთა #1042 • დროულად მიწოდებული</small>
+            </div>
+          </div>
+
+          {/* ტრანსპორტის ტიპების ნიშნულები */}
+          <div className="vehicle-tags">
+            <span>🚛 სატვირთო</span>
+            <span>🚐 მარშრუტკა</span>
+            <span>🚗 მსუბუქი</span>
+          </div>
         </div>
 
         {/* HEADER */}
@@ -96,8 +109,7 @@ export default function LogisticsLandingPage() {
 
           <nav className="desktop-nav">
             <a href="#features">შესაძლებლობები</a>
-            <a href="#about">უპირატესობები</a>
-            <a href="#contact">კონტაქტი</a>
+            <a href="/login">შესვლა</a>
           </nav>
 
           <button
@@ -111,15 +123,8 @@ export default function LogisticsLandingPage() {
 
           {menuOpen && (
             <nav className="mobile-menu">
-              {["features", "about", "contact"].map((item) => (
-                <a
-                  key={item}
-                  href={`#${item}`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item === "features" ? "შესაძლებლობები" : item === "about" ? "უპირატესობები" : "კონტაქტი"}
-                </a>
-              ))}
+              <a href="#features" onClick={() => setMenuOpen(false)}>შესაძლებლობები</a>
+              <a href="/login" onClick={() => setMenuOpen(false)}>შესვლა</a>
             </nav>
           )}
         </header>
@@ -156,51 +161,12 @@ export default function LogisticsLandingPage() {
           </div>
         </div>
 
-        {/* RIGHT SIDE */}
-        <div className="hero-right">
-          <div className="available">
-            <span />
-            პროდუქტი მზადაა
-          </div>
-
-          <h2>
-            მართე შენი<br />
-            ბიზნესი
-          </h2>
-
-          <p>ციფრული ტრანსფორმაცია ლოჯისტიკაში.</p>
-
-          <div className="featured-project">
-            <div className="featured-top">
-              <span>მთავარი ფიჩერი</span>
-              <span>AI PRICING</span>
-            </div>
-
-            <div className="featured-visual">
-              <div className="featured-decoration">🤖</div>
-              <span>SMART</span>
-              <small>ფასების ავტომატური განსაზღვრა</small>
-              <div className="featured-orbit" />
-            </div>
-
-            <div className="featured-bottom">
-              <div>
-                <strong>AI აგენტი</strong>
-                <small>დინამიური ტარიფები და ოპტიმიზაცია</small>
-              </div>
-              <Link href="/login" aria-label="Login to dashboard">
-                <Arrow />
-              </Link>
-            </div>
-          </div>
-        </div>
-
         {/* BOTTOM INFORMATION */}
         <div className="hero-footer">
           <div className="hero-footer-left">
             <span>01</span>
             <div />
-            <span>03</span>
+            <span>02</span>
           </div>
 
           <div className="hero-footer-center">
@@ -287,62 +253,6 @@ export default function LogisticsLandingPage() {
               </div>
             </article>
           ))}
-        </div>
-      </section>
-
-      {/* ABOUT / ADVANTAGES (შეცვლილი სატრანსპორტო თემატიკაზე) */}
-      <section className="about-section" id="about">
-        <div className="about-title">
-          <span className="section-kicker">02 / უპირატესობები</span>
-          <h2>
-            სიჩქარე. სიზუსტე.<br />
-            <span>სრული კონტროლი.</span>
-          </h2>
-        </div>
-
-        <div className="about-text">
-          <div className="about-symbol">🚛</div>
-          <div>
-            <h3>შექმნილია სპეციალურად სატრანსპორტო<br />და გადამზიდი კომპანიებისთვის.</h3>
-            <p>
-              ჩვენი პლატფორმა აერთიანებს დისპეტჩერიზაციას, ფლოტის მონიტორინგს 
-              და ფინანსურ ანგარიშსწორებას ერთ სივრცეში. დაივიწყე ქაოსი და გადადი 
-              ციფრულ მართვაზე, სადაც ყოველი კილომეტრი, მძღოლი და შეკვეთა 
-              სრულად თვალსაჩინოა და კონტროლირებადი.
-            </p>
-          </div>
-        </div>
-
-        <div className="about-bottom">
-          <span>ტექნოლოგია ემსახურება ტრანსპორტირებას.</span>
-          <span>შედეგი იზომება დროულ მიწოდებით. ↗</span>
-        </div>
-      </section>
-
-      {/* CTA SECTION (შეცვლილი, უფრო ძლიერი და ბიზნესზე ორიენტირებული) */}
-      <section className="cta-section" id="contact">
-        <div className="cta-decoration">✳</div>
-
-        <span className="section-kicker">03 / ტრანსფორმაცია</span>
-
-        <h2>
-          გადაიყვანე შენი<br />
-          <span>კომპანია ახალ დონეზე.</span>
-        </h2>
-
-        <p>
-          შეუერთდი თანამედროვე ლოჯისტიკურ სისტემას. მართე ფლოტი, 
-          შეკვეთები და ფინანსები ერთიანი, უსაფრთხო და ინტუიციური ინტერფეისით.
-        </p>
-
-        <Link href="/login" className="cta-button">
-          სისტემაში შესვლა <Arrow />
-        </Link>
-
-        <div className="cta-meta">
-          <span>უსაფრთხო ავტორიზაცია</span>
-          <span>როლების მიხედვით წვდომა</span>
-          <span>24/7 მხარდაჭერა</span>
         </div>
       </section>
 
@@ -437,112 +347,103 @@ export default function LogisticsLandingPage() {
           border-radius: 18px 0 0 18px;
         }
 
-        /* ABSTRACT ART */
-        .abstract-art {
+        /* LOGISTICS VISUAL (ახალი) */
+        .logistics-visual {
           position: absolute;
           z-index: -1;
-          left: 30%;
-          top: 16%;
-          width: 39%;
-          height: 70%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
+          left: 28%;
+          top: 15%;
+          width: 45%;
+          height: 75%;
           pointer-events: none;
         }
 
-        .art-circle {
-          position: relative;
-          width: min(390px, 85%);
-          aspect-ratio: 1;
-          border-radius: 50%;
-          background: linear-gradient(145deg, #ffbd50, #e85a0b 48%, #54200e);
-          box-shadow: 0 30px 100px #9b310c55;
-          display: grid;
-          place-items: center;
-        }
-
-        .art-inner-circle {
-          position: absolute;
-          inset: 12%;
-          border: 1px solid rgba(255,255,255,.45);
-          border-radius: 50%;
-        }
-
-        .art-core {
-          width: 48%;
-          height: 48%;
-          display: grid;
-          place-items: center;
-          border-radius: 50%;
-          color: white;
-          background: linear-gradient(135deg, #f8a92e, #a53610);
-          border: 1px solid #ffffff80;
-          box-shadow: inset 0 0 40px #ffffff30, 0 0 50px #ffb34a55;
-          font-size: clamp(40px, 7vw, 90px);
-          font-weight: 900;
-          letter-spacing: -7px;
-        }
-
-        .art-orbit {
-          position: absolute;
-          width: 125%;
-          height: 42%;
-          border: 1px solid rgba(255,255,255,.55);
-          border-radius: 50%;
-          transform: rotate(-35deg);
-        }
-
-        .orbit-2 {
-          transform: rotate(35deg);
-          width: 120%;
-          height: 60%;
-          border-color: rgba(255,215,155,.65);
-        }
-
-        .orbit-3 {
-          transform: rotate(80deg);
+        .main-image {
           width: 100%;
-          height: 90%;
-          border-color: rgba(255,255,255,.3);
+          height: 100%;
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: 0 40px 80px rgba(0,0,0,0.3);
+          position: relative;
         }
 
-        .art-star {
-          position: absolute;
-          top: 4%;
-          right: 8%;
-          font-size: 54px;
-          color: #ffb52d;
+        .main-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
         }
 
-        .art-cross {
+        .image-overlay {
           position: absolute;
-          left: 4%;
-          bottom: 14%;
-          color: #fff;
-          font-size: 35px;
+          inset: 0;
+          background: linear-gradient(to top, rgba(232, 91, 12, 0.4), transparent);
         }
 
-        .art-glow {
+        .floating-card {
           position: absolute;
-          width: 80%;
-          height: 80%;
-          border-radius: 50%;
-          background: #ffab28;
-          filter: blur(85px);
-          opacity: .17;
-          z-index: -1;
+          bottom: 15%;
+          left: -10%;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(10px);
+          padding: 16px 20px;
+          border-radius: 14px;
+          box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          z-index: 5;
+          animation: float 4s ease-in-out infinite;
         }
 
-        .art-caption {
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+
+        .card-icon {
+          font-size: 28px;
+          background: #f1f0ed;
+          width: 48px;
+          height: 48px;
+          display: grid;
+          place-items: center;
+          border-radius: 12px;
+        }
+
+        .card-text strong {
+          display: block;
+          font-size: 11px;
+          color: #191919;
+          margin-bottom: 4px;
+        }
+
+        .card-text small {
+          font-size: 9px;
+          color: #888;
+        }
+
+        .vehicle-tags {
           position: absolute;
-          bottom: -2%;
-          left: 50%;
-          transform: translateX(-50%);
-          color: white;
-          font-size: 8px;
-          letter-spacing: 2px;
-          white-space: nowrap;
+          top: -5%;
+          right: -5%;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          z-index: 5;
+        }
+
+        .vehicle-tags span {
+          background: rgba(255, 255, 255, 0.9);
+          color: #191919;
+          padding: 8px 14px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 800;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
 
         /* HEADER */
@@ -745,140 +646,7 @@ export default function LogisticsLandingPage() {
           margin-top: 4px;
         }
 
-        /* HERO RIGHT */
-        .hero-right {
-          position: absolute;
-          right: 4%;
-          top: 24%;
-          width: 25%;
-          z-index: 4;
-          color: #191919;
-        }
-
-        .available {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          font-size: 8px;
-          font-weight: 800;
-          letter-spacing: 1px;
-          color: #888;
-          margin-bottom: 13px;
-        }
-
-        .available span {
-          width: 6px;
-          height: 6px;
-          background: #ef7b30;
-          border-radius: 50%;
-        }
-
-        .hero-right h2 {
-          font-size: clamp(25px, 3vw, 36px);
-          line-height: 1;
-          letter-spacing: -1.5px;
-          margin: 0;
-          font-weight: 900;
-        }
-
-        .hero-right > p {
-          font-size: 10px;
-          color: #999;
-          margin: 10px 0 17px;
-        }
-
-        .featured-project {
-          width: 100%;
-          padding: 10px;
-          border-radius: 12px;
-          background: #f3f2f0;
-        }
-
-        .featured-top {
-          display: flex;
-          justify-content: space-between;
-          font-size: 7px;
-          font-weight: 800;
-          letter-spacing: .6px;
-          color: #999;
-          padding: 4px 3px 9px;
-        }
-
-        .featured-visual {
-          height: 112px;
-          position: relative;
-          overflow: hidden;
-          background: linear-gradient(135deg, #e87521, #fa941b);
-          color: white;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 14px;
-          border-radius: 7px;
-        }
-
-        .featured-visual > span {
-          font-size: 23px;
-          font-weight: 900;
-          letter-spacing: 2px;
-          z-index: 2;
-        }
-
-        .featured-visual small {
-          font-size: 6px;
-          letter-spacing: 2px;
-          z-index: 2;
-          margin-top: 4px;
-        }
-
-        .featured-decoration {
-          position: absolute;
-          right: 10px;
-          top: -30px;
-          font-size: 115px;
-          color: #ffffff27;
-        }
-
-        .featured-orbit {
-          position: absolute;
-          right: -12px;
-          bottom: -43px;
-          width: 135px;
-          height: 95px;
-          border: 1px solid #ffffff66;
-          border-radius: 50%;
-          transform: rotate(-35deg);
-        }
-
-        .featured-bottom {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px 2px 1px;
-        }
-
-        .featured-bottom strong {
-          display: block;
-          font-size: 9px;
-        }
-
-        .featured-bottom small {
-          display: block;
-          color: #999;
-          font-size: 6px;
-          margin-top: 4px;
-        }
-
-        .featured-bottom a {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: #e8752a;
-          color: white;
-          display: grid;
-          place-items: center;
-        }
-
+        /* HERO FOOTER */
         .hero-footer {
           position: absolute;
           left: 4.5%;
@@ -959,7 +727,7 @@ export default function LogisticsLandingPage() {
           letter-spacing: .7px;
         }
 
-        /* SECTIONS SHARED */
+        /* FEATURES SECTION */
         .features-section {
           padding: 65px 6%;
         }
@@ -997,7 +765,6 @@ export default function LogisticsLandingPage() {
           margin: 0 0 3px;
         }
 
-        /* FEATURES GRID */
         .features-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1121,144 +888,6 @@ export default function LogisticsLandingPage() {
           letter-spacing: .4px;
         }
 
-        /* ABOUT */
-        .about-section {
-          margin: 7px;
-          border-radius: 10px;
-          background: #eceae5;
-          padding: 48px 6% 18px;
-        }
-
-        .about-section .about-title h2 {
-          font-size: clamp(48px, 7vw, 85px);
-          letter-spacing: -5px;
-          line-height: .85;
-          margin: 15px 0;
-        }
-
-        .about-title h2 span {
-          color: #e8752a;
-          margin-left: 15px;
-        }
-
-        .about-text {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 20px;
-          margin-top: -8px;
-        }
-
-        .about-symbol {
-          width: 65px;
-          height: 65px;
-          display: grid;
-          place-items: center;
-          background: #f47716;
-          color: white;
-          border-radius: 50%;
-          font-size: 36px;
-        }
-
-        .about-text > div:last-child {
-          max-width: 350px;
-        }
-
-        .about-text h3 {
-          font-size: 18px;
-          line-height: 1.2;
-          margin: 0 0 8px;
-        }
-
-        .about-text p {
-          font-size: 9px;
-          line-height: 1.7;
-          color: #777;
-          margin: 0;
-        }
-
-        .about-bottom {
-          border-top: 1px solid #d7d3cc;
-          padding-top: 12px;
-          margin-top: 28px;
-          display: flex;
-          justify-content: space-between;
-          font-size: 7px;
-          letter-spacing: 1px;
-          color: #888;
-          font-weight: 800;
-        }
-
-        /* CTA SECTION */
-        .cta-section {
-          position: relative;
-          margin: 7px;
-          border-radius: 10px;
-          padding: 45px 6% 20px;
-          overflow: hidden;
-          background: linear-gradient(115deg, #a9360c, #f47b18);
-          color: white;
-        }
-
-        .cta-decoration {
-          position: absolute;
-          right: 8%;
-          top: -95px;
-          font-size: 300px;
-          color: #ffffff12;
-          pointer-events: none;
-        }
-
-        .cta-section h2 {
-          position: relative;
-          font-size: clamp(55px, 8vw, 90px);
-          line-height: .82;
-          letter-spacing: -5px;
-          margin: 20px 0;
-        }
-
-        .cta-section h2 span {
-          color: transparent;
-          -webkit-text-stroke: 1px white;
-        }
-
-        .cta-section > p {
-          font-size: 10px;
-          color: #ffffffcc;
-          margin: 15px 0;
-        }
-
-        .cta-button {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          gap: 20px;
-          padding: 13px 18px;
-          border-radius: 30px;
-          background: white;
-          color: #252525;
-          font-size: 8px;
-          font-weight: 900;
-          margin-top: 5px;
-        }
-
-        .cta-button svg {
-          width: 15px;
-        }
-
-        .cta-meta {
-          position: relative;
-          display: flex;
-          justify-content: space-between;
-          gap: 10px;
-          border-top: 1px solid #ffffff40;
-          padding-top: 13px;
-          margin-top: 40px;
-          font-size: 7px;
-          letter-spacing: .9px;
-          color: #ffffffbd;
-        }
-
         /* FOOTER */
         .footer {
           display: flex;
@@ -1299,9 +928,9 @@ export default function LogisticsLandingPage() {
             font-size: 100px;
           }
 
-          .abstract-art {
-            left: 28%;
-            width: 40%;
+          .logistics-visual {
+            left: 25%;
+            width: 50%;
           }
 
           .features-grid {
@@ -1364,62 +993,40 @@ export default function LogisticsLandingPage() {
             display: none;
           }
 
-          .abstract-art {
-            top: 52%;
-            left: 2%;
-            width: 57%;
-            height: 43%;
+          .logistics-visual {
+            top: 50%;
+            left: 5%;
+            width: 90%;
+            height: 45%;
           }
 
-          .art-circle {
-            width: 85%;
+          .floating-card {
+            left: 5%;
+            bottom: 10%;
+            padding: 12px 16px;
           }
 
-          .art-core {
-            font-size: 46px;
+          .card-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 22px;
           }
 
-          .art-star {
-            font-size: 35px;
+          .card-text strong {
+            font-size: 10px;
           }
 
-          .art-caption {
-            font-size: 6px;
+          .vehicle-tags {
+            top: -10%;
+            right: 0;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 6px;
           }
 
-          .hero-right {
-            top: 54%;
-            right: 4%;
-            width: 38%;
-          }
-
-          .hero-right h2 {
-            font-size: 24px;
-          }
-
-          .hero-right > p {
+          .vehicle-tags span {
             font-size: 8px;
-            line-height: 1.5;
-          }
-
-          .featured-visual {
-            height: 78px;
-          }
-
-          .featured-visual > span {
-            font-size: 15px;
-          }
-
-          .featured-decoration {
-            font-size: 80px;
-          }
-
-          .featured-bottom strong {
-            font-size: 8px;
-          }
-
-          .featured-bottom small {
-            font-size: 5px;
+            padding: 6px 10px;
           }
 
           .hero-footer {
@@ -1490,61 +1097,6 @@ export default function LogisticsLandingPage() {
             font-size: 5px;
           }
 
-          .about-section {
-            padding: 35px 5% 15px;
-          }
-
-          .about-section .about-title h2 {
-            font-size: 52px;
-            letter-spacing: -4px;
-          }
-
-          .about-title h2 span {
-            display: block;
-            margin: 7px 0 0;
-          }
-
-          .about-text {
-            justify-content: flex-start;
-            margin-top: 25px;
-            gap: 14px;
-          }
-
-          .about-symbol {
-            min-width: 48px;
-            width: 48px;
-            height: 48px;
-            font-size: 26px;
-          }
-
-          .about-text h3 {
-            font-size: 15px;
-          }
-
-          .about-bottom {
-            font-size: 6px;
-            gap: 10px;
-          }
-
-          .cta-section {
-            padding: 35px 5% 18px;
-          }
-
-          .cta-section h2 {
-            font-size: 65px;
-            letter-spacing: -4px;
-          }
-
-          .cta-decoration {
-            font-size: 200px;
-            right: 0;
-          }
-
-          .cta-meta {
-            font-size: 5px;
-            letter-spacing: .3px;
-          }
-
           .footer {
             padding: 15px 5%;
             font-size: 6px;
@@ -1557,16 +1109,8 @@ export default function LogisticsLandingPage() {
             min-height: 750px;
           }
 
-          .hero-right h2 {
-            font-size: 21px;
-          }
-
           .feature-preview {
             height: 145px;
-          }
-
-          .about-section .about-title h2 {
-            font-size: 45px;
           }
         }
 
