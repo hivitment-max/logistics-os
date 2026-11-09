@@ -34,15 +34,34 @@ export default function DashboardPage() {
     let isCancelled = false
     const init = async () => {
       try {
-        const response = await supabase.auth.getSession()
-        const session = response.data?.session
-        const error = response.error
+        // 1. სესიის შემოწმება
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
         if (isCancelled) return
-        if (error || !session) { router.push('/login'); return }
+        if (sessionError || !session) { 
+          router.push('/login')
+          return 
+        }
         
-        const userRole = (session.user.user_metadata?.role || 'client') as Role
-        setRole(userRole)
+        // 2. ✅ ახალი ლოგიკა: როლის წაკითხვა პირდაპირ public.profiles ცხრილიდან
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+
+        if (isCancelled) return
+        
+        if (profileError || !profile) {
+          console.error('Profile fetch error:', profileError)
+          // უსაფრთხოებისთვის, თუ პროფილი ვერ მოიძებნა, ნაგულისხმევად client-ს ვტოვებთ
+          setRole('client')
+          return
+        }
+
+        // 3. როლის დაყენება ბაზიდან მიღებული მნიშვნელობით
+        setRole(profile.role as Role)
+
       } catch (err: any) {
         console.error('Init error:', err.message)
         if (!isCancelled) setRole('client')
@@ -70,14 +89,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ✅ ტესტის ბანერი წაშლილია - ახლა სუფთაა! */}
-
       <main className="w-full h-full pt-2">
         {role === 'admin' && <AdminDashboard />}
         {role === 'manager' && <ManagerDashboard />}
         {role === 'accountant' && <AccountantDashboard />}
         {role === 'dispatcher' && <DispatcherDashboard />}
         {role === 'driver' && <DriverDashboard />}
+        {/* შენიშვნა: client-ისთვის ცალკე გვერდია, სადაც redirect-ით მიდის */}
       </main>
     </div>
   )
