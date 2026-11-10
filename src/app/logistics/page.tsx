@@ -1,53 +1,67 @@
-
 "use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
 
+// 🎨 ახალი ვექტორული ლოგო
+function LogoIcon() {
+  return (
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="42" height="42" rx="12" fill="#FFFFFF" />
+      {/* სტილიზებული L / მარშრუტი */}
+      <path d="M13 15V29H29" stroke="#F28A32" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 15H29V23" stroke="#F28A32" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* წარმატებული მიწოდების მინიშნება */}
+      <path d="M29 29L33 25" stroke="#299B7A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="13" cy="15" r="2.5" fill="#F28A32" />
+    </svg>
+  );
+}
+
 const features = [
   {
     id: "01",
     name: "შეკვეთების მართვა",
-    type: "ORDER MANAGEMENT",
+    type: "შეკვეთების მართვა",
     description:
       "შეკვეთების სრული ციკლი, სტატუსები, მარშრუტები, ტვირთის კონტროლი და რეალურ დროში მონიტორინგი.",
     accent: "#f28a32",
     bg: "#fff0df",
     icon: "package",
-    tags: ["ORDERS", "TRACKING", "STATUS"],
+    tags: ["შეკვეთები", "ტრეკინგი", "სტატუსი"],
   },
   {
     id: "02",
     name: "ფლოტი და მძღოლები",
-    type: "FLEET MANAGEMENT",
+    type: "ფლოტის მართვა",
     description:
       "ავტომობილების, მძღოლების, ტექნიკური მომსახურებისა და დოკუმენტაციის ცენტრალიზებული მართვა.",
     accent: "#8970db",
     bg: "#eeeaff",
     icon: "fleet",
-    tags: ["VEHICLES", "DRIVERS", "SERVICE"],
+    tags: ["ტრანსპორტი", "მძღოლები", "მომსახურება"],
   },
   {
     id: "03",
     name: "AI ავტომატიზაცია",
-    type: "INTELLIGENT AUTOMATION",
+    type: "ჭკვიანი ავტომატიზაცია",
     description:
       "AI-ზე დაფუძნებული ფასები, პროცესების ავტომატიზაცია, Telegram ინტეგრაცია და შეტყობინებები.",
     accent: "#e87936",
     bg: "#ffeadb",
     icon: "ai",
-    tags: ["AI PRICING", "BOT", "AUTOMATION"],
+    tags: ["AI ფასები", "ბოტი", "ავტომატიზაცია"],
   },
   {
     id: "04",
     name: "ფინანსები და ანალიტიკა",
-    type: "FINANCE & ANALYTICS",
+    type: "ფინანსები და ანალიტიკა",
     description:
-      "შემოსავლების, ხარჯების, მოგების, ინვოისებისა და ფინანსური მაჩვენებლების კონტროლი.",
+      "შემოსავლების, ხარჯების, მოგების, ინვოისებისა და ფინანსური მაჩვენებლების სრული კონტროლი.",
     accent: "#299b7a",
     bg: "#e1f5ec",
     icon: "finance",
-    tags: ["FINANCE", "INVOICES", "REPORTS"],
+    tags: ["ფინანსები", "ინვოისები", "ანგარიშგება"],
   },
 ];
 
@@ -91,45 +105,24 @@ function LogisticsIllustration() {
         </filter>
       </defs>
 
-      {/* Map background */}
-      <rect
-        x="35"
-        y="35"
-        width="550"
-        height="460"
-        rx="28"
-        fill="url(#mapGradient)"
-      />
+      <rect x="35" y="35" width="550" height="460" rx="28" fill="url(#mapGradient)" />
 
-      {/* Decorative map grid */}
       <g stroke="#e4b989" strokeWidth="1" opacity=".45">
         <path d="M35 115H585M35 195H585M35 275H585M35 355H585M35 435H585" />
         <path d="M115 35V495M195 35V495M275 35V495M355 35V495M435 35V495M515 35V495" />
       </g>
 
-      {/* Abstract geographical roads */}
-      <g
-        stroke="#fff"
-        strokeWidth="15"
-        strokeLinecap="round"
-        opacity=".85"
-      >
+      <g stroke="#fff" strokeWidth="15" strokeLinecap="round" opacity=".85">
         <path d="M45 390C150 320 170 390 250 300S400 220 575 260" />
         <path d="M100 50C170 150 210 170 310 170S440 100 570 80" />
         <path d="M160 480C210 410 300 420 365 340S450 280 560 340" />
       </g>
 
-      <g
-        stroke="#e6b982"
-        strokeWidth="1.5"
-        strokeDasharray="5 7"
-        opacity=".7"
-      >
+      <g stroke="#e6b982" strokeWidth="1.5" strokeDasharray="5 7" opacity=".7">
         <path d="M45 390C150 320 170 390 250 300S400 220 575 260" />
         <path d="M100 50C170 150 210 170 310 170S440 100 570 80" />
       </g>
 
-      {/* Route shadow */}
       <path
         d="M120 345C170 345 165 195 275 195S370 345 485 145"
         stroke="#d35a20"
@@ -138,7 +131,6 @@ function LogisticsIllustration() {
         filter="url(#shadow)"
       />
 
-      {/* Main route */}
       <path
         d="M120 345C170 345 165 195 275 195S370 345 485 145"
         stroke="url(#routeGradient)"
@@ -147,7 +139,6 @@ function LogisticsIllustration() {
         strokeDasharray="9 9"
       />
 
-      {/* Route nodes */}
       <g>
         <circle cx="120" cy="345" r="18" fill="#fff" />
         <circle cx="120" cy="345" r="10" fill="#f28a32" />
@@ -159,90 +150,53 @@ function LogisticsIllustration() {
         <circle cx="485" cy="145" r="10" fill="#e05b26" />
       </g>
 
-      {/* Location labels */}
+      {/* ქართული ლოკაციები */}
       <g fontFamily="Arial, sans-serif" fill="#633c29">
-        <rect x="65" y="378" width="112" height="36" rx="10" fill="#fff" />
-        <text x="121" y="401" fontSize="11" textAnchor="middle" fontWeight="bold">
-          TBILISI
+        <rect x="55" y="378" width="130" height="36" rx="10" fill="#fff" />
+        <text x="120" y="401" fontSize="12" textAnchor="middle" fontWeight="bold">
+          თბილისი
         </text>
 
-        <rect x="230" y="222" width="100" height="36" rx="10" fill="#fff" />
-        <text x="280" y="245" fontSize="11" textAnchor="middle" fontWeight="bold">
-          ISTANBUL
+        <rect x="220" y="222" width="110" height="36" rx="10" fill="#fff" />
+        <text x="275" y="245" fontSize="12" textAnchor="middle" fontWeight="bold">
+          სტამბოლი
         </text>
 
-        <rect x="438" y="103" width="100" height="30" rx="9" fill="#fff" />
-        <text x="488" y="123" fontSize="10" textAnchor="middle" fontWeight="bold">
-          EUROPE
+        <rect x="428" y="103" width="110" height="30" rx="9" fill="#fff" />
+        <text x="483" y="123" fontSize="11" textAnchor="middle" fontWeight="bold">
+          ევროპა
         </text>
       </g>
 
-      {/* Central logistics package illustration */}
       <g transform="translate(210 285)">
-        <rect
-          x="4"
-          y="10"
-          width="160"
-          height="125"
-          rx="20"
-          fill="#ad541e"
-          opacity=".12"
-        />
+        <rect x="4" y="10" width="160" height="125" rx="20" fill="#ad541e" opacity=".12" />
         <rect x="0" y="0" width="160" height="125" rx="20" fill="#fff" />
 
-        <path
-          d="M80 27L119 49V94L80 116L41 94V49L80 27Z"
-          fill="#f5a14b"
-        />
-        <path
-          d="M80 27L119 49L80 71L41 49L80 27Z"
-          fill="#ffc77f"
-        />
+        <path d="M80 27L119 49V94L80 116L41 94V49L80 27Z" fill="#f5a14b" />
+        <path d="M80 27L119 49L80 71L41 49L80 27Z" fill="#ffc77f" />
         <path d="M80 71V116L41 94V49L80 71Z" fill="#df7b2e" />
         <path d="M80 71L119 49V94L80 116V71Z" fill="#ef9845" />
         <path d="M80 27V71" stroke="#fff1dc" strokeWidth="2" />
         <path d="M41 49L80 71L119 49" stroke="#fff1dc" strokeWidth="2" />
 
         <circle cx="130" cy="17" r="15" fill="#e4f5e9" />
-        <path
-          d="M123 17L128 22L137 12"
-          stroke="#299b65"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d="M123 17L128 22L137 12" stroke="#299b65" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       </g>
 
-      {/* Floating status card */}
       <g transform="translate(365 365)">
         <rect x="4" y="6" width="175" height="92" rx="14" fill="#b86c36" opacity=".12" />
         <rect width="175" height="92" rx="14" fill="#fff" />
         <circle cx="22" cy="25" r="6" fill="#36b986" />
-        <text
-          x="37"
-          y="28"
-          fill="#666"
-          fontSize="10"
-          fontWeight="bold"
-          fontFamily="Arial"
-        >
-          DELIVERY STATUS
+        <text x="37" y="28" fill="#666" fontSize="10" fontWeight="bold" fontFamily="Arial">
+          მიწოდების სტატუსი
         </text>
-        <text
-          x="18"
-          y="57"
-          fill="#252525"
-          fontSize="17"
-          fontWeight="bold"
-          fontFamily="Arial"
-        >
-          In Transit
+        <text x="18" y="57" fill="#252525" fontSize="17" fontWeight="bold" fontFamily="Arial">
+          გზაშია
         </text>
         <rect x="18" y="70" width="139" height="5" rx="3" fill="#eee" />
         <rect x="18" y="70" width="105" height="5" rx="3" fill="#f28a32" />
       </g>
 
-      {/* Small decorative elements */}
       <circle cx="520" cy="400" r="28" stroke="#e99b56" strokeWidth="2" opacity=".5" />
       <circle cx="520" cy="400" r="10" fill="#f28a32" opacity=".25" />
       <circle cx="75" cy="125" r="6" fill="#f28a32" />
@@ -272,7 +226,6 @@ function FeatureIcon({ type }: { type: string }) {
           <path d="M6 11L20 19L34 11M20 19V36M13 7.5L27 15.5" />
         </svg>
       );
-
     case "fleet":
       return (
         <svg {...common}>
@@ -282,7 +235,6 @@ function FeatureIcon({ type }: { type: string }) {
           <circle cx="30" cy="29" r="3.5" fill="currentColor" />
         </svg>
       );
-
     case "ai":
       return (
         <svg {...common}>
@@ -290,7 +242,6 @@ function FeatureIcon({ type }: { type: string }) {
           <path d="M32 4V12M28 8H36M8 28V35M4.5 31.5H11.5" />
         </svg>
       );
-
     default:
       return (
         <svg {...common}>
@@ -324,10 +275,10 @@ export default function LogisticsLandingPage() {
         {/* HEADER */}
         <header className="header">
           <Link href="/" className="brand">
-            <span className="brand-icon">L.</span>
+            <LogoIcon />
             <span className="brand-text">
-              LOGISTICS
-              <small>MANAGEMENT OS</small>
+              LOGISTICS OS
+              <small>მართვის სისტემა</small>
             </span>
           </Link>
 
@@ -366,13 +317,13 @@ export default function LogisticsLandingPage() {
 
             <div className="eyebrow">
               <span className="eyebrow-dot" />
-              SMART LOGISTICS MANAGEMENT
+              ჭკვიანი ლოჯისტიკის მართვა
             </div>
 
             <h1>
-              LOGISTICS
-              <span>WITHOUT</span>
-              LIMITS<span className="title-dot">.</span>
+              ლოჯისტიკა
+              <span>ზღვრების</span>
+              გარეშე<span className="title-dot">.</span>
             </h1>
 
             <p className="hero-description">
@@ -402,7 +353,7 @@ export default function LogisticsLandingPage() {
                 <span>03</span>
               </div>
               <div>
-                <strong>ONE PLATFORM. TOTAL CONTROL.</strong>
+                <strong>ერთი პლატფორმა. სრული კონტროლი.</strong>
                 <small>ყველა პროცესი ერთ სივრცეში.</small>
               </div>
             </div>
@@ -412,8 +363,8 @@ export default function LogisticsLandingPage() {
           <div className="hero-right">
             <div className="availability">
               <span className="availability-dot" />
-              LOGISTICS MANAGEMENT
-              <strong>SMART OPERATIONS</strong>
+              ლოჯისტიკის მართვა
+              <strong>ჭკვიანი ოპერაციები</strong>
             </div>
 
             <div className="illustration-wrap">
@@ -425,16 +376,16 @@ export default function LogisticsLandingPage() {
                 <FeatureIcon type="package" />
               </div>
               <div>
-                <small>ACTIVE SHIPMENTS</small>
-                <strong>Order Management</strong>
+                <small>აქტიური გადაზიდვები</small>
+                <strong>შეკვეთების მართვა</strong>
               </div>
               <span className="online-dot" />
             </div>
 
             <div className="floating-bottom-card">
               <div className="bottom-card-head">
-                <span>DELIVERY PERFORMANCE</span>
-                <span className="performance-label">LIVE</span>
+                <span>მიწოდების ეფექტურობა</span>
+                <span className="performance-label">რეალურ დროში</span>
               </div>
               <div className="performance-number">
                 98.5<span>%</span>
@@ -442,16 +393,16 @@ export default function LogisticsLandingPage() {
               <div className="performance-bars">
                 <i /><i /><i /><i /><i /><i /><i /><i /><i /><i />
               </div>
-              <small>Smart logistics intelligence</small>
+              <small>ჭკვიანი ლოჯისტიკური ანალიტიკა</small>
             </div>
           </div>
         </div>
 
         {/* HERO FOOTER */}
         <div className="hero-footer">
-          <span>LOGISTICS MANAGEMENT OPERATING SYSTEM</span>
+          <span>ლოჯისტიკის მართვის ოპერაციული სისტემა</span>
           <div className="footer-line" />
-          <a href="#features">EXPLORE PLATFORM ↓</a>
+          <a href="#features">გაეცანით პლატფორმას ↓</a>
         </div>
       </section>
 
@@ -460,7 +411,7 @@ export default function LogisticsLandingPage() {
         <div className="stat-item">
           <span className="stat-icon">↗</span>
           <div>
-            <strong>ORDERS</strong>
+            <strong>შეკვეთები</strong>
             <small>შეკვეთების ცენტრალიზებული მართვა</small>
           </div>
         </div>
@@ -468,7 +419,7 @@ export default function LogisticsLandingPage() {
         <div className="stat-item">
           <span className="stat-icon">⌖</span>
           <div>
-            <strong>TRACKING</strong>
+            <strong>ტრეკინგი</strong>
             <small>მარშრუტებისა და მიწოდების კონტროლი</small>
           </div>
         </div>
@@ -476,7 +427,7 @@ export default function LogisticsLandingPage() {
         <div className="stat-item">
           <span className="stat-icon">✳</span>
           <div>
-            <strong>AI POWERED</strong>
+            <strong>AI ტექნოლოგიები</strong>
             <small>ჭკვიანი პროცესები და ავტომატიზაცია</small>
           </div>
         </div>
@@ -484,7 +435,7 @@ export default function LogisticsLandingPage() {
         <div className="stat-item">
           <span className="stat-icon">▥</span>
           <div>
-            <strong>ANALYTICS</strong>
+            <strong>ანალიტიკა</strong>
             <small>ფინანსური და ოპერაციული ანალიტიკა</small>
           </div>
         </div>
@@ -495,7 +446,7 @@ export default function LogisticsLandingPage() {
         <div className="section-top">
           <div>
             <div className="section-kicker">
-              <span /> 01 / PLATFORM FEATURES
+              <span /> 01 / პლატფორმის შესაძლებლობები
             </div>
             <h2>
               ყველა პროცესი.
@@ -563,7 +514,7 @@ export default function LogisticsLandingPage() {
         <div className="workflow-heading">
           <div>
             <div className="section-kicker">
-              <span /> 02 / WORKFLOW
+              <span /> 02 / სამუშაო პროცესი
             </div>
             <h2>კონტროლი. სიზუსტე. <span>ეფექტურობა.</span></h2>
           </div>
@@ -573,24 +524,24 @@ export default function LogisticsLandingPage() {
         <div className="workflow-grid">
           <div className="workflow-card workflow-main">
             <div className="workflow-card-top">
-              <span>01 — OPERATIONS</span>
+              <span>01 — ოპერაციები</span>
               <span>↗</span>
             </div>
 
             <div className="workflow-graphic">
               <div className="workflow-node node-a">
                 <span>01</span>
-                <strong>ORDER</strong>
+                <strong>შეკვეთა</strong>
               </div>
               <div className="workflow-connector" />
               <div className="workflow-node node-b">
                 <span>02</span>
-                <strong>ROUTE</strong>
+                <strong>მარშრუტი</strong>
               </div>
               <div className="workflow-connector" />
               <div className="workflow-node node-c">
                 <span>03</span>
-                <strong>DELIVERY</strong>
+                <strong>მიწოდება</strong>
               </div>
             </div>
 
@@ -600,14 +551,14 @@ export default function LogisticsLandingPage() {
 
           <div className="workflow-card workflow-dark">
             <div className="workflow-card-top">
-              <span>02 — INTELLIGENCE</span>
+              <span>02 — ანალიტიკა</span>
               <span>✳</span>
             </div>
 
             <div className="chart-graphic">
               <div className="chart-label">
-                <span>OPERATIONAL INSIGHTS</span>
-                <strong>ANALYTICS</strong>
+                <span>ოპერაციული მონაცემები</span>
+                <strong>ანალიტიკა</strong>
               </div>
               <div className="chart-bars">
                 {[35, 55, 43, 75, 60, 90, 72, 100, 82, 95].map(
@@ -627,7 +578,7 @@ export default function LogisticsLandingPage() {
 
           <div className="workflow-card workflow-orange">
             <div className="workflow-card-top">
-              <span>03 — AUTOMATION</span>
+              <span>03 — ავტომატიზაცია</span>
               <span>↗</span>
             </div>
 
@@ -656,7 +607,7 @@ export default function LogisticsLandingPage() {
 
         <div className="cta-content">
           <div className="section-kicker">
-            <span /> 03 / THE NEXT STEP
+            <span /> 03 / შემდეგი ნაბიჯი
           </div>
 
           <h2>
@@ -677,21 +628,23 @@ export default function LogisticsLandingPage() {
         </div>
 
         <div className="cta-side">
-          <div className="cta-logo">L.</div>
-          <span>SMART LOGISTICS</span>
-          <span>ONE CONNECTED SYSTEM</span>
+          <div className="cta-logo">
+            <LogoIcon />
+          </div>
+          <span>ჭკვიანი ლოჯისტიკა</span>
+          <span>ერთიანი დაკავშირებული სისტემა</span>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer className="footer">
         <Link href="/" className="footer-brand">
-          <span>L.</span>
-          LOGISTICS OS
+          <LogoIcon />
+          <span style={{ marginLeft: '8px', fontSize: '16px' }}>LOGISTICS OS</span>
         </Link>
 
         <div className="footer-center">
-          LOGISTICS MANAGEMENT OPERATING SYSTEM
+          ლოჯისტიკის მართვის ოპერაციული სისტემა
         </div>
 
         <a href="#home" className="back-top">
@@ -733,7 +686,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* HERO */
-
         .hero {
           position: relative;
           min-height: 680px;
@@ -796,7 +748,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* HEADER */
-
         .header {
           position: absolute;
           z-index: 20;
@@ -813,34 +764,24 @@ export default function LogisticsLandingPage() {
         .brand {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           color: #fff;
         }
 
-        .brand-icon {
-          width: 39px;
-          height: 39px;
-          display: grid;
-          place-items: center;
-          background: #fff;
-          color: #e85d19;
-          border-radius: 11px;
-          font-size: 24px;
-          font-weight: 900;
-        }
-
         .brand-text {
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 900;
-          letter-spacing: 1.3px;
+          letter-spacing: 1px;
+          line-height: 1.1;
         }
 
         .brand-text small {
           display: block;
-          font-size: 7px;
-          letter-spacing: 1.5px;
-          margin-top: 4px;
-          opacity: .75;
+          font-size: 8px;
+          letter-spacing: 1.2px;
+          margin-top: 3px;
+          opacity: .8;
+          font-weight: 600;
         }
 
         .desktop-nav {
@@ -850,14 +791,14 @@ export default function LogisticsLandingPage() {
         }
 
         .desktop-nav a {
-          color: #555;
+          color: #fff;
           font-size: 10px;
           font-weight: 800;
           transition: color .2s;
         }
 
         .desktop-nav a:hover {
-          color: #ec772c;
+          color: #ffe2c0;
         }
 
         .desktop-nav .nav-login {
@@ -865,8 +806,14 @@ export default function LogisticsLandingPage() {
           align-items: center;
           gap: 8px;
           padding: 12px 17px;
-          background: #f4f3f0;
+          background: #fff;
+          color: #f15e16;
           border-radius: 30px;
+        }
+
+        .desktop-nav .nav-login:hover {
+          color: #f15e16;
+          background: #fff0df;
         }
 
         .menu-toggle {
@@ -919,7 +866,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* HERO CONTENT */
-
         .hero-content {
           position: absolute;
           top: 78px;
@@ -1064,7 +1010,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* VECTOR VISUAL */
-
         .hero-right {
           position: relative;
           display: flex;
@@ -1235,7 +1180,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* HERO FOOTER */
-
         .hero-footer {
           position: absolute;
           z-index: 4;
@@ -1263,7 +1207,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* STATS */
-
         .stats-strip {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
@@ -1314,7 +1257,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* FEATURES */
-
         .features-section {
           padding: 48px 4% 45px;
         }
@@ -1502,7 +1444,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* WORKFLOW */
-
         .workflow-section {
           padding: 35px 4% 45px;
           background: #eae7e1;
@@ -1732,7 +1673,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* CTA */
-
         .cta-section {
           position: relative;
           display: flex;
@@ -1797,18 +1737,17 @@ export default function LogisticsLandingPage() {
           color: #aaa;
           font-size: 8px;
           letter-spacing: 1.3px;
+          text-align: right;
         }
 
         .cta-logo {
-          width: 100px;
-          height: 100px;
+          width: 80px;
+          height: 80px;
           display: grid;
           place-items: center;
           border: 1px solid #ffffff25;
-          border-radius: 25px;
-          color: #f49a4b;
-          font-size: 65px;
-          font-weight: 900;
+          border-radius: 20px;
+          background: rgba(255,255,255,0.05);
         }
 
         .cta-decoration {
@@ -1841,7 +1780,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* FOOTER */
-
         .footer {
           min-height: 55px;
           padding: 10px 3%;
@@ -1862,11 +1800,6 @@ export default function LogisticsLandingPage() {
           font-weight: 900;
         }
 
-        .footer-brand span {
-          color: #e87b2d;
-          font-size: 22px;
-        }
-
         .footer-center {
           color: #aaa;
         }
@@ -1876,7 +1809,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* RESPONSIVE: TABLET */
-
         @media (max-width: 1000px) {
           .hero {
             min-height: 650px;
@@ -1916,7 +1848,6 @@ export default function LogisticsLandingPage() {
         }
 
         /* RESPONSIVE: MOBILE */
-
         @media (max-width: 650px) {
           .landing {
             padding: 4px;
@@ -1946,14 +1877,8 @@ export default function LogisticsLandingPage() {
             padding: 0 5%;
           }
 
-          .brand-icon {
-            width: 34px;
-            height: 34px;
-            font-size: 21px;
-          }
-
           .brand-text {
-            font-size: 10px;
+            font-size: 12px;
           }
 
           .desktop-nav {
@@ -2212,6 +2137,9 @@ export default function LogisticsLandingPage() {
           .cta-section {
             min-height: 230px;
             padding: 24px 5%;
+            flex-direction: column;
+            text-align: center;
+            gap: 30px;
           }
 
           .cta-content h2 {
@@ -2219,7 +2147,7 @@ export default function LogisticsLandingPage() {
           }
 
           .cta-content > p {
-            max-width: 250px;
+            max-width: 100%;
             font-size: 9px;
             line-height: 1.7;
           }
@@ -2232,6 +2160,9 @@ export default function LogisticsLandingPage() {
             min-height: 50px;
             padding: 8px 2%;
             font-size: 7px;
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
           }
 
           .footer-center {
