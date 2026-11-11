@@ -9,10 +9,10 @@ const projects = [
     name: "LUNARA",
     type: "AI / ასტროლოგია",
     description: "ხელოვნური ინტელექტით მომუშავე ასტროლოგიისა და ტაროს ეკოსისტემა.",
-    accent: "#e6c4ff",
-    bg1: "#1b0f3a",
-    bg2: "#4a2a8a",
-    glow: "rgba(190,130,255,.55)",
+    accent: "#f1dcff",
+    bg1: "#140a30",
+    bg2: "#4b2a8c",
+    glow: "rgba(176,120,255,.6)",
     tags: ["AI", "ტელეგრამი", "SaaS"],
     url: "#",
   },
@@ -21,21 +21,21 @@ const projects = [
     name: "VELORA",
     type: "ბიუთი ტექნოლოგია",
     description: "ახალი თაობის პლატფორმა ბიუთი ბიზნესისთვის.",
-    accent: "#fff0e6",
-    bg1: "#7a3f3a",
-    bg2: "#e7a98c",
-    glow: "rgba(255,225,200,.6)",
+    accent: "#fff1ea",
+    bg1: "#3f1233",
+    bg2: "#d9728a",
+    glow: "rgba(255,196,160,.6)",
     tags: ["პროდუქტი", "დიზაინი", "ტექ"],
     url: "#",
   },
   {
     id: "03",
     name: "EZO",
-    type: "უძრავი ქონების ტექნოლოგია",
+    type: "უძრავი ქონება",
     description: "ჭკვიანი სისტემა შენობებისა და თემის მართვისთვის.",
-    accent: "#b8fff3",
-    bg1: "#06191f",
-    bg2: "#0f4a52",
+    accent: "#c6fff6",
+    bg1: "#041419",
+    bg2: "#0e5560",
     glow: "rgba(70,217,197,.5)",
     tags: ["SaaS", "ვები", "სისტემები"],
     url: "#",
@@ -46,9 +46,9 @@ const projects = [
     type: "ციფრული სისტემები",
     description: "თანამედროვე ციფრული ლოჯისტიკის გამოცდილება.",
     accent: "#fff2d9",
-    bg1: "#5c2005",
-    bg2: "#e87521",
-    glow: "rgba(255,200,120,.6)",
+    bg1: "#2b1004",
+    bg2: "#e0691c",
+    glow: "rgba(255,196,110,.6)",
     tags: ["ვები", "ავტომატიზაცია"],
     url: "/logistics",
   },
@@ -65,7 +65,8 @@ type BoxDef = {
   kind: "win" | "tape" | "plain";
 };
 
-// 3D ყუთები (ცენტრი = სცენის ცენტრი; y დადებითი = ქვემოთ)
+// 3D ყუთები. ზომები უგანზომილებოა: სცენა თავისით მასშტაბირდება ბარათის ზომასთან
+// (ცენტრი = სცენის ცენტრი; y დადებითი = ქვემოთ)
 const boxes: Record<string, BoxDef[]> = {
   "03": [
     { w: 170, h: 10, d: 150, x: 0, y: 50, z: 0, c: "#1b6a73", kind: "plain" },
@@ -114,7 +115,6 @@ function Arrow() {
 }
 
 export default function Home() {
-  const [activeProject, setActiveProject] = useState("01");
   const [pulse, setPulse] = useState<string | null>(null);
 
   // ერთგვერდიან დიზაინში სქროლი არ არის, ამიტომ მენიუ შესაბამის ბლოკს აუნათებს
@@ -236,77 +236,85 @@ export default function Home() {
               <Link
                 href={project.url || "#"}
                 key={project.id}
-                className={`project-card ${
-                  activeProject === project.id ? "selected" : ""
-                }`}
-                style={{
-                  color: project.accent,
-                  background: `radial-gradient(circle at 74% 32%, ${project.glow}, transparent 58%), linear-gradient(145deg, ${project.bg1}, ${project.bg2})`,
-                }}
+                className="project-link"
                 aria-label={`${project.name} — ${project.type}`}
-                onMouseEnter={() => setActiveProject(project.id)}
-                onFocus={() => setActiveProject(project.id)}
               >
-                {/* 3D ბანერი */}
-                <span className="scene" aria-hidden="true">
-                  <span className="floor" />
-                  <span className="stage3d">
-                    {project.id === "01" && (
-                      <>
-                        <span className="moon-ring ring-a" />
-                        <span className="moon-ring ring-b" />
-                        <span className="moon" />
-                        <span className="spark sp1">✦</span>
-                        <span className="spark sp2">✦</span>
-                        <span className="spark sp3">✳</span>
-                      </>
-                    )}
+                {/* სტილები Link-ზე არ ვრცელდება, ამიტომ ბარათი შიდა div-ია */}
+                <div
+                  className="project-card"
+                  style={{
+                    color: project.accent,
+                    background: `radial-gradient(circle at 72% 30%, ${project.glow}, transparent 60%), linear-gradient(150deg, ${project.bg1}, ${project.bg2})`,
+                  }}
+                >
+                  {/* 3D ბანერი */}
+                  <span className="scene" aria-hidden="true">
+                    <span className="persp">
+                      <span className="floor" />
+                      <span className="stage3d">
+                        {project.id === "01" && (
+                          <>
+                            <span className="moon-ring ring-a" />
+                            <span className="moon-ring ring-b" />
+                            <span className="moon" />
+                            <span className="spark sp1">✦</span>
+                            <span className="spark sp2">✦</span>
+                            <span className="spark sp3">✳</span>
+                          </>
+                        )}
 
-                    {project.id === "02" && (
-                      <>
-                        <span className="tile t1" />
-                        <span className="tile t2" />
-                        <span className="tile t3">V</span>
-                        <span className="pearl p1" />
-                        <span className="pearl p2" />
-                      </>
-                    )}
+                        {project.id === "02" && (
+                          <>
+                            <span className="tile t1" />
+                            <span className="tile t2" />
+                            <span className="tile t3">V</span>
+                            <span className="pearl p1" />
+                            <span className="pearl p2" />
+                          </>
+                        )}
 
-                    {(boxes[project.id] ?? []).map((b, i) => (
-                      <span
-                        key={i}
-                        className={`box ${b.kind}`}
-                        style={
-                          {
-                            "--w": `${b.w}px`,
-                            "--h": `${b.h}px`,
-                            "--d": `${b.d}px`,
-                            "--c": b.c,
-                            transform: `translate3d(${b.x}px, ${b.y}px, ${b.z}px)`,
-                          } as React.CSSProperties
-                        }
-                      >
-                        {faces.map((f) => (
-                          <i key={f} className={`face ${f}`} />
+                        {(boxes[project.id] ?? []).map((b, i) => (
+                          <span
+                            key={i}
+                            className={`box ${b.kind}`}
+                            style={
+                              {
+                                "--w": b.w,
+                                "--h": b.h,
+                                "--d": b.d,
+                                "--x": b.x,
+                                "--y": b.y,
+                                "--z": b.z,
+                                "--c": b.c,
+                              } as React.CSSProperties
+                            }
+                          >
+                            {faces.map((f) => (
+                              <i key={f} className={`face ${f}`} />
+                            ))}
+                          </span>
                         ))}
                       </span>
-                    ))}
+                    </span>
                   </span>
-                </span>
 
-                <span className="pc-num">{project.id}</span>
-                <span className="pc-arrow">
-                  <Arrow />
-                </span>
+                  <div className="pc-top">
+                    <span className="pc-type">{project.type}</span>
+                    <span className="pc-arrow">
+                      <Arrow />
+                    </span>
+                  </div>
 
-                <span className="pc-type">{project.type}</span>
-                <span className="pc-name">{project.name}</span>
-                <span className="pc-desc">{project.description}</span>
-                <span className="pc-tags">
-                  {project.tags.map((tag) => (
-                    <i key={tag}>{tag}</i>
-                  ))}
-                </span>
+                  <div className="pc-bottom">
+                    <span className="pc-name">{project.name}</span>
+                    <span className="pc-desc">{project.description}</span>
+                    <span className="pc-tags">
+                      {project.tags.map((tag) => (
+                        <i key={tag}>{tag}</i>
+                      ))}
+                    </span>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
@@ -363,6 +371,20 @@ export default function Home() {
 
         :global(button) {
           font-family: inherit;
+        }
+
+        /* Link კომპონენტზე styled-jsx კლასს ვერ აყენებს, ამიტომ global */
+        :global(.project-link) {
+          display: block;
+          min-width: 0;
+          min-height: 0;
+          height: 100%;
+          border-radius: 14px;
+        }
+
+        :global(.project-link:focus-visible) {
+          outline: 3px solid #191919;
+          outline-offset: 3px;
         }
 
         /* ===== ეკრანი ===== */
@@ -546,6 +568,7 @@ export default function Home() {
           padding: 12px 18px;
           font-size: 12px;
           font-weight: 800;
+          white-space: nowrap;
           transition: 0.25s;
         }
 
@@ -717,7 +740,7 @@ export default function Home() {
           color: #888;
         }
 
-        /* ===== პროექტები (3D ბანერები) ===== */
+        /* ===== პროექტების ბანერები ===== */
 
         .projects-grid {
           min-height: 0;
@@ -729,59 +752,95 @@ export default function Home() {
 
         .project-card {
           position: relative;
-          min-width: 0;
-          min-height: 0;
+          height: 100%;
           overflow: hidden;
+          isolation: isolate;
           display: flex;
           flex-direction: column;
-          justify-content: flex-end;
-          padding: 14px;
+          justify-content: space-between;
+          padding: 12px;
           border-radius: 14px;
-          box-shadow: inset 0 1px 0 #ffffff2e;
+          box-shadow:
+            inset 0 1px 0 #ffffff33,
+            0 1px 2px #0002;
           transition:
-            transform 0.25s,
-            box-shadow 0.25s;
+            transform 0.3s ease,
+            box-shadow 0.3s ease;
         }
 
-        .project-card.selected {
+        /* წერტილოვანი ფაქტურა */
+        .project-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-image: radial-gradient(#ffffff2e 1px, transparent 1.3px);
+          background-size: 16px 16px;
+          -webkit-mask-image: linear-gradient(135deg, #000, transparent 65%);
+          mask-image: linear-gradient(135deg, #000, transparent 65%);
+          pointer-events: none;
+        }
+
+        /* ტექსტის წაკითხვადობისთვის ქვედა ჩრდილი */
+        .project-card::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 58%;
+          z-index: 0;
+          background: linear-gradient(to top, #000000a6, transparent);
+          pointer-events: none;
+        }
+
+        .project-card:hover {
           transform: translateY(-3px);
           box-shadow:
-            inset 0 1px 0 #ffffff40,
-            0 14px 28px #0003;
+            inset 0 1px 0 #ffffff4d,
+            0 16px 30px #0000004d;
         }
+
+        /* --- 3D სცენა: ზომა ბარათის ზომას მიყვება (cqmin) --- */
 
         .scene {
           position: absolute;
-          top: 0;
+          top: 4%;
           right: 0;
-          width: 62%;
-          height: 80%;
-          perspective: 700px;
-          perspective-origin: 50% 35%;
+          width: 66%;
+          height: 74%;
+          container-type: size;
+          z-index: 1;
           pointer-events: none;
-          z-index: 0;
+        }
+
+        .persp {
+          position: absolute;
+          inset: 0;
+          perspective: 420cqmin;
+          perspective-origin: 50% 38%;
         }
 
         .floor {
           position: absolute;
           left: 50%;
-          top: 76%;
-          width: 78%;
-          height: 14%;
+          top: 78%;
+          width: 68%;
+          height: 11%;
           transform: translateX(-50%);
-          background: radial-gradient(ellipse, #00000073, transparent 70%);
-          filter: blur(4px);
+          background: radial-gradient(ellipse, #00000080, transparent 70%);
+          filter: blur(3px);
         }
 
         .stage3d {
-          --k: 0.85;
+          --u: 0.38cqmin;
           position: absolute;
           left: 50%;
-          top: 48%;
+          top: 50%;
           width: 0;
           height: 0;
           transform-style: preserve-3d;
-          transform: scale(var(--k)) rotateX(-20deg) rotateY(-30deg);
+          transform: rotateX(-20deg) rotateY(-30deg);
           animation: sway 9s ease-in-out infinite alternate;
         }
 
@@ -791,81 +850,103 @@ export default function Home() {
 
         @keyframes sway {
           from {
-            transform: scale(var(--k)) rotateX(-22deg) rotateY(-46deg);
+            transform: rotateX(-22deg) rotateY(-46deg);
           }
           to {
-            transform: scale(var(--k)) rotateX(-17deg) rotateY(-6deg);
+            transform: rotateX(-17deg) rotateY(-6deg);
           }
         }
 
-        /* --- ყუთის 3D ფორმა (EZO / LOGISTICS OS) --- */
+        @keyframes bob {
+          from {
+            transform: translateY(-6%);
+          }
+          to {
+            transform: translateY(6%);
+          }
+        }
+
+        /* --- ყუთი (EZO / LOGISTICS OS) --- */
 
         .box {
+          --W: calc(var(--w) * var(--u));
+          --H: calc(var(--h) * var(--u));
+          --D: calc(var(--d) * var(--u));
           position: absolute;
-          left: calc(var(--w) / -2);
-          top: calc(var(--h) / -2);
-          width: var(--w);
-          height: var(--h);
+          width: var(--W);
+          height: var(--H);
+          left: calc(var(--W) / -2);
+          top: calc(var(--H) / -2);
           transform-style: preserve-3d;
+          transform: translate3d(
+            calc(var(--x) * var(--u)),
+            calc(var(--y) * var(--u)),
+            calc(var(--z) * var(--u))
+          );
         }
 
         .face {
           position: absolute;
           display: block;
           background-color: var(--c);
+          background-image: linear-gradient(
+            155deg,
+            #ffffff4d,
+            #ffffff00 60%
+          );
           box-shadow: inset 0 0 0 1px #ffffff40;
         }
 
         .face.front,
         .face.back {
-          width: var(--w);
-          height: var(--h);
+          width: var(--W);
+          height: var(--H);
           left: 0;
           top: 0;
         }
 
         .face.front {
-          transform: translateZ(calc(var(--d) / 2));
+          transform: translateZ(calc(var(--D) / 2));
         }
 
         .face.back {
-          transform: rotateY(180deg) translateZ(calc(var(--d) / 2));
+          transform: rotateY(180deg) translateZ(calc(var(--D) / 2));
           filter: brightness(0.6);
         }
 
         .face.left,
         .face.right {
-          width: var(--d);
-          height: var(--h);
-          left: calc(var(--w) / 2 - var(--d) / 2);
+          width: var(--D);
+          height: var(--H);
+          left: calc(var(--W) / 2 - var(--D) / 2);
           top: 0;
         }
 
         .face.right {
-          transform: rotateY(90deg) translateZ(calc(var(--w) / 2));
+          transform: rotateY(90deg) translateZ(calc(var(--W) / 2));
           filter: brightness(0.72);
         }
 
         .face.left {
-          transform: rotateY(-90deg) translateZ(calc(var(--w) / 2));
+          transform: rotateY(-90deg) translateZ(calc(var(--W) / 2));
           filter: brightness(0.6);
         }
 
         .face.top,
         .face.bottom {
-          width: var(--w);
-          height: var(--d);
+          width: var(--W);
+          height: var(--D);
           left: 0;
-          top: calc(var(--h) / 2 - var(--d) / 2);
+          top: calc(var(--H) / 2 - var(--D) / 2);
         }
 
         .face.top {
-          transform: rotateX(90deg) translateZ(calc(var(--h) / 2));
+          transform: rotateX(90deg) translateZ(calc(var(--H) / 2));
           filter: brightness(1.2);
         }
 
         .face.bottom {
-          transform: rotateX(-90deg) translateZ(calc(var(--h) / 2));
+          transform: rotateX(-90deg) translateZ(calc(var(--H) / 2));
           filter: brightness(0.5);
         }
 
@@ -874,46 +955,50 @@ export default function Home() {
         .box.win .face.back,
         .box.win .face.left,
         .box.win .face.right {
-          background-image: repeating-linear-gradient(
+          background-image:
+            linear-gradient(155deg, #ffffff4d, #ffffff00 60%),
+            repeating-linear-gradient(
               0deg,
-              transparent 0 9px,
-              #ffffff40 9px 11px
+              transparent 0 calc(9 * var(--u)),
+              #ffffff47 calc(9 * var(--u)) calc(11 * var(--u))
             ),
             repeating-linear-gradient(
               90deg,
-              transparent 0 11px,
-              #00000024 11px 13px
+              transparent 0 calc(11 * var(--u)),
+              #00000026 calc(11 * var(--u)) calc(13 * var(--u))
             );
         }
 
         /* ყუთზე წებოვანი ლენტი */
         .box.tape .face {
-          background-image: linear-gradient(
-            90deg,
-            transparent 40%,
-            #e8752ad9 40% 60%,
-            transparent 60%
-          );
+          background-image:
+            linear-gradient(155deg, #ffffff4d, #ffffff00 60%),
+            linear-gradient(
+              90deg,
+              transparent 40%,
+              #e8752ad9 40% 60%,
+              transparent 60%
+            );
         }
 
-        /* --- LUNARA: მთვარე ბეჭდით --- */
+        /* --- LUNARA: მთვარე ბეჭდებით --- */
 
         .moon {
+          --s: calc(92 * var(--u));
           position: absolute;
-          left: -46px;
-          top: -46px;
-          width: 92px;
-          height: 92px;
+          width: var(--s);
+          height: var(--s);
+          left: calc(var(--s) / -2);
+          top: calc(var(--s) / -2);
           border-radius: 50%;
           background:
-            radial-gradient(circle at 62% 66%, #00000033 0 7px, transparent 8px),
-            radial-gradient(circle at 36% 62%, #00000026 0 5px, transparent 6px),
-            radial-gradient(circle at 58% 34%, #0000001f 0 4px, transparent 5px),
+            radial-gradient(circle at 62% 66%, #00000038 0 calc(8 * var(--u)), transparent calc(9 * var(--u))),
+            radial-gradient(circle at 36% 62%, #0000002b 0 calc(5 * var(--u)), transparent calc(6 * var(--u))),
+            radial-gradient(circle at 58% 34%, #00000024 0 calc(4 * var(--u)), transparent calc(5 * var(--u))),
             radial-gradient(circle at 30% 28%, #fbeaff, #b47cff 42%, #4a2a8a 78%, #20103f);
           box-shadow:
-            0 0 40px #b47cff99,
-            inset -8px -10px 22px #0000008c;
-          transform: translateZ(0);
+            0 0 calc(40 * var(--u)) #b47cffa6,
+            inset calc(-8 * var(--u)) calc(-10 * var(--u)) calc(22 * var(--u)) #0000008c;
           animation: bob 5s ease-in-out infinite alternate;
         }
 
@@ -921,96 +1006,90 @@ export default function Home() {
           position: absolute;
           border-radius: 50%;
           border-style: solid;
-          border-color: #e6c4ffcc;
-          transform-style: preserve-3d;
         }
 
         .ring-a {
-          left: -88px;
-          top: -88px;
-          width: 176px;
-          height: 176px;
-          border-width: 6px;
+          --s: calc(176 * var(--u));
+          width: var(--s);
+          height: var(--s);
+          left: calc(var(--s) / -2);
+          top: calc(var(--s) / -2);
+          border-width: calc(6 * var(--u));
+          border-color: #e6c4ffd9;
           transform: rotateX(76deg) rotateY(-10deg);
-          box-shadow: 0 0 18px #c490ff88;
+          box-shadow: 0 0 calc(18 * var(--u)) #c490ff99;
         }
 
         .ring-b {
-          left: -108px;
-          top: -108px;
-          width: 216px;
-          height: 216px;
-          border-width: 2px;
-          border-color: #ffffff77;
+          --s: calc(216 * var(--u));
+          width: var(--s);
+          height: var(--s);
+          left: calc(var(--s) / -2);
+          top: calc(var(--s) / -2);
+          border-width: calc(2 * var(--u));
+          border-color: #ffffff80;
           transform: rotateX(76deg) rotateY(-10deg);
         }
 
         .spark {
           position: absolute;
           color: #fff;
-          font-size: 16px;
-          text-shadow: 0 0 10px #d8b4ff;
+          text-shadow: 0 0 8px #d8b4ff;
+          line-height: 1;
         }
 
         .sp1 {
-          transform: translate3d(-78px, -64px, 50px);
+          font-size: calc(26 * var(--u));
+          transform: translate3d(calc(-84 * var(--u)), calc(-66 * var(--u)), calc(50 * var(--u)));
         }
 
         .sp2 {
-          transform: translate3d(70px, 44px, -30px);
-          font-size: 12px;
+          font-size: calc(20 * var(--u));
+          transform: translate3d(calc(74 * var(--u)), calc(46 * var(--u)), calc(-30 * var(--u)));
         }
 
         .sp3 {
-          transform: translate3d(58px, -70px, 70px);
-          font-size: 20px;
+          font-size: calc(32 * var(--u));
           color: #ffd08a;
-        }
-
-        @keyframes bob {
-          from {
-            transform: translateY(-5px);
-          }
-          to {
-            transform: translateY(5px);
-          }
+          transform: translate3d(calc(62 * var(--u)), calc(-72 * var(--u)), calc(70 * var(--u)));
         }
 
         /* --- VELORA: მინის ფირფიტები და მარგალიტი --- */
 
         .tile {
+          --s: calc(104 * var(--u));
           position: absolute;
-          left: -52px;
-          top: -52px;
-          width: 104px;
-          height: 104px;
-          border-radius: 24px;
+          width: var(--s);
+          height: var(--s);
+          left: calc(var(--s) / -2);
+          top: calc(var(--s) / -2);
+          border-radius: calc(24 * var(--u));
           display: grid;
           place-items: center;
-          font-size: 46px;
+          font-size: calc(48 * var(--u));
           font-weight: 900;
           box-shadow:
             inset 0 0 0 1px #ffffff80,
-            inset 8px 8px 20px #ffffff4d,
-            0 10px 30px #5a1f1c55;
+            inset calc(8 * var(--u)) calc(8 * var(--u)) calc(20 * var(--u)) #ffffff4d,
+            0 calc(10 * var(--u)) calc(30 * var(--u)) #3f123366;
         }
 
         .t1 {
-          background: linear-gradient(145deg, #ffe9da, #f3b79b);
-          transform: translate3d(-34px, 14px, -60px) rotateZ(-10deg);
+          background: linear-gradient(145deg, #ffe9da, #f3a98f);
+          transform: translate3d(calc(-34 * var(--u)), calc(14 * var(--u)), calc(-60 * var(--u))) rotateZ(-10deg);
           opacity: 0.8;
         }
 
         .t2 {
-          background: linear-gradient(145deg, #ffd1c2, #d98068);
-          transform: translate3d(-12px, 4px, -18px) rotateZ(-4deg);
-          opacity: 0.9;
+          background: linear-gradient(145deg, #ffd1c2, #d9728a);
+          transform: translate3d(calc(-12 * var(--u)), calc(4 * var(--u)), calc(-18 * var(--u))) rotateZ(-4deg);
+          opacity: 0.92;
         }
 
         .t3 {
           background: linear-gradient(145deg, #fff7f0, #f6c9b0);
-          color: #8f594b;
-          transform: translate3d(10px, -6px, 28px) rotateZ(3deg);
+          color: #8f3f55;
+          transform: translate3d(calc(10 * var(--u)), calc(-6 * var(--u)), calc(28 * var(--u))) rotateZ(3deg);
         }
 
         .pearl {
@@ -1018,98 +1097,143 @@ export default function Home() {
           border-radius: 50%;
           background: radial-gradient(circle at 32% 30%, #fff, #ffe3d4 45%, #d9967c 100%);
           box-shadow:
-            0 8px 18px #5a1f1c66,
-            inset -4px -5px 10px #b8654c88;
+            0 calc(8 * var(--u)) calc(18 * var(--u)) #3f123380,
+            inset calc(-4 * var(--u)) calc(-5 * var(--u)) calc(10 * var(--u)) #b8654c88;
         }
 
         .p1 {
-          left: -22px;
-          top: -22px;
-          width: 44px;
-          height: 44px;
-          transform: translate3d(56px, -44px, 76px);
+          --s: calc(44 * var(--u));
+          width: var(--s);
+          height: var(--s);
+          left: calc(var(--s) / -2);
+          top: calc(var(--s) / -2);
+          translate: calc(56 * var(--u)) calc(-44 * var(--u)) calc(76 * var(--u));
           animation: bob 4s ease-in-out infinite alternate;
         }
 
         .p2 {
-          left: -11px;
-          top: -11px;
-          width: 22px;
-          height: 22px;
-          transform: translate3d(-70px, 52px, 60px);
+          --s: calc(22 * var(--u));
+          width: var(--s);
+          height: var(--s);
+          left: calc(var(--s) / -2);
+          top: calc(var(--s) / -2);
+          translate: calc(-70 * var(--u)) calc(52 * var(--u)) calc(60 * var(--u));
           animation: bob 3.2s ease-in-out infinite alternate-reverse;
         }
 
         /* ===== ბარათის ტექსტი ===== */
 
-        .pc-num {
-          position: absolute;
-          top: 12px;
-          left: 14px;
-          font-size: 11px;
-          opacity: 0.75;
+        .pc-top,
+        .pc-bottom {
+          position: relative;
           z-index: 2;
         }
 
-        .pc-arrow {
-          position: absolute;
-          top: 10px;
-          right: 12px;
-          width: 28px;
-          height: 28px;
-          display: grid;
-          place-items: center;
-          border: 1px solid currentColor;
-          border-radius: 50%;
-          background: #ffffff14;
-          opacity: 0.9;
-          z-index: 2;
+        .pc-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 8px;
         }
 
         .pc-type {
-          position: relative;
-          z-index: 1;
+          display: inline-block;
+          max-width: calc(100% - 38px);
+          padding: 4px 10px;
+          border-radius: 20px;
+          background: #ffffff1f;
+          border: 1px solid #ffffff38;
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
           font-size: 11px;
           font-weight: 700;
-          opacity: 0.9;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .pc-arrow {
+          flex-shrink: 0;
+          width: 30px;
+          height: 30px;
+          display: grid;
+          place-items: center;
+          border-radius: 50%;
+          background: #ffffff1f;
+          border: 1px solid #ffffff4d;
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          transition:
+            background 0.25s,
+            color 0.25s,
+            transform 0.25s;
+        }
+
+        .project-card:hover .pc-arrow {
+          background: #fff;
+          color: #191919;
+          transform: translate(2px, -2px);
         }
 
         .pc-name {
-          position: relative;
-          z-index: 1;
-          margin-top: 4px;
-          font-size: clamp(18px, 2.6vh, 25px);
+          display: block;
+          font-size: clamp(19px, 3vh, 26px);
           font-weight: 900;
           letter-spacing: -0.5px;
           line-height: 1.05;
+          color: #fff;
+          text-shadow: 0 2px 12px #0006;
         }
 
         .pc-desc {
-          position: relative;
-          z-index: 1;
-          max-width: 70%;
-          margin-top: 6px;
-          font-size: 11px;
+          display: block;
+          max-width: 92%;
+          max-height: 0;
+          margin-top: 0;
+          overflow: hidden;
+          opacity: 0;
+          font-size: 12px;
           line-height: 1.45;
-          opacity: 0.85;
+          transition:
+            max-height 0.3s ease,
+            opacity 0.3s ease,
+            margin 0.3s ease;
+        }
+
+        .project-card:hover .pc-desc {
+          max-height: 56px;
+          margin-top: 5px;
+          opacity: 0.95;
         }
 
         .pc-tags {
-          position: relative;
-          z-index: 1;
-          display: flex;
+          display: none;
           flex-wrap: wrap;
-          gap: 4px;
+          gap: 5px;
           margin-top: 8px;
         }
 
         .pc-tags i {
           font-style: normal;
-          border: 1px solid currentColor;
+          padding: 2px 9px;
           border-radius: 20px;
-          padding: 2px 8px;
+          background: #ffffff1f;
+          border: 1px solid #ffffff38;
           font-size: 10px;
-          opacity: 0.8;
+        }
+
+        /* მაღალ ეკრანებზე აღწერა და თეგები ყოველთვის ჩანს */
+        @media (min-width: 861px) and (min-height: 860px) {
+          .pc-desc {
+            max-height: 56px;
+            margin-top: 5px;
+            opacity: 0.95;
+          }
+
+          .pc-tags {
+            display: flex;
+          }
         }
 
         /* ===== სერვისები ===== */
@@ -1202,6 +1326,7 @@ export default function Home() {
           color: #252525;
           font-size: 12px;
           font-weight: 800;
+          white-space: nowrap;
           transition: 0.25s;
         }
 
@@ -1229,29 +1354,15 @@ export default function Home() {
         }
 
         /* დაბალი ეკრანები (დესკტოპი) */
-        @media (min-width: 861px) and (max-height: 800px) {
-          .stage3d {
-            --k: 0.7;
-          }
-        }
-
         @media (min-width: 861px) and (max-height: 760px) {
           .mindset p,
-          .pc-desc,
           .service p {
             display: none;
           }
         }
 
-        @media (min-width: 861px) and (max-height: 700px) {
-          .stage3d {
-            --k: 0.58;
-          }
-        }
-
         @media (min-width: 861px) and (max-height: 640px) {
-          .stats,
-          .pc-tags {
+          .stats {
             display: none;
           }
 
@@ -1313,29 +1424,26 @@ export default function Home() {
           }
 
           .project-card {
-            padding: 10px;
-          }
-
-          .scene {
-            width: 60%;
-            height: 86%;
-          }
-
-          .stage3d {
-            --k: 0.42;
-          }
-
-          .pc-name {
-            font-size: 16px;
+            padding: 9px;
           }
 
           .pc-type {
             font-size: 10px;
+            padding: 3px 8px;
           }
 
           .pc-arrow {
             width: 24px;
             height: 24px;
+          }
+
+          .pc-arrow svg {
+            width: 12px;
+            height: 12px;
+          }
+
+          .pc-name {
+            font-size: 16px;
           }
 
           .services {
