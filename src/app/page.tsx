@@ -7,59 +7,101 @@ const projects = [
   {
     id: "01",
     name: "LUNARA",
-    type: "AI / ASTROLOGY",
-    description: "AI-powered astrology and tarot ecosystem.",
-    color: "#33205b",
-    accent: "#d7a5ff",
-    symbol: "✳",
-    tags: ["AI", "TELEGRAM", "SAAS"],
+    type: "AI / ასტროლოგია",
+    description: "ხელოვნური ინტელექტით მომუშავე ასტროლოგიისა და ტაროს ეკოსისტემა.",
+    accent: "#e6c4ff",
+    bg1: "#1b0f3a",
+    bg2: "#4a2a8a",
+    glow: "rgba(190,130,255,.55)",
+    tags: ["AI", "ტელეგრამი", "SaaS"],
     url: "#",
   },
   {
     id: "02",
     name: "VELORA",
-    type: "BEAUTY TECH",
-    description: "Next-generation beauty business platform.",
-    color: "#e9c9b6",
-    accent: "#8f594b",
-    symbol: "V",
-    tags: ["PRODUCT", "DESIGN", "TECH"],
+    type: "ბიუთი ტექნოლოგია",
+    description: "ახალი თაობის პლატფორმა ბიუთი ბიზნესისთვის.",
+    accent: "#fff0e6",
+    bg1: "#7a3f3a",
+    bg2: "#e7a98c",
+    glow: "rgba(255,225,200,.6)",
+    tags: ["პროდუქტი", "დიზაინი", "ტექ"],
     url: "#",
   },
   {
     id: "03",
     name: "EZO",
-    type: "PROPTECH",
-    description: "Smart property and community management.",
-    color: "#102d35",
-    accent: "#46d9c5",
-    symbol: "◈",
-    tags: ["SAAS", "WEB", "SYSTEMS"],
+    type: "უძრავი ქონების ტექნოლოგია",
+    description: "ჭკვიანი სისტემა შენობებისა და თემის მართვისთვის.",
+    accent: "#b8fff3",
+    bg1: "#06191f",
+    bg2: "#0f4a52",
+    glow: "rgba(70,217,197,.5)",
+    tags: ["SaaS", "ვები", "სისტემები"],
     url: "#",
   },
   {
     id: "04",
     name: "LOGISTICS OS",
-    type: "DIGITAL SYSTEMS",
-    description: "Modern digital logistics experience.",
-    color: "#e87521",
+    type: "ციფრული სისტემები",
+    description: "თანამედროვე ციფრული ლოჯისტიკის გამოცდილება.",
     accent: "#fff2d9",
-    symbol: "↗",
-    tags: ["WEB", "AUTOMATION"],
-    url: "/logistics", // ✅ აქ არის ლინკი ლოჯისტიკის გვერდზე!
+    bg1: "#5c2005",
+    bg2: "#e87521",
+    glow: "rgba(255,200,120,.6)",
+    tags: ["ვები", "ავტომატიზაცია"],
+    url: "/logistics",
   },
 ];
 
+type BoxDef = {
+  w: number;
+  h: number;
+  d: number;
+  x: number;
+  y: number;
+  z: number;
+  c: string;
+  kind: "win" | "tape" | "plain";
+};
+
+// 3D ყუთები (ცენტრი = სცენის ცენტრი; y დადებითი = ქვემოთ)
+const boxes: Record<string, BoxDef[]> = {
+  "03": [
+    { w: 170, h: 10, d: 150, x: 0, y: 50, z: 0, c: "#1b6a73", kind: "plain" },
+    { w: 46, h: 96, d: 46, x: -50, y: -3, z: 16, c: "#46d9c5", kind: "win" },
+    { w: 40, h: 62, d: 40, x: 8, y: 14, z: 40, c: "#2fb3a3", kind: "win" },
+    { w: 38, h: 126, d: 38, x: 44, y: -18, z: -22, c: "#7ff0df", kind: "win" },
+    { w: 30, h: 40, d: 30, x: -42, y: 25, z: -38, c: "#23978f", kind: "win" },
+  ],
+  "04": [
+    { w: 176, h: 8, d: 156, x: 0, y: 44, z: 0, c: "#a8460f", kind: "plain" },
+    { w: 66, h: 54, d: 66, x: -32, y: 13, z: 10, c: "#ffe1b3", kind: "tape" },
+    { w: 50, h: 40, d: 50, x: 36, y: 20, z: 26, c: "#ffcf8a", kind: "tape" },
+    { w: 38, h: 30, d: 38, x: -32, y: -29, z: 10, c: "#fff0d4", kind: "tape" },
+    { w: 44, h: 34, d: 44, x: 26, y: 23, z: -36, c: "#ffc274", kind: "tape" },
+  ],
+};
+
 const services = [
-  ["01", "Digital Products", "Web platforms & applications"],
-  ["02", "AI & Automation", "Intelligent digital solutions"],
-  ["03", "Creative Development", "Design, technology & execution"],
-  ["04", "Product Strategy", "From idea to real product"],
+  ["01", "ციფრული პროდუქტები", "ვებ პლატფორმები და აპლიკაციები"],
+  ["02", "AI და ავტომატიზაცია", "ჭკვიანი ციფრული გადაწყვეტილებები"],
+  ["03", "კრეატიული დეველოპმენტი", "დიზაინი, ტექნოლოგია და რეალიზაცია"],
+  ["04", "პროდუქტის სტრატეგია", "იდეიდან რეალურ პროდუქტამდე"],
 ];
+
+const navItems = [
+  { id: "work", label: "პროექტები" },
+  { id: "about", label: "შესახებ" },
+  { id: "services", label: "სერვისები" },
+  { id: "contact", label: "კონტაქტი" },
+];
+
+const faces = ["front", "back", "left", "right", "top", "bottom"];
 
 function Arrow() {
   return (
-    <svg viewBox="0 0 24 24" fill="none">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M7 17L17 7M7 7h10v10"
         stroke="currentColor"
@@ -71,386 +113,247 @@ function Arrow() {
   );
 }
 
-function Plane() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none">
-      <path
-        d="M21 3 9 14m12-11-7 18-4-8-8-4L21 3Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function Home() {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [activeProject, setActiveProject] = useState("01");
+  const [pulse, setPulse] = useState<string | null>(null);
+
+  // ერთგვერდიან დიზაინში სქროლი არ არის, ამიტომ მენიუ შესაბამის ბლოკს აუნათებს
+  const highlight = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    setPulse(id);
+    window.setTimeout(() => setPulse(null), 1400);
+  };
+
+  const pulseClass = (id: string) => (pulse === id ? "pulse" : "");
 
   return (
-    <main className="portfolio">
-
-      {/* MAIN HERO */}
-      <section className="hero" id="home">
-
+    <main className="screen">
+      <section className="stage" id="home">
         <div className="orange-bg" />
-        <div className="white-bg" />
 
-        {/* ABSTRACT GRAPHICS - NO HUMAN PHOTOGRAPHY */}
-        <div className="abstract-art">
-          <div className="art-circle">
-            <div className="art-inner-circle" />
-            <div className="art-core">S.</div>
-          </div>
-          <div className="art-orbit orbit-1" />
-          <div className="art-orbit orbit-2" />
-          <div className="art-orbit orbit-3" />
-          <div className="art-star">✳</div>
-          <div className="art-cross">✳</div>
-          <div className="art-glow" />
-          <div className="art-caption">IDEAS IN MOTION — 2026</div>
-        </div>
-
-        {/* HEADER */}
+        {/* ჰედერი */}
         <header className="header">
-
-          <a href="#home" className="brand">
+          <a href="#home" className="brand" onClick={highlight("home")}>
             <span className="brand-symbol">S.</span>
-            <span className="brand-label">CREATIVE STUDIO</span>
+            <span className="brand-label">კრეატიული სტუდია</span>
           </a>
 
-          <nav className="desktop-nav">
-            <a href="#work">WORK</a>
-            <a href="#about">ABOUT</a>
-            <a href="#services">SERVICES</a>
-            <a href="#contact">CONTACT</a>
+          <nav className="nav" aria-label="მთავარი ნავიგაცია">
+            {navItems.map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                onClick={highlight(item.id)}
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
 
-          <button
-            className="menu-button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation"
-          >
+          <div className="pill">
             <span />
-            <span />
-          </button>
-
-          {menuOpen && (
-            <nav className="mobile-menu">
-              {["work", "about", "services", "contact"].map((item) => (
-                <a
-                  key={item}
-                  href={`#${item}`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item.toUpperCase()}
-                </a>
-              ))}
-            </nav>
-          )}
-
+            ღიაა ახალი პროექტებისთვის
+          </div>
         </header>
 
-        {/* LEFT SIDE */}
-        <div className="hero-left">
-
+        {/* მარცხენა მხარე */}
+        <div className="left">
           <div className="eyebrow">
             <span />
-            INDEPENDENT CREATIVE DEVELOPER
+            დამოუკიდებელი კრეატიული დეველოპერი
           </div>
 
-          <h1>CREATE</h1>
+          <h1>შექმენი</h1>
 
           <p className="hero-description">
-            Ideas that inspire.
+            იდეები, რომლებიც შთააგონებს.
             <br />
-            Digital experiences that connect.
+            ციფრული გამოცდილება, რომელიც აკავშირებს.
           </p>
 
-          <a href="#work" className="main-button">
-            VIEW PROJECTS <Arrow />
+          <a
+            href="#work"
+            className="main-button"
+            onClick={highlight("work")}
+          >
+            პროექტების ნახვა <Arrow />
           </a>
 
-          <div className="mini-trust">
-            <div className="mini-symbols">
-              <span>✳</span>
-              <span>◈</span>
-              <span>✦</span>
-              <span>+</span>
-            </div>
-            <div>
-              <strong>BUILT WITH PURPOSE</strong>
-              <small>Ideas transformed into products.</small>
-            </div>
-          </div>
-
-        </div>
-
-        {/* RIGHT SIDE */}
-        <div className="hero-right">
-
-          <div className="available">
-            <span />
-            AVAILABLE FOR
-          </div>
-
-          <h2>
-            Creative
-            <br />
-            Projects
-          </h2>
-
-          <p>Digital products. Technology. New ideas.</p>
-
-          <div className="featured-project">
-            <div className="featured-top">
-              <span>FEATURED PROJECT</span>
-              <span>01 / 04</span>
+          <div className="bottom">
+            <div className={`mindset ${pulseClass("about")}`} id="about">
+              <h3>არა მხოლოდ იდეები. რაც რეალურად მუშაობს.</h3>
+              <p>
+                ვეძებ გადაკვეთას ხელოვნურ ინტელექტს, ტექნოლოგიას, დიზაინსა და
+                მეწარმეობას შორის და იდეებს ვაქცევ რეალურ ციფრულ პროდუქტებად,
+                პლატფორმებად და გამოცდილებად.
+              </p>
             </div>
 
-            <div className="featured-visual">
-              <div className="featured-decoration">✳</div>
-              <span>LUNARA</span>
-              <small>THE COSMIC EXPERIENCE</small>
-              <div className="featured-orbit" />
-            </div>
-
-            <div className="featured-bottom">
+            <div className="stats">
               <div>
-                <strong>LUNARA</strong>
-                <small>AI · ASTROLOGY · DIGITAL PRODUCT</small>
+                <strong>
+                  04<span>+</span>
+                </strong>
+                <small>ციფრული პროექტი</small>
               </div>
-              <a href="#work" aria-label="Explore projects">
-                <Arrow />
-              </a>
+              <div>
+                <strong>
+                  AI<span>×</span>
+                </strong>
+                <small>ტექნოლოგია</small>
+              </div>
+              <div>
+                <strong>∞</strong>
+                <small>მიმდინარე იდეა</small>
+              </div>
             </div>
           </div>
 
+          {/* აბსტრაქტული გრაფიკა */}
+          <div className="art" aria-hidden="true">
+            <div className="art-circle">
+              <div className="art-inner" />
+              <div className="art-core">S.</div>
+            </div>
+            <div className="art-orbit orbit-1" />
+            <div className="art-orbit orbit-2" />
+            <div className="art-star">✳</div>
+          </div>
         </div>
 
-        {/* BOTTOM INFORMATION */}
-        <div className="hero-footer">
-
-          <div className="hero-footer-left">
-            <span>01</span>
-            <div />
-            <span>04</span>
+        {/* მარჯვენა მხარე */}
+        <div className="right">
+          <div className="right-head">
+            <h2>არჩეული პროექტები.</h2>
+            <p>ციფრული პროდუქტები. ტექნოლოგია. ახალი იდეები.</p>
           </div>
 
-          <div className="hero-footer-center">
-            INDEPENDENT DIGITAL PORTFOLIO
-          </div>
-
-          <a href="#work">
-            EXPLORE WORK <span>↓</span>
-          </a>
-
-        </div>
-
-      </section>
-
-      {/* QUICK INFORMATION STRIP */}
-      <section className="quick-strip">
-        <div>
-          <strong>04<span>+</span></strong>
-          <small>DIGITAL PROJECTS</small>
-        </div>
-        <div>
-          <strong>AI<span>×</span></strong>
-          <small>TECHNOLOGY & INNOVATION</small>
-        </div>
-        <div>
-          <strong>∞</strong>
-          <small>IDEAS IN PROGRESS</small>
-        </div>
-        <div className="strip-note">
-          <span>✳</span>
-          <strong>THINK. CREATE. BUILD.</strong>
-        </div>
-      </section>
-
-      {/* SELECTED WORK */}
-      <section className="work-section" id="work">
-
-        <div className="section-heading">
-          <div>
-            <span className="section-kicker">01 / SELECTED WORK</span>
-            <h2>Selected <span>projects.</span></h2>
-          </div>
-          <p>
-            A collection of ideas, digital products
-            and technology-driven experiments.
-          </p>
-        </div>
-
-        <div className="projects-grid">
-          {projects.map((project) => (
-            <Link
-              href={project.url || "#"}
-              key={project.id}
-              className={`project-card ${
-                activeProject === project.id ? "selected" : ""
-              }`}
-              onMouseEnter={() => setActiveProject(project.id)}
-            >
-              <div
-                className="project-preview"
+          <div
+            className={`projects-grid ${pulseClass("work")}`}
+            id="work"
+          >
+            {projects.map((project) => (
+              <Link
+                href={project.url || "#"}
+                key={project.id}
+                className={`project-card ${
+                  activeProject === project.id ? "selected" : ""
+                }`}
                 style={{
-                  background: project.color,
                   color: project.accent,
+                  background: `radial-gradient(circle at 74% 32%, ${project.glow}, transparent 58%), linear-gradient(145deg, ${project.bg1}, ${project.bg2})`,
                 }}
+                aria-label={`${project.name} — ${project.type}`}
+                onMouseEnter={() => setActiveProject(project.id)}
+                onFocus={() => setActiveProject(project.id)}
               >
-                <span className="preview-number">{project.id}</span>
+                {/* 3D ბანერი */}
+                <span className="scene" aria-hidden="true">
+                  <span className="floor" />
+                  <span className="stage3d">
+                    {project.id === "01" && (
+                      <>
+                        <span className="moon-ring ring-a" />
+                        <span className="moon-ring ring-b" />
+                        <span className="moon" />
+                        <span className="spark sp1">✦</span>
+                        <span className="spark sp2">✦</span>
+                        <span className="spark sp3">✳</span>
+                      </>
+                    )}
 
-                <div className="preview-symbol">
-                  {project.symbol}
-                </div>
+                    {project.id === "02" && (
+                      <>
+                        <span className="tile t1" />
+                        <span className="tile t2" />
+                        <span className="tile t3">V</span>
+                        <span className="pearl p1" />
+                        <span className="pearl p2" />
+                      </>
+                    )}
 
-                <div className="preview-brand">{project.name}</div>
+                    {(boxes[project.id] ?? []).map((b, i) => (
+                      <span
+                        key={i}
+                        className={`box ${b.kind}`}
+                        style={
+                          {
+                            "--w": `${b.w}px`,
+                            "--h": `${b.h}px`,
+                            "--d": `${b.d}px`,
+                            "--c": b.c,
+                            transform: `translate3d(${b.x}px, ${b.y}px, ${b.z}px)`,
+                          } as React.CSSProperties
+                        }
+                      >
+                        {faces.map((f) => (
+                          <i key={f} className={`face ${f}`} />
+                        ))}
+                      </span>
+                    ))}
+                  </span>
+                </span>
 
-                <div className="preview-description">
-                  {project.type}
-                </div>
+                <span className="pc-num">{project.id}</span>
+                <span className="pc-arrow">
+                  <Arrow />
+                </span>
 
-                <div className="preview-bottom">
-                  <span>CREATED WITH VISION</span>
-                  <span>↗</span>
-                </div>
-
-                <div className="preview-decoration" />
-              </div>
-
-              <div className="project-info">
-                <div>
-                  <span>{project.type}</span>
-                  <h3>{project.name}</h3>
-                </div>
-                <p>{project.description}</p>
-                <div className="project-tags">
+                <span className="pc-type">{project.type}</span>
+                <span className="pc-name">{project.name}</span>
+                <span className="pc-desc">{project.description}</span>
+                <span className="pc-tags">
                   {project.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
+                    <i key={tag}>{tag}</i>
                   ))}
-                </div>
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <div
+            className={`services ${pulseClass("services")}`}
+            id="services"
+          >
+            {services.map(([number, title, description]) => (
+              <div className="service" key={number}>
+                <span className="service-number">{number}</span>
+                <h3>{title}</h3>
+                <p>{description}</p>
               </div>
-            </Link>
-          ))}
-        </div>
-
-      </section>
-
-      {/* ABOUT */}
-      <section className="about-section" id="about">
-
-        <div className="about-title">
-          <span className="section-kicker">02 / THE MINDSET</span>
-          <h2>
-            THINK
-            <span>DIFFERENT.</span>
-          </h2>
-        </div>
-
-        <div className="about-text">
-          <div className="about-symbol">✳</div>
-          <div>
-            <h3>Not just ideas.<br />Things that actually work.</h3>
-            <p>
-              Exploring the intersection of artificial intelligence,
-              technology, design and entrepreneurship.
-              Turning concepts into practical digital products,
-              platforms and experiences.
-            </p>
+            ))}
           </div>
-        </div>
 
-        <div className="about-bottom">
-          <span>CREATIVITY IS THE STARTING POINT.</span>
-          <span>EXECUTION MAKES THE DIFFERENCE. ↗</span>
-        </div>
-
-      </section>
-
-      {/* SERVICES */}
-      <section className="services-section" id="services">
-
-        <div className="section-heading">
-          <div>
-            <span className="section-kicker">03 / CAPABILITIES</span>
-            <h2>What I <span>create.</span></h2>
-          </div>
-          <p>
-            Combining creative thinking with technology
-            to build useful digital experiences.
-          </p>
-        </div>
-
-        <div className="services-list">
-          {services.map(([number, title, description]) => (
-            <div className="service-row" key={number}>
-              <span className="service-number">{number}</span>
-              <h3>{title}</h3>
-              <p>{description}</p>
-              <Arrow />
+          <div className={`contact ${pulseClass("contact")}`} id="contact">
+            <div className="contact-decoration">✳</div>
+            <div className="contact-text">
+              <h2>გაქვს იდეა?</h2>
+              <p>გავხადოთ საინტერესო იდეა რეალობად.</p>
             </div>
-          ))}
+            <a href="mailto:hello@example.com" className="contact-button">
+              დამიკავშირდი <Arrow />
+            </a>
+          </div>
         </div>
-
       </section>
-
-      {/* CONTACT */}
-      <section className="contact-section" id="contact">
-
-        <div className="contact-decoration">✳</div>
-
-        <span className="section-kicker">04 / LET'S CONNECT</span>
-
-        <h2>
-          HAVE AN
-          <br />
-          <span>IDEA?</span>
-        </h2>
-
-        <p>
-          Let's turn something interesting
-          into something real.
-        </p>
-
-        <a href="mailto:hello@example.com" className="contact-button">
-          START A CONVERSATION <Arrow />
-        </a>
-
-        <div className="contact-meta">
-          <span>OPEN TO NEW PROJECTS</span>
-          <span>CREATIVE COLLABORATIONS</span>
-          <span>2026 — PRESENT</span>
-        </div>
-
-      </section>
-
-      {/* FOOTER */}
-      <footer className="footer">
-        <a href="#home" className="footer-logo">S.</a>
-        <span>INDEPENDENT CREATIVE PORTFOLIO</span>
-        <a href="#home">BACK TO TOP ↑</a>
-      </footer>
 
       <style jsx>{`
-
         :global(*) {
           box-sizing: border-box;
         }
 
-        :global(html) {
-          scroll-behavior: smooth;
-          scroll-padding-top: 20px;
+        :global(html),
+        :global(body) {
+          height: 100%;
+          margin: 0;
+          overflow: hidden;
         }
 
         :global(body) {
-          margin: 0;
           background: #f1f0ed;
           color: #191919;
-          font-family: Arial, Helvetica, sans-serif;
+          font-family: "Noto Sans Georgian", "BPG Nino Mtavruli", Sylfaen,
+            "Segoe UI", "Helvetica Neue", Arial, sans-serif;
         }
 
         :global(a) {
@@ -462,21 +365,25 @@ export default function Home() {
           font-family: inherit;
         }
 
-        .portfolio {
-          overflow: hidden;
+        /* ===== ეკრანი ===== */
+
+        .screen {
+          height: 100vh;
+          height: 100dvh;
           width: 100%;
+          padding: 7px;
+          overflow: hidden;
         }
 
-        /* HERO */
-
-        .hero {
-          height: min(740px, 90vh);
-          min-height: 650px;
-          margin: 7px;
+        .stage {
           position: relative;
-          overflow: hidden;
-          border: 5px solid #fa941b;
+          height: 100%;
+          display: grid;
+          grid-template-columns: 54% 46%;
+          grid-template-rows: minmax(0, 1fr);
+          border: 4px solid #fa941b;
           border-radius: 17px;
+          overflow: hidden;
           isolation: isolate;
           background: #e85b0c;
         }
@@ -484,73 +391,257 @@ export default function Home() {
         .orange-bg {
           position: absolute;
           inset: 0;
-          z-index: -3;
+          z-index: -1;
           background:
-            radial-gradient(ellipse at 35% 85%, #ffb62e 0%, transparent 36%),
+            radial-gradient(ellipse at 30% 90%, #ffb62e 0%, transparent 38%),
             linear-gradient(115deg, #a52b0a, #e84b0a 45%, #fa8d15);
-        }
-
-        .orange-bg::before {
-          content: "";
-          position: absolute;
-          width: 500px;
-          height: 500px;
-          border-radius: 50%;
-          left: 18%;
-          top: -53%;
-          background: rgba(70, 12, 0, .16);
         }
 
         .orange-bg::after {
           content: "";
           position: absolute;
           inset: 0;
-          opacity: .09;
-          background-image: radial-gradient(white .6px, transparent .6px);
+          opacity: 0.09;
+          background-image: radial-gradient(white 0.6px, transparent 0.6px);
           background-size: 17px 17px;
         }
 
-        .white-bg {
-          position: absolute;
-          z-index: -2;
-          right: 0;
-          top: 0;
-          width: 49%;
-          height: 100%;
-          background: #fff;
-          border-radius: 18px 0 0 18px;
+        .pulse {
+          outline: 2px solid currentColor;
+          outline-offset: 6px;
+          border-radius: 10px;
         }
 
-        /* ABSTRACT ART */
+        a:focus-visible {
+          outline: 2px solid #191919;
+          outline-offset: 3px;
+        }
 
-        .abstract-art {
+        /* ===== ჰედერი ===== */
+
+        .header {
           position: absolute;
-          z-index: -1;
-          left: 30%;
-          top: 16%;
-          width: 39%;
-          height: 70%;
+          z-index: 10;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: clamp(52px, 8vh, 72px);
           display: flex;
-          justify-content: center;
           align-items: center;
+          gap: 24px;
+          padding: 0 3.5% 0 4.5%;
+          pointer-events: none;
+        }
+
+        .header > * {
+          pointer-events: auto;
+        }
+
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #fff;
+        }
+
+        .brand-symbol {
+          font-size: 28px;
+          font-weight: 900;
+          letter-spacing: -2px;
+        }
+
+        .brand-label {
+          font-size: 12px;
+          font-weight: 700;
+          opacity: 0.9;
+        }
+
+        .nav {
+          display: flex;
+          gap: 24px;
+          margin-left: auto;
+        }
+
+        .nav a {
+          font-size: 12px;
+          font-weight: 700;
+          color: #555;
+        }
+
+        .nav a:hover {
+          color: #f47716;
+        }
+
+        .pill {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 14px;
+          border-radius: 30px;
+          background: #f3f2f0;
+          font-size: 11px;
+          font-weight: 700;
+          color: #666;
+          white-space: nowrap;
+        }
+
+        .pill span {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #2fbf71;
+        }
+
+        /* ===== მარცხენა მხარე ===== */
+
+        .left {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          min-height: 0;
+          padding: clamp(66px, 11vh, 96px) 3.5% 3.5% 4.5%;
+          color: #fff;
+        }
+
+        .eyebrow {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          margin-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        .eyebrow span {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #fff;
+        }
+
+        .left h1 {
+          font-size: clamp(48px, min(8.6vw, 14vh), 130px);
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+          margin: 0 0 clamp(8px, 2vh, 20px) -0.03em;
+        }
+
+        .hero-description {
+          font-size: clamp(13px, 2vh, 16px);
+          line-height: 1.55;
+          color: #ffffffe6;
+          margin: 0 0 clamp(12px, 2.4vh, 22px);
+        }
+
+        .main-button {
+          align-self: flex-start;
+          display: inline-flex;
+          align-items: center;
+          gap: 16px;
+          background: #fff;
+          color: #303030;
+          border-radius: 30px;
+          padding: 12px 18px;
+          font-size: 12px;
+          font-weight: 800;
+          transition: 0.25s;
+        }
+
+        .main-button:hover {
+          background: #252525;
+          color: #fff;
+        }
+
+        .main-button svg,
+        .pc-arrow svg,
+        .contact-button svg {
+          width: 15px;
+          height: 15px;
+        }
+
+        .bottom {
+          margin-top: auto;
+          display: flex;
+          flex-direction: column;
+          gap: clamp(10px, 2.2vh, 20px);
+          max-width: 48%;
+        }
+
+        .mindset h3 {
+          font-size: clamp(15px, 2.6vh, 19px);
+          line-height: 1.3;
+          margin: 0 0 8px;
+        }
+
+        .mindset p {
+          font-size: 12px;
+          line-height: 1.65;
+          color: #ffffffd6;
+          margin: 0;
+        }
+
+        .stats {
+          display: flex;
+          gap: 16px;
+        }
+
+        .stats > div {
+          padding-left: 10px;
+          border-left: 1px solid #ffffff4d;
+        }
+
+        .stats > div:first-child {
+          padding-left: 0;
+          border-left: none;
+        }
+
+        .stats strong {
+          display: block;
+          font-size: clamp(18px, 3vh, 24px);
+          letter-spacing: -1px;
+        }
+
+        .stats strong span {
+          color: #ffd08a;
+        }
+
+        .stats small {
+          display: block;
+          margin-top: 3px;
+          font-size: 11px;
+          color: #ffffffc4;
+        }
+
+        /* ===== აბსტრაქტული გრაფიკა ===== */
+
+        .art {
+          position: absolute;
+          right: 4%;
+          bottom: 5%;
+          width: min(30vh, 19vw);
+          aspect-ratio: 1;
+          display: grid;
+          place-items: center;
           pointer-events: none;
         }
 
         .art-circle {
           position: relative;
-          width: min(390px, 85%);
-          aspect-ratio: 1;
+          width: 100%;
+          height: 100%;
           border-radius: 50%;
           background: linear-gradient(145deg, #ffbd50, #e85a0b 48%, #54200e);
-          box-shadow: 0 30px 100px #9b310c55;
+          box-shadow: 0 25px 80px #9b310c66;
           display: grid;
           place-items: center;
         }
 
-        .art-inner-circle {
+        .art-inner {
           position: absolute;
           inset: 12%;
-          border: 1px solid rgba(255,255,255,.45);
+          border: 1px solid #ffffff73;
           border-radius: 50%;
         }
 
@@ -560,1197 +651,746 @@ export default function Home() {
           display: grid;
           place-items: center;
           border-radius: 50%;
-          color: white;
           background: linear-gradient(135deg, #f8a92e, #a53610);
           border: 1px solid #ffffff80;
-          box-shadow: inset 0 0 40px #ffffff30, 0 0 50px #ffb34a55;
-          font-size: clamp(40px, 7vw, 90px);
+          box-shadow: inset 0 0 30px #ffffff30;
+          font-size: min(7vh, 4.4vw);
           font-weight: 900;
-          letter-spacing: -7px;
+          letter-spacing: -4px;
         }
 
         .art-orbit {
           position: absolute;
           width: 125%;
           height: 42%;
-          border: 1px solid rgba(255,255,255,.55);
+          border: 1px solid #ffffff8c;
           border-radius: 50%;
           transform: rotate(-35deg);
         }
 
         .orbit-2 {
+          width: 118%;
+          height: 58%;
           transform: rotate(35deg);
-          width: 120%;
-          height: 60%;
-          border-color: rgba(255,215,155,.65);
-        }
-
-        .orbit-3 {
-          transform: rotate(80deg);
-          width: 100%;
-          height: 90%;
-          border-color: rgba(255,255,255,.3);
+          border-color: #ffd79ba6;
         }
 
         .art-star {
           position: absolute;
-          top: 4%;
-          right: 8%;
-          font-size: 54px;
+          top: -4%;
+          right: 2%;
+          font-size: 34px;
           color: #ffb52d;
         }
 
-        .art-cross {
-          position: absolute;
-          left: 4%;
-          bottom: 14%;
-          color: #fff;
-          font-size: 35px;
-        }
+        /* ===== მარჯვენა მხარე ===== */
 
-        .art-glow {
-          position: absolute;
-          width: 80%;
-          height: 80%;
-          border-radius: 50%;
-          background: #ffab28;
-          filter: blur(85px);
-          opacity: .17;
-          z-index: -1;
-        }
-
-        .art-caption {
-          position: absolute;
-          bottom: -2%;
-          left: 50%;
-          transform: translateX(-50%);
-          color: white;
-          font-size: 8px;
-          letter-spacing: 2px;
-          white-space: nowrap;
-        }
-
-        /* HEADER */
-
-        .header {
-          position: absolute;
-          z-index: 10;
-          left: 0;
-          right: 0;
-          top: 0;
-          height: 75px;
-          display: flex;
-          align-items: center;
-          padding: 0 4%;
-        }
-
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: white;
-        }
-
-        .brand-symbol {
-          font-size: 30px;
-          font-weight: 900;
-          letter-spacing: -2px;
-        }
-
-        .brand-label {
-          font-size: 8px;
-          font-weight: 700;
-          letter-spacing: 1.3px;
-          opacity: .8;
-        }
-
-        .desktop-nav {
-          display: flex;
-          gap: 29px;
-          align-items: center;
-          margin-left: auto;
-          margin-right: 25px;
-        }
-
-        .desktop-nav a {
-          font-size: 9px;
-          font-weight: 800;
-          color: #555;
-          letter-spacing: .5px;
-        }
-
-        .desktop-nav a:hover {
-          color: #f47716;
-        }
-
-        .menu-button {
-          border: none;
-          background: #f3f3f3;
-          width: 37px;
-          height: 37px;
-          border-radius: 50%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          cursor: pointer;
-        }
-
-        .menu-button span {
-          width: 14px;
-          height: 1px;
-          background: #333;
-        }
-
-        .mobile-menu {
-          position: absolute;
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-          top: 65px;
-          right: 4%;
-          background: white;
-          color: #222;
-          padding: 22px;
-          min-width: 160px;
-          border-radius: 10px;
-          box-shadow: 0 10px 35px #0002;
-        }
-
-        .mobile-menu a {
-          font-size: 10px;
-          font-weight: 800;
-        }
-
-        /* HERO LEFT */
-
-        .hero-left {
-          position: absolute;
-          z-index: 3;
-          top: 27%;
-          left: 4.5%;
-        }
-
-        .eyebrow {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #fff;
-          font-size: 8px;
-          font-weight: 800;
-          letter-spacing: 1.1px;
-          margin-bottom: 19px;
-        }
-
-        .eyebrow span {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: white;
-        }
-
-        .hero-left h1 {
-          font-size: clamp(90px, 10.8vw, 145px);
-          line-height: .83;
-          font-weight: 900;
-          letter-spacing: -8px;
-          margin: 0 0 20px -5px;
-          color: white;
-        }
-
-        .hero-description {
-          font-size: 14px;
-          line-height: 1.55;
-          color: #ffffffdf;
-          margin: 0 0 23px;
-        }
-
-        .main-button {
-          display: inline-flex;
-          align-items: center;
-          gap: 20px;
-          background: white;
-          color: #303030;
-          border-radius: 30px;
-          padding: 14px 20px;
-          font-size: 9px;
-          font-weight: 900;
-          transition: .25s;
-        }
-
-        .main-button:hover {
-          background: #252525;
-          color: white;
-          transform: translateY(-3px);
-        }
-
-        .main-button svg,
-        .featured-bottom svg {
-          width: 16px;
-          height: 16px;
-        }
-
-        .mini-trust {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-top: 37px;
-        }
-
-        .mini-symbols {
-          display: flex;
-        }
-
-        .mini-symbols span {
+        .right {
+          min-width: 0;
+          min-height: 0;
           display: grid;
-          place-items: center;
-          width: 33px;
-          height: 33px;
-          border-radius: 50%;
-          border: 2px solid #ed6612;
-          margin-left: -7px;
-          background: #252525;
-          color: white;
-          font-size: 13px;
-        }
-
-        .mini-symbols span:first-child {
-          margin-left: 0;
-        }
-
-        .mini-symbols span:nth-child(2) {
-          background: #533d76;
-        }
-
-        .mini-symbols span:nth-child(3) {
-          background: #c77b36;
-        }
-
-        .mini-symbols span:last-child {
-          background: #ffffff35;
-        }
-
-        .mini-trust strong {
-          display: block;
-          color: white;
-          font-size: 8px;
-          letter-spacing: .4px;
-        }
-
-        .mini-trust small {
-          display: block;
-          color: #ffffffc9;
-          font-size: 9px;
-          margin-top: 4px;
-        }
-
-        /* HERO RIGHT */
-
-        .hero-right {
-          position: absolute;
-          right: 4%;
-          top: 24%;
-          width: 25%;
-          z-index: 4;
+          grid-template-rows: auto minmax(0, 1fr) auto auto;
+          gap: clamp(8px, 1.8vh, 16px);
+          padding: clamp(60px, 10vh, 82px) 3% 2.4% 3%;
+          background: #fff;
+          border-radius: 18px 0 0 18px;
           color: #191919;
         }
 
-        .available {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          font-size: 8px;
-          font-weight: 800;
-          letter-spacing: 1px;
-          color: #888;
-          margin-bottom: 13px;
-        }
-
-        .available span {
-          width: 6px;
-          height: 6px;
-          background: #ef7b30;
-          border-radius: 50%;
-        }
-
-        .hero-right h2 {
-          font-size: clamp(25px, 3vw, 36px);
-          line-height: 1;
-          letter-spacing: -1.5px;
-          margin: 0;
-          font-weight: 900;
-        }
-
-        .hero-right > p {
-          font-size: 10px;
-          color: #999;
-          margin: 10px 0 17px;
-        }
-
-        /* FEATURED PROJECT CARD */
-
-        .featured-project {
-          width: 100%;
-          padding: 10px;
-          border-radius: 12px;
-          background: #f3f2f0;
-        }
-
-        .featured-top {
-          display: flex;
-          justify-content: space-between;
-          font-size: 7px;
-          font-weight: 800;
-          letter-spacing: .6px;
-          color: #999;
-          padding: 4px 3px 9px;
-        }
-
-        .featured-visual {
-          height: 112px;
-          position: relative;
-          overflow: hidden;
-          background: linear-gradient(135deg, #281747, #7143a1);
-          color: white;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 14px;
-          border-radius: 7px;
-        }
-
-        .featured-visual > span {
-          font-size: 23px;
-          font-weight: 900;
-          letter-spacing: 2px;
-          z-index: 2;
-        }
-
-        .featured-visual small {
-          font-size: 6px;
-          letter-spacing: 2px;
-          z-index: 2;
-          margin-top: 4px;
-        }
-
-        .featured-decoration {
-          position: absolute;
-          right: 10px;
-          top: -30px;
-          font-size: 115px;
-          color: #ffffff27;
-        }
-
-        .featured-orbit {
-          position: absolute;
-          right: -12px;
-          bottom: -43px;
-          width: 135px;
-          height: 95px;
-          border: 1px solid #ffffff66;
-          border-radius: 50%;
-          transform: rotate(-35deg);
-        }
-
-        .featured-bottom {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px 2px 1px;
-        }
-
-        .featured-bottom strong {
-          display: block;
-          font-size: 9px;
-        }
-
-        .featured-bottom small {
-          display: block;
-          color: #999;
-          font-size: 6px;
-          margin-top: 4px;
-        }
-
-        .featured-bottom a {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: #e8752a;
-          color: white;
-          display: grid;
-          place-items: center;
-        }
-
-        /* HERO FOOTER */
-
-        .hero-footer {
-          position: absolute;
-          left: 4.5%;
-          right: 4.5%;
-          bottom: 2.5%;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          color: #ffffffbd;
-          font-size: 7px;
-          letter-spacing: 1px;
-        }
-
-        .hero-footer-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .hero-footer-left div {
-          width: 30px;
-          height: 1px;
-          background: #ffffff9a;
-        }
-
-        .hero-footer a {
-          color: #777;
-          font-weight: 800;
-        }
-
-        /* QUICK STRIP */
-
-        .quick-strip {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          background: #1b1b1b;
-          color: white;
-          margin: 7px;
-          border-radius: 10px;
-          padding: 20px 5%;
-          gap: 15px;
-          align-items: center;
-        }
-
-        .quick-strip > div {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          border-right: 1px solid #ffffff20;
-        }
-
-        .quick-strip > div:last-child {
-          border: none;
-        }
-
-        .quick-strip strong {
-          font-size: 24px;
-          letter-spacing: -1px;
-        }
-
-        .quick-strip strong span {
-          color: #f58a31;
-        }
-
-        .quick-strip small {
-          font-size: 7px;
-          letter-spacing: .8px;
-          color: #aaa;
-          line-height: 1.5;
-        }
-
-        .strip-note {
-          color: #f58a31;
-          font-size: 10px;
-        }
-
-        .strip-note strong {
-          font-size: 8px;
-          letter-spacing: .7px;
-        }
-
-        /* SHARED SECTIONS */
-
-        .work-section,
-        .services-section {
-          padding: 65px 6%;
-        }
-
-        .section-heading {
+        .right-head {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-bottom: 28px;
+          gap: 16px;
         }
 
-        .section-kicker {
-          font-size: 8px;
-          font-weight: 900;
-          letter-spacing: 1.4px;
-          color: #e8752a;
+        .right-head h2 {
+          margin: 0;
+          font-size: clamp(20px, 3.4vh, 28px);
+          letter-spacing: -0.5px;
+          line-height: 1.1;
         }
 
-        .section-heading h2 {
-          font-size: clamp(34px, 4vw, 48px);
-          letter-spacing: -2px;
-          margin: 12px 0 0;
-          line-height: 1;
-        }
-
-        .section-heading h2 span {
-          color: #ed792c;
-        }
-
-        .section-heading > p {
-          max-width: 250px;
-          font-size: 10px;
-          line-height: 1.8;
+        .right-head p {
+          margin: 0;
+          font-size: 12px;
           color: #888;
-          margin: 0 0 3px;
         }
 
-        /* PROJECT GRID */
+        /* ===== პროექტები (3D ბანერები) ===== */
 
         .projects-grid {
+          min-height: 0;
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 13px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(0, 1fr));
+          gap: 10px;
         }
 
         .project-card {
-          min-width: 0;
-          cursor: default;
-          display: block; /* Added for Link compatibility */
-        }
-
-        .project-preview {
-          height: 210px;
-          border-radius: 9px;
-          overflow: hidden;
           position: relative;
-          padding: 14px;
+          min-width: 0;
+          min-height: 0;
+          overflow: hidden;
           display: flex;
           flex-direction: column;
-          justify-content: center;
-          transition: transform .3s;
+          justify-content: flex-end;
+          padding: 14px;
+          border-radius: 14px;
+          box-shadow: inset 0 1px 0 #ffffff2e;
+          transition:
+            transform 0.25s,
+            box-shadow 0.25s;
         }
 
-        .project-card:hover .project-preview {
-          transform: translateY(-4px);
+        .project-card.selected {
+          transform: translateY(-3px);
+          box-shadow:
+            inset 0 1px 0 #ffffff40,
+            0 14px 28px #0003;
         }
 
-        .preview-number {
+        .scene {
           position: absolute;
-          left: 13px;
-          top: 12px;
-          font-size: 8px;
-          opacity: .7;
+          top: 0;
+          right: 0;
+          width: 62%;
+          height: 80%;
+          perspective: 700px;
+          perspective-origin: 50% 35%;
+          pointer-events: none;
+          z-index: 0;
         }
 
-        .preview-symbol {
+        .floor {
           position: absolute;
-          right: 15px;
-          top: 20px;
-          font-size: 90px;
-          line-height: 1;
-          opacity: .18;
+          left: 50%;
+          top: 76%;
+          width: 78%;
+          height: 14%;
+          transform: translateX(-50%);
+          background: radial-gradient(ellipse, #00000073, transparent 70%);
+          filter: blur(4px);
         }
 
-        .preview-brand {
-          position: relative;
-          z-index: 2;
-          font-size: clamp(20px, 2.3vw, 29px);
-          font-weight: 900;
-          letter-spacing: -1px;
-        }
-
-        .preview-description {
-          position: relative;
-          z-index: 2;
-          font-size: 7px;
-          letter-spacing: 1px;
-          margin-top: 5px;
-        }
-
-        .preview-bottom {
+        .stage3d {
+          --k: 0.85;
           position: absolute;
-          bottom: 13px;
-          left: 14px;
-          right: 14px;
-          display: flex;
-          justify-content: space-between;
-          font-size: 7px;
-          letter-spacing: .8px;
+          left: 50%;
+          top: 48%;
+          width: 0;
+          height: 0;
+          transform-style: preserve-3d;
+          transform: scale(var(--k)) rotateX(-20deg) rotateY(-30deg);
+          animation: sway 9s ease-in-out infinite alternate;
         }
 
-        .preview-decoration {
+        .project-card:hover .stage3d {
+          animation-duration: 4.5s;
+        }
+
+        @keyframes sway {
+          from {
+            transform: scale(var(--k)) rotateX(-22deg) rotateY(-46deg);
+          }
+          to {
+            transform: scale(var(--k)) rotateX(-17deg) rotateY(-6deg);
+          }
+        }
+
+        /* --- ყუთის 3D ფორმა (EZO / LOGISTICS OS) --- */
+
+        .box {
           position: absolute;
-          width: 160px;
-          height: 160px;
-          border: 1px solid currentColor;
-          opacity: .22;
+          left: calc(var(--w) / -2);
+          top: calc(var(--h) / -2);
+          width: var(--w);
+          height: var(--h);
+          transform-style: preserve-3d;
+        }
+
+        .face {
+          position: absolute;
+          display: block;
+          background-color: var(--c);
+          box-shadow: inset 0 0 0 1px #ffffff40;
+        }
+
+        .face.front,
+        .face.back {
+          width: var(--w);
+          height: var(--h);
+          left: 0;
+          top: 0;
+        }
+
+        .face.front {
+          transform: translateZ(calc(var(--d) / 2));
+        }
+
+        .face.back {
+          transform: rotateY(180deg) translateZ(calc(var(--d) / 2));
+          filter: brightness(0.6);
+        }
+
+        .face.left,
+        .face.right {
+          width: var(--d);
+          height: var(--h);
+          left: calc(var(--w) / 2 - var(--d) / 2);
+          top: 0;
+        }
+
+        .face.right {
+          transform: rotateY(90deg) translateZ(calc(var(--w) / 2));
+          filter: brightness(0.72);
+        }
+
+        .face.left {
+          transform: rotateY(-90deg) translateZ(calc(var(--w) / 2));
+          filter: brightness(0.6);
+        }
+
+        .face.top,
+        .face.bottom {
+          width: var(--w);
+          height: var(--d);
+          left: 0;
+          top: calc(var(--h) / 2 - var(--d) / 2);
+        }
+
+        .face.top {
+          transform: rotateX(90deg) translateZ(calc(var(--h) / 2));
+          filter: brightness(1.2);
+        }
+
+        .face.bottom {
+          transform: rotateX(-90deg) translateZ(calc(var(--h) / 2));
+          filter: brightness(0.5);
+        }
+
+        /* შენობის ფანჯრები */
+        .box.win .face.front,
+        .box.win .face.back,
+        .box.win .face.left,
+        .box.win .face.right {
+          background-image: repeating-linear-gradient(
+              0deg,
+              transparent 0 9px,
+              #ffffff40 9px 11px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              transparent 0 11px,
+              #00000024 11px 13px
+            );
+        }
+
+        /* ყუთზე წებოვანი ლენტი */
+        .box.tape .face {
+          background-image: linear-gradient(
+            90deg,
+            transparent 40%,
+            #e8752ad9 40% 60%,
+            transparent 60%
+          );
+        }
+
+        /* --- LUNARA: მთვარე ბეჭდით --- */
+
+        .moon {
+          position: absolute;
+          left: -46px;
+          top: -46px;
+          width: 92px;
+          height: 92px;
           border-radius: 50%;
-          right: -65px;
-          bottom: -80px;
+          background:
+            radial-gradient(circle at 62% 66%, #00000033 0 7px, transparent 8px),
+            radial-gradient(circle at 36% 62%, #00000026 0 5px, transparent 6px),
+            radial-gradient(circle at 58% 34%, #0000001f 0 4px, transparent 5px),
+            radial-gradient(circle at 30% 28%, #fbeaff, #b47cff 42%, #4a2a8a 78%, #20103f);
+          box-shadow:
+            0 0 40px #b47cff99,
+            inset -8px -10px 22px #0000008c;
+          transform: translateZ(0);
+          animation: bob 5s ease-in-out infinite alternate;
         }
 
-        .project-info {
-          padding: 12px 2px;
+        .moon-ring {
+          position: absolute;
+          border-radius: 50%;
+          border-style: solid;
+          border-color: #e6c4ffcc;
+          transform-style: preserve-3d;
         }
 
-        .project-info > div:first-child > span {
-          color: #e8752a;
-          font-size: 7px;
-          font-weight: 800;
-          letter-spacing: .7px;
+        .ring-a {
+          left: -88px;
+          top: -88px;
+          width: 176px;
+          height: 176px;
+          border-width: 6px;
+          transform: rotateX(76deg) rotateY(-10deg);
+          box-shadow: 0 0 18px #c490ff88;
         }
 
-        .project-info h3 {
-          font-size: 19px;
-          letter-spacing: -.5px;
-          margin: 5px 0;
+        .ring-b {
+          left: -108px;
+          top: -108px;
+          width: 216px;
+          height: 216px;
+          border-width: 2px;
+          border-color: #ffffff77;
+          transform: rotateX(76deg) rotateY(-10deg);
         }
 
-        .project-info > p {
-          font-size: 9px;
-          color: #888;
-          line-height: 1.6;
-          min-height: 29px;
-          margin: 0;
+        .spark {
+          position: absolute;
+          color: #fff;
+          font-size: 16px;
+          text-shadow: 0 0 10px #d8b4ff;
         }
 
-        .project-tags {
+        .sp1 {
+          transform: translate3d(-78px, -64px, 50px);
+        }
+
+        .sp2 {
+          transform: translate3d(70px, 44px, -30px);
+          font-size: 12px;
+        }
+
+        .sp3 {
+          transform: translate3d(58px, -70px, 70px);
+          font-size: 20px;
+          color: #ffd08a;
+        }
+
+        @keyframes bob {
+          from {
+            transform: translateY(-5px);
+          }
+          to {
+            transform: translateY(5px);
+          }
+        }
+
+        /* --- VELORA: მინის ფირფიტები და მარგალიტი --- */
+
+        .tile {
+          position: absolute;
+          left: -52px;
+          top: -52px;
+          width: 104px;
+          height: 104px;
+          border-radius: 24px;
+          display: grid;
+          place-items: center;
+          font-size: 46px;
+          font-weight: 900;
+          box-shadow:
+            inset 0 0 0 1px #ffffff80,
+            inset 8px 8px 20px #ffffff4d,
+            0 10px 30px #5a1f1c55;
+        }
+
+        .t1 {
+          background: linear-gradient(145deg, #ffe9da, #f3b79b);
+          transform: translate3d(-34px, 14px, -60px) rotateZ(-10deg);
+          opacity: 0.8;
+        }
+
+        .t2 {
+          background: linear-gradient(145deg, #ffd1c2, #d98068);
+          transform: translate3d(-12px, 4px, -18px) rotateZ(-4deg);
+          opacity: 0.9;
+        }
+
+        .t3 {
+          background: linear-gradient(145deg, #fff7f0, #f6c9b0);
+          color: #8f594b;
+          transform: translate3d(10px, -6px, 28px) rotateZ(3deg);
+        }
+
+        .pearl {
+          position: absolute;
+          border-radius: 50%;
+          background: radial-gradient(circle at 32% 30%, #fff, #ffe3d4 45%, #d9967c 100%);
+          box-shadow:
+            0 8px 18px #5a1f1c66,
+            inset -4px -5px 10px #b8654c88;
+        }
+
+        .p1 {
+          left: -22px;
+          top: -22px;
+          width: 44px;
+          height: 44px;
+          transform: translate3d(56px, -44px, 76px);
+          animation: bob 4s ease-in-out infinite alternate;
+        }
+
+        .p2 {
+          left: -11px;
+          top: -11px;
+          width: 22px;
+          height: 22px;
+          transform: translate3d(-70px, 52px, 60px);
+          animation: bob 3.2s ease-in-out infinite alternate-reverse;
+        }
+
+        /* ===== ბარათის ტექსტი ===== */
+
+        .pc-num {
+          position: absolute;
+          top: 12px;
+          left: 14px;
+          font-size: 11px;
+          opacity: 0.75;
+          z-index: 2;
+        }
+
+        .pc-arrow {
+          position: absolute;
+          top: 10px;
+          right: 12px;
+          width: 28px;
+          height: 28px;
+          display: grid;
+          place-items: center;
+          border: 1px solid currentColor;
+          border-radius: 50%;
+          background: #ffffff14;
+          opacity: 0.9;
+          z-index: 2;
+        }
+
+        .pc-type {
+          position: relative;
+          z-index: 1;
+          font-size: 11px;
+          font-weight: 700;
+          opacity: 0.9;
+        }
+
+        .pc-name {
+          position: relative;
+          z-index: 1;
+          margin-top: 4px;
+          font-size: clamp(18px, 2.6vh, 25px);
+          font-weight: 900;
+          letter-spacing: -0.5px;
+          line-height: 1.05;
+        }
+
+        .pc-desc {
+          position: relative;
+          z-index: 1;
+          max-width: 70%;
+          margin-top: 6px;
+          font-size: 11px;
+          line-height: 1.45;
+          opacity: 0.85;
+        }
+
+        .pc-tags {
+          position: relative;
+          z-index: 1;
           display: flex;
           flex-wrap: wrap;
           gap: 4px;
-          margin-top: 10px;
+          margin-top: 8px;
         }
 
-        .project-tags span {
-          border: 1px solid #dedbd5;
+        .pc-tags i {
+          font-style: normal;
+          border: 1px solid currentColor;
           border-radius: 20px;
-          padding: 4px 7px;
-          font-size: 6px;
-          color: #777;
-          letter-spacing: .4px;
+          padding: 2px 8px;
+          font-size: 10px;
+          opacity: 0.8;
         }
 
-        /* ABOUT */
+        /* ===== სერვისები ===== */
 
-        .about-section {
-          margin: 7px;
-          border-radius: 10px;
-          background: #eceae5;
-          padding: 48px 6% 18px;
-        }
-
-        .about-section .about-title h2 {
-          font-size: clamp(48px, 7vw, 85px);
-          letter-spacing: -5px;
-          line-height: .85;
-          margin: 15px 0;
-        }
-
-        .about-title h2 span {
-          color: #e8752a;
-          margin-left: 15px;
-        }
-
-        .about-text {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 20px;
-          margin-top: -8px;
-        }
-
-        .about-symbol {
-          width: 65px;
-          height: 65px;
+        .services {
           display: grid;
-          place-items: center;
-          background: #f47716;
-          color: white;
-          border-radius: 50%;
-          font-size: 36px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          column-gap: 18px;
         }
 
-        .about-text > div:last-child {
-          max-width: 350px;
-        }
-
-        .about-text h3 {
-          font-size: 18px;
-          line-height: 1.2;
-          margin: 0 0 8px;
-        }
-
-        .about-text p {
-          font-size: 9px;
-          line-height: 1.7;
-          color: #777;
-          margin: 0;
-        }
-
-        .about-bottom {
-          border-top: 1px solid #d7d3cc;
-          padding-top: 12px;
-          margin-top: 28px;
-          display: flex;
-          justify-content: space-between;
-          font-size: 7px;
-          letter-spacing: 1px;
-          color: #888;
-          font-weight: 800;
-        }
-
-        /* SERVICES */
-
-        .services-section {
-          padding-top: 55px;
-          padding-bottom: 55px;
-        }
-
-        .services-list {
-          border-top: 1px solid #ddd9d2;
-        }
-
-        .service-row {
+        .service {
           display: grid;
-          grid-template-columns: 40px 1fr 1fr 20px;
-          align-items: center;
-          gap: 15px;
-          padding: 17px 5px;
-          border-bottom: 1px solid #ddd9d2;
+          grid-template-columns: auto 1fr;
+          column-gap: 10px;
+          align-items: baseline;
+          padding: 8px 0;
+          border-top: 1px solid #e4e0d9;
         }
 
         .service-number {
           color: #ed792c;
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 800;
         }
 
-        .service-row h3 {
-          font-size: 14px;
+        .service h3 {
           margin: 0;
+          font-size: 13px;
         }
 
-        .service-row p {
+        .service p {
+          grid-column: 2;
+          margin: 2px 0 0;
+          font-size: 11px;
           color: #888;
-          font-size: 9px;
-          margin: 0;
         }
 
-        .service-row svg {
-          width: 15px;
-        }
+        /* ===== კონტაქტი ===== */
 
-        /* CONTACT */
-
-        .contact-section {
+        .contact {
           position: relative;
-          margin: 7px;
-          border-radius: 10px;
-          padding: 45px 6% 20px;
           overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: clamp(12px, 2.2vh, 20px) 20px;
+          border-radius: 12px;
           background: linear-gradient(115deg, #a9360c, #f47b18);
-          color: white;
+          color: #fff;
         }
 
         .contact-decoration {
           position: absolute;
-          right: 8%;
-          top: -95px;
-          font-size: 300px;
-          color: #ffffff12;
+          right: 20%;
+          top: -60px;
+          font-size: 170px;
+          line-height: 1;
+          color: #ffffff14;
           pointer-events: none;
         }
 
-        .contact-section h2 {
+        .contact-text {
           position: relative;
-          font-size: clamp(55px, 8vw, 90px);
-          line-height: .82;
-          letter-spacing: -5px;
-          margin: 20px 0;
+          min-width: 0;
         }
 
-        .contact-section h2 span {
-          color: transparent;
-          -webkit-text-stroke: 1px white;
+        .contact h2 {
+          margin: 0;
+          font-size: clamp(20px, 3.4vh, 28px);
+          letter-spacing: -0.5px;
+          line-height: 1.1;
         }
 
-        .contact-section > p {
-          font-size: 10px;
-          color: #ffffffcc;
-          margin: 15px 0;
+        .contact p {
+          margin: 6px 0 0;
+          font-size: 12px;
+          color: #ffffffd9;
         }
 
         .contact-button {
           position: relative;
+          flex-shrink: 0;
           display: inline-flex;
           align-items: center;
-          gap: 20px;
-          padding: 13px 18px;
+          gap: 14px;
+          padding: 12px 16px;
           border-radius: 30px;
-          background: white;
+          background: #fff;
           color: #252525;
-          font-size: 8px;
-          font-weight: 900;
-          margin-top: 5px;
+          font-size: 12px;
+          font-weight: 800;
+          transition: 0.25s;
         }
 
-        .contact-button svg {
-          width: 15px;
+        .contact-button:hover {
+          background: #252525;
+          color: #fff;
         }
 
-        .contact-meta {
-          position: relative;
-          display: flex;
-          justify-content: space-between;
-          gap: 10px;
-          border-top: 1px solid #ffffff40;
-          padding-top: 13px;
-          margin-top: 40px;
-          font-size: 7px;
-          letter-spacing: .9px;
-          color: #ffffffbd;
-        }
+        /* ===== რესპონსივი ===== */
 
-        /* FOOTER */
-
-        .footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px 7%;
-          min-height: 60px;
-          background: #191919;
-          color: white;
-          font-size: 7px;
-          letter-spacing: .8px;
-        }
-
-        .footer-logo {
-          font-size: 24px;
-          font-weight: 900;
-        }
-
-        .footer-logo::first-letter {
-          color: #f47716;
-        }
-
-        .footer > span {
-          color: #999;
-        }
-
-        .footer > a:last-child {
-          color: #ccc;
-        }
-
-        /* RESPONSIVE */
-
-        @media(max-width: 900px) {
-          .hero {
-            min-height: 650px;
-          }
-
-          .hero-left h1 {
-            font-size: 100px;
-          }
-
-          .abstract-art {
-            left: 28%;
-            width: 40%;
-          }
-
-          .projects-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .project-preview {
-            height: 230px;
+        @media (max-width: 1180px) {
+          .pill {
+            display: none;
           }
         }
 
-        @media(max-width: 600px) {
-          .hero {
-            height: 790px;
-            min-height: 790px;
-            margin: 4px;
-            border-width: 4px;
+        @media (max-width: 1000px) {
+          .right-head p {
+            display: none;
           }
 
-          .white-bg {
-            top: 49%;
-            width: 100%;
-            height: 51%;
-            border-radius: 14px 14px 0 0;
+          .bottom {
+            max-width: 55%;
+          }
+        }
+
+        /* დაბალი ეკრანები (დესკტოპი) */
+        @media (min-width: 861px) and (max-height: 800px) {
+          .stage3d {
+            --k: 0.7;
+          }
+        }
+
+        @media (min-width: 861px) and (max-height: 760px) {
+          .mindset p,
+          .pc-desc,
+          .service p {
+            display: none;
+          }
+        }
+
+        @media (min-width: 861px) and (max-height: 700px) {
+          .stage3d {
+            --k: 0.58;
+          }
+        }
+
+        @media (min-width: 861px) and (max-height: 640px) {
+          .stats,
+          .pc-tags {
+            display: none;
+          }
+
+          .art {
+            width: min(22vh, 15vw);
+          }
+        }
+
+        /* პლანშეტი და ტელეფონი: ერთი სვეტი, სქროლის გარეშე */
+        @media (max-width: 860px) {
+          .stage {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: auto minmax(0, 1fr);
+            border-width: 3px;
+          }
+
+          .nav,
+          .pill,
+          .bottom,
+          .art,
+          .right-head p,
+          .pc-desc,
+          .pc-tags,
+          .service p,
+          .contact p,
+          .contact-decoration {
+            display: none;
           }
 
           .header {
-            height: 65px;
-            padding: 0 5%;
+            padding: 0 6%;
           }
 
-          .brand-label {
-            font-size: 7px;
+          .left {
+            padding: 58px 6% 16px;
           }
 
-          .desktop-nav {
-            display: none;
-          }
-
-          .hero-left {
-            top: 16%;
-            left: 6%;
-          }
-
-          .hero-left h1 {
-            font-size: clamp(76px, 19vw, 110px);
-            letter-spacing: -5px;
-          }
-
-          .eyebrow {
-            font-size: 7px;
+          .left h1 {
+            font-size: clamp(48px, min(17vw, 10vh), 96px);
           }
 
           .hero-description {
-            font-size: 11px;
-            margin-bottom: 17px;
+            font-size: 13px;
+            margin-bottom: 12px;
           }
 
-          .mini-trust {
-            display: none;
+          .main-button {
+            padding: 10px 16px;
           }
 
-          .abstract-art {
-            top: 52%;
-            left: 2%;
-            width: 57%;
-            height: 43%;
+          .right {
+            padding: 14px 5% 12px;
+            border-radius: 16px 16px 0 0;
+            gap: 8px;
           }
 
-          .art-circle {
-            width: 85%;
+          .right-head h2 {
+            font-size: 18px;
           }
 
-          .art-core {
-            font-size: 46px;
-          }
-
-          .art-star {
-            font-size: 35px;
-          }
-
-          .art-caption {
-            font-size: 6px;
-          }
-
-          .hero-right {
-            top: 54%;
-            right: 4%;
-            width: 38%;
-          }
-
-          .hero-right h2 {
-            font-size: 24px;
-          }
-
-          .hero-right > p {
-            font-size: 8px;
-            line-height: 1.5;
-          }
-
-          .featured-visual {
-            height: 78px;
-          }
-
-          .featured-visual > span {
-            font-size: 15px;
-          }
-
-          .featured-decoration {
-            font-size: 80px;
-          }
-
-          .featured-bottom strong {
-            font-size: 8px;
-          }
-
-          .featured-bottom small {
-            font-size: 5px;
-          }
-
-          .hero-footer {
-            display: none;
-          }
-
-          .quick-strip {
-            grid-template-columns: repeat(2, 1fr);
-            padding: 17px 6%;
-            gap: 18px 10px;
-          }
-
-          .quick-strip > div {
-            border: none;
-          }
-
-          .quick-strip strong {
-            font-size: 21px;
-          }
-
-          .quick-strip small {
-            font-size: 6px;
-          }
-
-          .work-section,
-          .services-section {
-            padding: 43px 5%;
-          }
-
-          .section-heading {
-            display: block;
-          }
-
-          .section-heading h2 {
-            font-size: 36px;
-          }
-
-          .section-heading > p {
-            margin-top: 15px;
-          }
-
-          .projects-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 22px 11px;
-          }
-
-          .project-preview {
-            height: 170px;
+          .project-card {
             padding: 10px;
           }
 
-          .preview-brand {
-            font-size: 20px;
+          .scene {
+            width: 60%;
+            height: 86%;
           }
 
-          .preview-symbol {
-            font-size: 65px;
+          .stage3d {
+            --k: 0.42;
           }
 
-          .project-info h3 {
+          .pc-name {
             font-size: 16px;
           }
 
-          .project-info > p {
-            font-size: 8px;
+          .pc-type {
+            font-size: 10px;
           }
 
-          .project-tags span {
-            font-size: 5px;
+          .pc-arrow {
+            width: 24px;
+            height: 24px;
           }
 
-          .about-section {
-            padding: 35px 5% 15px;
+          .services {
+            column-gap: 12px;
           }
 
-          .about-section .about-title h2 {
-            font-size: 52px;
-            letter-spacing: -4px;
+          .service {
+            padding: 5px 0;
           }
 
-          .about-title h2 span {
-            display: block;
-            margin: 7px 0 0;
-          }
-
-          .about-text {
-            justify-content: flex-start;
-            margin-top: 25px;
-            gap: 14px;
-          }
-
-          .about-symbol {
-            min-width: 48px;
-            width: 48px;
-            height: 48px;
-            font-size: 26px;
-          }
-
-          .about-text h3 {
-            font-size: 15px;
-          }
-
-          .about-bottom {
-            font-size: 6px;
-            gap: 10px;
-          }
-
-          .service-row {
-            grid-template-columns: 25px 1fr 18px;
-            gap: 10px;
-          }
-
-          .service-row h3 {
+          .service h3 {
             font-size: 12px;
           }
 
-          .service-row p {
+          .contact {
+            padding: 12px 14px;
+          }
+
+          .contact h2 {
+            font-size: 18px;
+          }
+
+          .contact-button {
+            padding: 10px 12px;
+            font-size: 11px;
+            gap: 8px;
+          }
+        }
+
+        @media (max-width: 860px) and (max-height: 640px) {
+          .eyebrow,
+          .hero-description {
             display: none;
           }
 
-          .contact-section {
-            padding: 35px 5% 18px;
-          }
-
-          .contact-section h2 {
-            font-size: 65px;
-            letter-spacing: -4px;
-          }
-
-          .contact-decoration {
-            font-size: 200px;
-            right: 0;
-          }
-
-          .contact-meta {
-            font-size: 5px;
-            letter-spacing: .3px;
-          }
-
-          .footer {
-            padding: 15px 5%;
-            font-size: 6px;
+          .left h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
           }
         }
 
-        @media(max-width: 360px) {
-          .hero {
-            height: 750px;
-            min-height: 750px;
-          }
-
-          .hero-right h2 {
-            font-size: 21px;
-          }
-
-          .project-preview {
-            height: 145px;
-          }
-
-          .about-section .about-title h2 {
-            font-size: 45px;
+        @media (max-width: 380px) {
+          .brand-label {
+            display: none;
           }
         }
 
-        @media(prefers-reduced-motion: reduce) {
-          :global(html) {
-            scroll-behavior: auto;
-          }
-
+        @media (prefers-reduced-motion: reduce) {
           *,
           *::before,
           *::after {
             transition: none !important;
+            animation: none !important;
           }
         }
-
       `}</style>
     </main>
   );
